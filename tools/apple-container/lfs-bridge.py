@@ -29,6 +29,53 @@ XCODE_TIMEOUT = 1800
 LOG_LINES = 200
 
 
+# Alchemy plans per LayerFS project: its Infisical folder and the child token
+# variable that becomes CLOUDFLARE_API_TOKEN. Test configuration for the
+# stage 6 proof; remove when the bridge reads a config file.
+ALCHEMY = {"infra-kit": ("/repos/personal/infra-kit", "CLOUDFLARE_R2_PLAN_API_TOKEN")}
+ALCHEMY_TIMEOUT = 900
+
+
+def export(path, target, exclude=()):
+    """Copies a Workspace out of lfs-vm into `target`; True when it worked."""
+    os.mkdir(target)
+    tar = ["container", "exec", "lfs-vm", "tar", "-C", path]
+    tar += [f"--exclude=./{name}" for name in exclude] + ["-cf", "-", "."]
+    out = subprocess.Popen(tar, stdout=subprocess.PIPE)
+    unpack = subprocess.run(["tar", "-xf", "-", "-C", target], stdin=out.stdout)
+    out.stdout.close()
+    return out.wait() == 0 and unpack.returncode == 0
+
+
+def alchemy_plan(path, example):
+    """`alchemy plan` of one example stack of a Workspace, on the Mac: macOS
+    dependencies through sfw, the child token through gondr. The token never
+    enters the VM. Returns (code, log tail)."""
+    project = re.match(r"^/var/lib/layerfs/sandboxes/layerfs-(.+)-[0-9]+/", path)
+    if not project or project.group(1) not in ALCHEMY:
+        return 1, "no Alchemy configuration for this Workspace's project\n"
+    folder, token = ALCHEMY[project.group(1)]
+    with tempfile.TemporaryDirectory(prefix="lfs-alchemy-") as work:
+        source = os.path.join(work, "source")
+        if not export(path, source, exclude=("node_modules",)):
+            return 1, f"copy of {path} out of lfs-vm failed\n"
+        stack = os.path.join(source, "examples", example)
+        if not os.path.isfile(os.path.join(stack, "alchemy.run.ts")):
+            return 1, f"no examples/{example}/alchemy.run.ts\n"
+        steps = [
+            (["sfw", "bun", "install", "--frozen-lockfile"], source),
+            (["gondr", "run", "--path", folder, "--", "sh", "-c",
+              f'CLOUDFLARE_API_TOKEN="${token}" exec ../../node_modules/.bin/alchemy plan'], stack),
+        ]
+        log = ""
+        for argv, cwd in steps:
+            run = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=ALCHEMY_TIMEOUT)
+            log += (run.stdout + run.stderr).replace(source, path)
+            if run.returncode:
+                break
+        return run.returncode, "\n".join(log.splitlines()[-LOG_LINES:]) + "\n"
+
+
 def xcode(path, scheme, action):
     """Copies a Workspace out of lfs-vm, runs xcodebuild on it for macOS,
     and removes the copy. Returns (code, log tail)."""
@@ -105,6 +152,10 @@ def allowed(argv):
             scheme
         ):
             return None
+        case ["alchemy-plan", path, example] if WORKSPACE_PATH.match(path) and re.match(
+            r"^[a-z0-9-]+$", example
+        ):
+            return None
         case ["mem", ("view" | "topics" | "topic" | "find" | "zoom" | "date"), *rest] if mem_args(rest):
             return None
     return "not an allowed command shape"
@@ -137,6 +188,12 @@ class Bridge(BaseHTTPRequestHandler):
         self.log_message("%s %s", "ALLOW" if reason is None else "DENY", json.dumps(argv[:3]))
         if reason is not None:
             return self.answer(403, {"error": reason})
+        if argv[0] == "alchemy-plan":
+            try:
+                code, log = alchemy_plan(*argv[1:])
+            except subprocess.TimeoutExpired:
+                return self.answer(504, {"error": f"alchemy plan timed out after {ALCHEMY_TIMEOUT}s"})
+            return self.answer(200, {"code": code, "stdout": log, "stderr": ""})
         if argv[0] == "xcode":
             try:
                 code, log = xcode(*argv[1:])
