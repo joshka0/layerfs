@@ -62,10 +62,26 @@ services() {
   docker compose -f /opt/layerfs/tools/services.compose.yml up -d --quiet-pull
 }
 
+# At `container stop`. Docker's cgroups are threaded, and the kernel cannot
+# kill a threaded cgroup: the stop fails with errno 95 while they exist. A
+# clean dockerd exit also shuts the services down cleanly.
+shutdown() {
+  if pgrep -x dockerd >/dev/null; then
+    pkill -TERM -x dockerd
+    for _ in $(seq 40); do pgrep -x dockerd >/dev/null || break; sleep 1; done
+  fi
+  [ -d /sys/fs/cgroup/docker ] && find /sys/fs/cgroup/docker -depth -type d -exec rmdir {} \;
+  exit 0
+}
+
 case "${1:-}" in
   apply) apply ;;
   # The Mac gets space back from the disk images only after a trim: deleted
   # files (a discarded Workspace's Overlay) stay allocated until then.
-  run) apply; while :; do sleep 3600; fstrim -a >/dev/null 2>&1 || true; done ;;
+  # The sleep runs in the background, so the TERM trap runs at once.
+  run)
+    trap shutdown TERM
+    apply
+    while :; do sleep 3600 & wait $!; fstrim -a >/dev/null 2>&1 || true; done ;;
   *) echo "usage: $0 apply|run" >&2; exit 2 ;;
 esac
