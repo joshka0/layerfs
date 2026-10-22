@@ -16,6 +16,7 @@ import os
 import re
 import subprocess
 import sys
+import tempfile
 from http.server import BaseHTTPRequestHandler, ThreadingHTTPServer
 
 PANE = re.compile(r"^w[A-Za-z0-9]+:p[0-9]+$")
@@ -23,6 +24,34 @@ WORKSPACE = re.compile(r"^w[A-Za-z0-9]+$")
 WORD = re.compile(r"^[A-Za-z0-9][A-Za-z0-9 _.:+@/-]{0,200}$")
 REPOS = os.path.expanduser("~/repos") + "/"
 TIMEOUT = 120
+WORKSPACE_PATH = re.compile(r"^/var/lib/layerfs/sandboxes/[A-Za-z0-9._-]+/workspaces/[0-9]+$")
+XCODE_TIMEOUT = 1800
+LOG_LINES = 200
+
+
+def xcode(path, scheme, action):
+    """Copies a Workspace out of lfs-vm, runs xcodebuild on it for macOS,
+    and removes the copy. Returns (code, log tail)."""
+    with tempfile.TemporaryDirectory(prefix="lfs-xcode-") as work:
+        source = os.path.join(work, "source")
+        os.mkdir(source)
+        export = subprocess.Popen(
+            ["container", "exec", "lfs-vm", "tar", "-C", path, "-cf", "-", "."],
+            stdout=subprocess.PIPE,
+        )
+        unpack = subprocess.run(["tar", "-xf", "-", "-C", source], stdin=export.stdout)
+        export.stdout.close()
+        if export.wait() or unpack.returncode:
+            return 1, f"copy of {path} out of lfs-vm failed"
+        run = subprocess.run(
+            ["xcodebuild", "-scheme", scheme, "-destination", "platform=macOS",
+             "-derivedDataPath", os.path.join(work, "derived"), action],
+            cwd=source, capture_output=True, text=True, timeout=XCODE_TIMEOUT,
+        )
+        # error locations name the Workspace path in the VM, not this copy
+        log = (run.stdout + run.stderr).replace(source, path)
+        tail = log.splitlines()[-LOG_LINES:]
+        return run.returncode, "\n".join(tail) + "\n"
 
 
 def pairs(rest, flags):
@@ -72,6 +101,10 @@ def allowed(argv):
             if text.startswith("[agent ") and len(text) <= 4000 and "\x1b" not in text:
                 return None
             return "a pane message must start with '[agent <label>]' and hold no escape codes"
+        case ["xcode", path, scheme, ("build" | "test")] if WORKSPACE_PATH.match(path) and WORD.match(
+            scheme
+        ):
+            return None
         case ["mem", ("view" | "topics" | "topic" | "find" | "zoom" | "date"), *rest] if mem_args(rest):
             return None
     return "not an allowed command shape"
@@ -104,6 +137,12 @@ class Bridge(BaseHTTPRequestHandler):
         self.log_message("%s %s", "ALLOW" if reason is None else "DENY", json.dumps(argv[:3]))
         if reason is not None:
             return self.answer(403, {"error": reason})
+        if argv[0] == "xcode":
+            try:
+                code, log = xcode(*argv[1:])
+            except subprocess.TimeoutExpired:
+                return self.answer(504, {"error": f"xcodebuild timed out after {XCODE_TIMEOUT}s"})
+            return self.answer(200, {"code": code, "stdout": log, "stderr": ""})
         cwd = self.mem_folder if argv[0] == "mem" else None
         try:
             run = subprocess.run(argv, cwd=cwd, capture_output=True, text=True, timeout=TIMEOUT)
