@@ -20,6 +20,7 @@
 # rule and starts sshd at each container start.
 #
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
+# rsync and zstd let memoryd on the Mac pull agent transcripts over SSH.
 #
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
 # (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
@@ -97,7 +98,7 @@ if [ "$(as_agent claude --version 2>/dev/null | awk '{print $1}')" != "$CLAUDE_V
 fi
 echo "claude: $(as_agent claude --version)"
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd >/dev/null
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
