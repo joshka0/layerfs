@@ -1,46 +1,40 @@
 //! Ordinary Sandbox startup, original deployment inputs and failure custody.
+pub(crate) use super::create_types::Engine;
+pub use super::create_types::{
+    Deployment, ManagedSandbox, SandboxApi, SandboxCause, SandboxCreate, SandboxFailure,
+    SandboxPhase,
+};
 use crate::{internal::Control, OperationFailure};
 use layerfs_bridge::{
     control::{ControlError, DaemonPhase, DaemonStatus, HelloRequest, Reply, Request},
-    daemon_setup::DaemonSetup,
-    duplex::{initiate_observed, public_key, ChannelError, ChannelWork},
+    duplex::{initiate_observed, public_key, ChannelWork},
 };
-use layerfs_sandbox::backend::docker::{
-    Docker, ListenerFailure, Sandbox, SandboxCreateFailure, SandboxRequest, UploadFailure,
-};
-use std::{fmt, fs::File, io, net::TcpStream, path::PathBuf, time::Duration};
-/// One actual stopped-container deployment, private archive and authenticated startup.
-#[derive(Clone)]
-pub struct SandboxCreate {
-    /// Exact immutable image and borrowed shared named volume.
-    pub deployment: SandboxRequest,
-    /// Explicit private daemon resources and Disposable install/open selection.
-    pub setup: DaemonSetup,
-    /// Sealed Linux executable supplied by the caller; streamed once, never read as Store data.
-    pub executable: PathBuf,
-    /// Controller Noise secret; redacted from Debug and never sent in env/argv.
-    pub controller_private: [u8; 32],
-    /// Expected actual daemon identity, checked against private deployment config.
-    pub daemon_peer: [u8; 32],
-    /// Explicit listener event wait; does not apply to ordinary commands.
-    pub startup_wait: Duration,
-    /// Host to dial for the daemon's loopback-published port, when this
-    /// process does not share the Docker host's loopback (a client in a
-    /// container: `host.docker.internal`). `None` dials the observed
-    /// 127.0.0.1 endpoint. The publish and its check are unchanged.
-    pub connect_host: Option<String>,
-}
-impl fmt::Debug for SandboxCreate {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SandboxCreate")
-            .field("deployment", &self.deployment)
-            .field("setup", &self.setup)
-            .field("executable", &self.executable)
-            .field("controller_private", &"[redacted]")
-            .field("daemon_peer", &self.daemon_peer)
-            .field("startup_wait", &self.startup_wait)
-            .field("connect_host", &self.connect_host)
-            .finish()
+use layerfs_sandbox::backend::{docker::Docker, Failure, Runtime};
+use std::{fs::File, io, net::TcpStream};
+/// The fixed paths each runtime's daemon must use. A container mounts the
+/// shared volume at `/layerfs-store` and keeps its own `/layerfs-local`; a
+/// process daemon on a host shared with other daemons keeps its Overlay and
+/// mount home in its own Sandbox directory and listens on loopback.
+fn topology(engine: &Engine, request: &SandboxCreate) -> bool {
+    let setup = &request.setup;
+    match (engine, &request.deployment) {
+        (Engine::Docker(_), Deployment::Docker(deployment)) => {
+            setup.listen == format!("0.0.0.0:{}", deployment.port)
+                && setup.store == "/layerfs-store/global/store.sqlite"
+                && setup.overlay == "/layerfs-local/overlay/overlay.sqlite"
+                && setup.mounts == "/workspaces"
+        }
+        #[cfg(target_os = "linux")]
+        (Engine::Process, Deployment::Process(layout)) => {
+            let store = std::path::Path::new(&setup.store);
+            setup.listen == "127.0.0.1:0"
+                && store.is_absolute()
+                && !store.starts_with(&layout.directory)
+                && layout.directory.is_absolute()
+                && setup.overlay == layout.overlay().to_string_lossy()
+                && setup.mounts == layout.mounts().to_string_lossy()
+        }
+        _ => false,
     }
 }
 /// The address to dial for a daemon `endpoint` observed on the Docker host's
@@ -62,122 +56,19 @@ pub fn connect_address(
             )
         })
 }
-/// Concrete boundary reached by one original lifecycle operation.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub enum SandboxPhase {
-    /// Local validation, no container effect.
-    Validate,
-    /// Caller executable open/metadata.
-    Executable,
-    /// Volume observation and original Create.
-    Create,
-    /// Original stopped-container archive extraction.
-    Upload,
-    /// Original container Start.
-    Start,
-    /// Actual original stdout listener event wait.
-    Listener,
-    /// Exact container endpoint observation.
-    Endpoint,
-    /// One TCP connection attempt.
-    Connect,
-    /// One expected-peer duplex authentication.
-    Authenticate,
-    /// Clears only explicit handshake waits after authentication; owner remains retained on failure.
-    Policy,
-    /// One correlated Hello through the retained Control owner.
-    Hello,
-    /// One original sealed Project installation.
-    Install,
-    /// One explicit whole-Sandbox stop attempt.
-    Stop,
-    /// One delete attempt after acknowledged stop.
-    Delete,
-}
-/// Exact original failure, independent of owned resource disposition.
-#[derive(Debug)]
-pub enum SandboxCause {
-    /// Local filesystem/socket error.
-    Io(io::Error),
-    /// Local config or correlated startup validation.
-    Setup(ControlError),
-    /// Actual original runtime Create including partial decoded ID.
-    Create(Box<SandboxCreateFailure>),
-    /// Actual incremental archive extraction failure and work.
-    Upload(Box<UploadFailure>),
-    /// Original listener wait/progress/fence failure.
-    Listener(Box<ListenerFailure>),
-    /// Original Engine transfer, no replay.
-    Runtime(Box<layerfs_sandbox::WireFailure>),
-    /// Original authentication failure; handshake work remains in the receipt.
-    Channel(ChannelError),
-    /// Original correlated daemon control exchange/refusal.
-    Control(Box<OperationFailure>),
-    /// Original streaming installation failure and exact publication knowledge.
-    Install(Box<crate::InstallFailure>),
-}
-/// Caller retains exact acknowledged owner, connection and original deployment inputs.
-pub struct SandboxFailure {
-    /// Original inputs with secrets retained privately.
-    pub request: SandboxCreate,
-    /// Original reached boundary.
-    pub phase: SandboxPhase,
-    /// Exact acknowledged owned container; no automatically adopted partial ID.
-    pub sandbox: Option<Sandbox>,
-    /// Original authenticated control owner, if established.
-    pub control: Option<Control>,
-    /// Actual original handshake work, including failure.
-    pub handshake: ChannelWork,
-    /// Original correlated Hello, even if its phase failed selection validation.
-    pub observed: Option<DaemonStatus>,
-    /// Installation acknowledgement, retained if the following Ready observation fails.
-    pub installed: Option<crate::Installed>,
-    /// Exact original cause.
-    pub cause: SandboxCause,
-}
-impl fmt::Debug for SandboxFailure {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        f.debug_struct("SandboxFailure")
-            .field("request", &self.request)
-            .field("phase", &self.phase)
-            .field("sandbox", &self.sandbox)
-            .field("has_control", &self.control.is_some())
-            .field("handshake", &self.handshake)
-            .field("observed", &self.observed)
-            .field("cause", &self.cause)
-            .finish()
-    }
-}
-impl fmt::Display for SandboxFailure {
-    fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
-        write!(f, "Sandbox {:?}: {:?}", self.phase, self.cause)
-    }
-}
-impl std::error::Error for SandboxFailure {}
-/// Actual local Engine and authenticated daemon lifecycle organization.
-#[derive(Clone, Debug)]
-pub struct SandboxApi {
-    pub(crate) docker: Docker,
-}
-/// Exact acknowledged container and authenticated control owner.
-pub struct ManagedSandbox {
-    /// Owned runtime container; explicit stop/delete only.
-    pub runtime: Sandbox,
-    /// Existing sequential control owner; correlation and failed state are never reset.
-    pub(crate) control: Control,
-    /// Original acknowledged installation, when this create installed the Project.
-    pub installed: Option<crate::Installed>,
-    pub(crate) request: SandboxCreate,
-    /// Original correlated startup status; this is not kernel Workspace Ready.
-    pub startup: DaemonStatus,
-    /// Actual original duplex handshake work.
-    pub handshake: ChannelWork,
-    pub(crate) command_identity: layerfs_sandbox::CommandIdentity,
-}
 impl SandboxApi {
     /// Uses one explicit local Engine endpoint and metadata wait policy.
     pub fn new(docker: Docker) -> Self {
-        Self { docker }
+        Self {
+            engine: Engine::Docker(docker),
+        }
+    }
+    /// Starts each Sandbox as a daemon child process on this Linux host.
+    #[cfg(target_os = "linux")]
+    pub fn process() -> Self {
+        Self {
+            engine: Engine::Process,
+        }
     }
     /// Creates, privately configures, starts and authenticates once, preserving partial ownership on failure.
     pub fn create(
@@ -211,7 +102,7 @@ impl SandboxApi {
                 }));
             }
         }
-        let mut owner = create(&self.docker, request)?;
+        let mut owner = create(&self.engine, request)?;
         if existing {
             // The original startup already selected and waited for this Store.
             // Installing again would change the existing one-attempt lifecycle.
@@ -302,7 +193,7 @@ pub(super) fn hello(
     }
 }
 pub(crate) fn create(
-    docker: &Docker,
+    engine: &Engine,
     request: SandboxCreate,
 ) -> Result<ManagedSandbox, Box<SandboxFailure>> {
     let mut phase = SandboxPhase::Validate;
@@ -312,10 +203,7 @@ pub(crate) fn create(
     let mut observed = None;
     let result = (|| {
         let config = request.setup.encode().map_err(SandboxCause::Setup)?;
-        if request.setup.listen != format!("0.0.0.0:{}", request.deployment.port)
-            || request.setup.store != "/layerfs-store/global/store.sqlite"
-            || request.setup.overlay != "/layerfs-local/overlay/overlay.sqlite"
-            || request.setup.mounts != "/workspaces"
+        if !topology(engine, &request)
             || request.startup_wait.is_zero()
             || public_key(&request.controller_private).map_err(SandboxCause::Channel)?
                 != request.setup.control_peer
@@ -328,28 +216,67 @@ pub(crate) fn create(
         }
         phase = SandboxPhase::Executable;
         let mut file = File::open(&request.executable).map_err(SandboxCause::Io)?;
-        phase = SandboxPhase::Create;
-        sandbox = Some(
-            docker
-                .create_sandbox(request.deployment.clone())
-                .map_err(SandboxCause::Create)?,
-        );
-        let owner = sandbox.as_mut().expect("acknowledged container");
-        phase = SandboxPhase::Upload;
-        owner
-            .upload(&mut file, &config)
-            .map_err(SandboxCause::Upload)?;
-        phase = SandboxPhase::Start;
-        owner.start().map_err(SandboxCause::Runtime)?;
-        phase = SandboxPhase::Listener;
-        owner
-            .wait_listener(request.startup_wait)
-            .map_err(SandboxCause::Listener)?;
-        phase = SandboxPhase::Endpoint;
-        let endpoint = owner.endpoint().map_err(SandboxCause::Runtime)?;
+        let address = match (engine, &request.deployment) {
+            (Engine::Docker(docker), Deployment::Docker(deployment)) => {
+                phase = SandboxPhase::Create;
+                let created = docker
+                    .create_sandbox(deployment.clone())
+                    .map_err(SandboxCause::Create)?;
+                let owner = sandbox.insert(Runtime::Docker(created));
+                let Runtime::Docker(owner) = owner else {
+                    unreachable!("just made")
+                };
+                phase = SandboxPhase::Upload;
+                owner
+                    .upload(&mut file, &config)
+                    .map_err(SandboxCause::Upload)?;
+                phase = SandboxPhase::Start;
+                owner
+                    .start()
+                    .map_err(|f| SandboxCause::Runtime(Failure::Docker(f)))?;
+                phase = SandboxPhase::Listener;
+                owner
+                    .wait_listener(request.startup_wait)
+                    .map_err(SandboxCause::Listener)?;
+                phase = SandboxPhase::Endpoint;
+                let endpoint = owner
+                    .endpoint()
+                    .map_err(|f| SandboxCause::Runtime(Failure::Docker(f)))?;
+                connect_address(endpoint, request.connect_host.as_deref())
+                    .map_err(SandboxCause::Io)?
+            }
+            #[cfg(target_os = "linux")]
+            (Engine::Process, Deployment::Process(layout)) => {
+                use layerfs_sandbox::backend::process;
+                drop(file);
+                phase = SandboxPhase::Start;
+                let started = process::Sandbox::start(
+                    &request.executable,
+                    &config,
+                    layout.clone(),
+                    request.startup_wait,
+                );
+                let owner = match started {
+                    Ok(owner) => sandbox.insert(Runtime::Process(owner)),
+                    Err(failure) => {
+                        let failure = *failure;
+                        if failure.phase == process::StartPhase::Listener {
+                            phase = SandboxPhase::Listener;
+                        }
+                        sandbox = failure.sandbox.map(Runtime::Process);
+                        return Err(SandboxCause::Process(failure.phase, failure.cause));
+                    }
+                };
+                phase = SandboxPhase::Endpoint;
+                owner.endpoint().map_err(SandboxCause::Runtime)?
+            }
+            _ => {
+                return Err(SandboxCause::Setup(ControlError(
+                    "deployment of another runtime",
+                )))
+            }
+        };
         phase = SandboxPhase::Connect;
-        let address =
-            connect_address(endpoint, request.connect_host.as_deref()).map_err(SandboxCause::Io)?;
         let stream =
             TcpStream::connect_timeout(&address, request.startup_wait).map_err(SandboxCause::Io)?;
         stream

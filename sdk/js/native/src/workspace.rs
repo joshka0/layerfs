@@ -81,8 +81,14 @@ pub(crate) fn mount(args: &SdkValue) -> Outcome {
     if let SdkValue::Map(fields) = &mut value {
         fields.push(("sandbox".to_owned(), SdkValue::text(state.id.as_str())));
         fields.push(("container".to_owned(), SdkValue::text(state.name.as_str())));
-        let image = state.runtime.request().image.as_str();
-        fields.push(("image".to_owned(), SdkValue::text(image)));
+        let image = match &state.runtime {
+            layerfs_sandbox::backend::Runtime::Docker(sandbox) => {
+                Some(sandbox.request().image.clone())
+            }
+            #[cfg(target_os = "linux")]
+            layerfs_sandbox::backend::Runtime::Process(_) => None,
+        };
+        fields.push(("image".to_owned(), SdkValue::opt_text(image)));
     }
     crate::discovery::save_workspace(&state, &mounted, branch)?;
     lock(&state.mounts)?.insert(
@@ -123,18 +129,14 @@ pub(crate) fn list(args: &SdkValue) -> Outcome {
         let cached = lock(&crate::registry::SANDBOXES)?.get(&directory).cloned();
         let observed = match cached {
             Some(state) => state.runtime.endpoint().map(drop),
-            None => {
-                let (docker, selector, request) = crate::discovery::runtime(&value)?;
-                layerfs_sandbox::backend::docker::Sandbox::reopen(docker, selector, request)
-                    .map(drop)
-            }
+            None => crate::discovery::runtime(&value)?.reopen().map(drop),
         };
         match observed {
             Ok(()) => items.push(item),
-            Err(failure) if failure.container_gone() || failure.container_stopped() => {
+            Err(failure) if failure.gone() || failure.stopped() => {
                 let _placing = crate::discovery::guard(&crate::discovery::project_dir(args)?)?;
                 let container = text(&value, "container")?;
-                match crate::sandbox::reclaim(args, &id, container, failure.container_stopped()) {
+                match crate::sandbox::reclaim(args, &id, container, failure.stopped()) {
                     Ok(_) => {}
                     // started again under the number meanwhile
                     Err(refusal) if refusal.code == "Busy" => items.push(item),

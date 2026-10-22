@@ -35,7 +35,14 @@ fn hello(control: &mut internal::Control, wait_for_store: bool) -> Result<Daemon
 /// Runs `script` as the ordinary command identity 501:20 in `directory`.
 fn ordinary(directory: &str, script: &str) -> Result<String, Box<dyn Error>> {
     let output = Command::new("setpriv")
-        .args(["--reuid=501", "--regid=20", "--clear-groups", "bash", "-c", script])
+        .args([
+            "--reuid=501",
+            "--regid=20",
+            "--clear-groups",
+            "bash",
+            "-c",
+            script,
+        ])
         .current_dir(directory)
         .output()?;
     if !output.status.success() {
@@ -87,7 +94,11 @@ fn main() -> Result<(), Box<dyn Error>> {
     println!("INIT root={:?}", project.initialized.root);
 
     // Private daemon resources, as the Docker upload lays them out.
-    for path in ["/layerfs-local", "/layerfs-local/config", "/layerfs-local/overlay"] {
+    for path in [
+        "/layerfs-local",
+        "/layerfs-local/config",
+        "/layerfs-local/overlay",
+    ] {
         fs::DirBuilder::new().mode(0o700).create(path)?;
     }
     fs::DirBuilder::new()
@@ -150,7 +161,10 @@ fn main() -> Result<(), Box<dyn Error>> {
         let installed = internal::install_project(&mut control, &project)
             .map_err(|f| format!("install {f:?}"))?;
         assert_eq!(hello(&mut control, true)?, DaemonPhase::ControlReady);
-        println!("INSTALLED daemon_sqlite={:?}", installed.manifest.daemon_sqlite);
+        println!(
+            "INSTALLED daemon_sqlite={:?}",
+            installed.manifest.daemon_sqlite
+        );
 
         let mounted = internal::workspace(&mut control)
             .mount(WorkspaceId::from_authority([71; 32])?, branch)

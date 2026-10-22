@@ -5,6 +5,8 @@ mod commit;
 #[cfg(unix)]
 pub(crate) mod create;
 #[cfg(unix)]
+mod create_types;
+#[cfg(unix)]
 pub(crate) mod exec;
 mod mount;
 mod status;
@@ -12,9 +14,13 @@ mod unmount;
 pub mod values;
 pub use commit::CommitReply;
 #[cfg(unix)]
-pub use create::{connect_address, SandboxCause, SandboxCreate, SandboxFailure, SandboxPhase};
+pub use create::{
+    connect_address, Deployment, SandboxCause, SandboxCreate, SandboxFailure, SandboxPhase,
+};
 #[cfg(unix)]
 pub use create::{ManagedSandbox, SandboxApi};
+#[cfg(unix)]
+pub use exec::RunFailure;
 pub use mount::BoundWorkspace;
 pub use mount::WorkspaceApi;
 pub use mount::{MountFailure, MountedWorkspace};

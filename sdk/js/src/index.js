@@ -35,7 +35,9 @@ export class LayerFS {
    * settings read LAYERFS_HOME, _DOCKER, _IMAGE, _VOLUME and _DAEMON, each
    * else its DSH_LAYERFS_ twin; a Sandbox this client starts runs _IMAGE
    * on _VOLUME. LAYERFS_CONTAINER_PREFIX (default `layerfs-`) names every
-   * container it starts `<prefix><project>-<n>`.
+   * container it starts `<prefix><project>-<n>`. `options.runtime` (else
+   * LAYERFS_RUNTIME) is `docker` by default; `process` runs each Sandbox's
+   * daemon as a process on this Linux host and needs only _DAEMON.
    * `options.daemonHost` (else LAYERFS_DAEMON_HOST) is the host this process
    * dials for a daemon's port, published on the Docker host's 127.0.0.1 only;
    * set it when the client runs in a container (`host.docker.internal` on
@@ -59,6 +61,7 @@ export class LayerFS {
       trace: options.trace ?? env("TRACE"),
       traceStep: options.traceStep,
       deploy: {
+        runtime: options.runtime ?? env("RUNTIME"),
         docker: env("DOCKER"),
         image: env("IMAGE"),
         volume: env("VOLUME"),

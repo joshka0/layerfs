@@ -108,7 +108,7 @@ pub fn control(sandbox: &mut crate::ManagedSandbox) -> &mut Control {
 pub fn split(
     sandbox: crate::ManagedSandbox,
 ) -> (
-    layerfs_sandbox::backend::docker::Sandbox,
+    layerfs_sandbox::backend::Runtime,
     Control,
     layerfs_sandbox::CommandIdentity,
 ) {
@@ -120,7 +120,7 @@ pub fn start(
     api: &crate::SandboxApi,
     request: crate::SandboxCreate,
 ) -> Result<crate::ManagedSandbox, Box<crate::SandboxFailure>> {
-    crate::sandbox::create::create(&api.docker, request)
+    crate::sandbox::create::create(&api.engine, request)
 }
 /// Existing bounded startup observation for control-channel qualification.
 #[cfg(unix)]
@@ -135,11 +135,33 @@ pub fn sandbox_status(
 #[cfg(unix)]
 pub fn parts(
     sandbox: &mut crate::ManagedSandbox,
-) -> (&layerfs_sandbox::backend::docker::Sandbox, &mut Control) {
+) -> (&layerfs_sandbox::backend::Runtime, &mut Control) {
     (&sandbox.runtime, &mut sandbox.control)
 }
 
-/// The same ordinary launcher for external host commands and disjoint concurrent proof borrows.
+/// One ordinary command to its end on either runtime: exit code, with
+/// stdout and stderr copied. Sends no daemon request.
+#[cfg(unix)]
+pub fn run(
+    runtime: &layerfs_sandbox::backend::Runtime,
+    identity: layerfs_sandbox::CommandIdentity,
+    arguments: Vec<String>,
+    environment: Vec<String>,
+    directory: String,
+    stdout: &mut (impl std::io::Write + Send),
+    stderr: &mut (impl std::io::Write + Send),
+) -> Result<i32, crate::sandbox::exec::RunFailure> {
+    crate::sandbox::exec::run(
+        runtime,
+        identity,
+        arguments,
+        environment,
+        directory,
+        stdout,
+        stderr,
+    )
+}
+/// The Docker streaming launcher (stdin, start, inspect) for proofs that hold a command open.
 #[cfg(unix)]
 pub fn exec(
     sandbox: &layerfs_sandbox::backend::docker::Sandbox,

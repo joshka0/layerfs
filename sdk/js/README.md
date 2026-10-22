@@ -60,6 +60,7 @@ Keep each agent's operations on a Workspace sequential.
 | Environment | Meaning |
 | --- | --- |
 | `LAYERFS_HOME` | Absolute private directory for sealed provisioning and discovery. Created as 0700; existing directories must be owned by the current effective user with no group/other access. Records are 0600, not symlinks. |
+| `LAYERFS_RUNTIME` | Where a Sandbox runs; the client option `runtime` wins. `docker` (the default) starts a container on the Engine and needs `LAYERFS_DOCKER`, `LAYERFS_IMAGE`, `LAYERFS_VOLUME` and `LAYERFS_DAEMON`. `process` starts the daemon as a child process on this Linux host and needs only `LAYERFS_DAEMON`; see [Process runtime](#process-runtime). `project.init` records where daemons open the Store, so a project keeps the runtime it was initialized with. |
 | `LAYERFS_DOCKER` | Local Engine Unix socket; `/var/run/docker.sock` is the default. |
 | `LAYERFS_IMAGE` | Exact immutable runtime `sha256:...` digest a new Sandbox runs. A running Sandbox keeps the image it started with. |
 | `LAYERFS_VOLUME` | Existing named local VM volume shared by the project's daemons. |
@@ -229,6 +230,34 @@ or `fs.diff_files`. Resolve on working forks of both inputs. A Workspace conflic
 keeps its markers in that Workspace; inspect them through ordinary bounded
 `exec` commands and Commit each command. An omitted diagnostic is not a clean
 merge, and a failed/unknown operation must be inspected before a new operation.
+
+## Process runtime
+
+With `LAYERFS_RUNTIME=process`, a Sandbox is a `layerfs-daemon` process on
+the same Linux host as the client, with no container engine. Use it where one
+Linux machine holds the whole project, for example one Apple `container` VM
+on macOS.
+
+- The host must give the client root, `/dev/fuse` and `CAP_SYS_ADMIN`, and
+  have `setpriv` (util-linux) and `bash`. The client starts each daemon as
+  root.
+- `project.init` records `LAYERFS_STORE_PATH` as the Store's locator, and
+  each daemon opens that file. The Store directory (`global/`) is made by
+  Init with mode 0700; do not make it yourself.
+- Each Sandbox has its own directory,
+  `/var/lib/layerfs/sandboxes/<prefix><project>-<n>/`, with its config, its
+  Overlay, its log (`daemon.log`) and its mount home (`workspaces/`).
+  `workspace.mount` returns a `path` under that mount home. The path is a
+  real directory on this host.
+- `workspace.exec` runs `setpriv --reuid=501 --regid=20 --clear-groups
+  --no-new-privs --inh-caps=-all bash -c <command>`. Commands share the
+  host's mount, process and network namespaces, and get no seccomp profile.
+  A container runtime gives each Sandbox its own namespaces; this runtime
+  does not.
+- The Sandbox record keeps the daemon's pid and kernel start time. A reopen
+  checks both, so a reused pid is never taken for the daemon. A daemon that
+  ended (idle close, crash) is found stopped. The next mount or listing then
+  removes its directory and reclaims its number.
 
 ## Internal operator
 

@@ -64,12 +64,21 @@ pub(crate) fn init(args: &SdkValue) -> Outcome {
     })
     .map_err(failed)?;
     let _guard = crate::discovery::guard(&directory)?;
+    // where the project's daemons open the Store: the shared volume's mount
+    // point in a container, or this very file for a daemon process
+    let locator = match args
+        .get("deploy")
+        .and_then(|deploy| deploy.get_text("runtime"))
+    {
+        Some("process") => store_path.display().to_string(),
+        _ => LOCATOR.to_owned(),
+    };
     let history = |text: &str| HistoryName::new(text).map_err(failed);
     let request = InitRequest {
         source,
         store: PersistenceConfig::sqlite(directory.join("sealed.sqlite"))
             .with_sqlite_profile(SqlitePersistenceProfile::Disposable),
-        locator: LOCATOR.into(),
+        locator,
         policy,
         catalog: HistoryCatalogConfig {
             binding_key: random()?.to_vec(),

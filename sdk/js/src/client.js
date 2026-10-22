@@ -39,22 +39,32 @@ export function workspaceArgs(ws) {
 }
 
 /** Deployment settings from the client options, else the environment
- * (LAYERFS_<NAME>, else DSH_LAYERFS_<NAME>). A Workspace's Sandbox needs
- * every one but the container prefix and daemon host. */
+ * (LAYERFS_<NAME>, else DSH_LAYERFS_<NAME>). `runtime` selects where a
+ * Workspace's Sandbox runs: `docker` (the default) needs the Engine socket,
+ * image, volume and daemon; `process` runs the daemon as a process on this
+ * Linux host and needs the daemon only. The container prefix and daemon
+ * host are optional. */
 export function deployment(options = {}) {
   const env = (name) => process.env[`LAYERFS_${name}`] || process.env[`DSH_LAYERFS_${name}`] || undefined;
-  const deploy = {
-    docker: options.docker ?? env("DOCKER") ?? "/var/run/docker.sock",
-    image: options.image ?? env("IMAGE"),
-    volume: options.volume ?? env("VOLUME"),
-    daemon: options.daemon ?? env("DAEMON"),
-    containerPrefix: options.containerPrefix ?? env("CONTAINER_PREFIX"),
-    daemonHost: options.daemonHost ?? env("DAEMON_HOST"),
-  };
+  const runtime = options.runtime ?? env("RUNTIME") ?? "docker";
+  if (runtime !== "docker" && runtime !== "process") {
+    throw new LayerFSError("InvalidInput", `deploy.runtime must be docker or process, not ${runtime} (LAYERFS_RUNTIME)`, null);
+  }
+  const deploy =
+    runtime === "docker"
+      ? {
+          runtime,
+          docker: options.docker ?? env("DOCKER") ?? "/var/run/docker.sock",
+          image: options.image ?? env("IMAGE"),
+          volume: options.volume ?? env("VOLUME"),
+          daemon: options.daemon ?? env("DAEMON"),
+        }
+      : { runtime, daemon: options.daemon ?? env("DAEMON") };
   for (const [name, value] of Object.entries(deploy)) {
-    if (name === "containerPrefix" || name === "daemonHost") continue;
     if (!value) throw new LayerFSError("InvalidInput", `deploy.${name} is not configured (LAYERFS_${name.toUpperCase()})`, null);
   }
+  deploy.containerPrefix = options.containerPrefix ?? env("CONTAINER_PREFIX");
+  deploy.daemonHost = options.daemonHost ?? env("DAEMON_HOST");
   if (!deploy.containerPrefix) delete deploy.containerPrefix;
   if (!deploy.daemonHost) delete deploy.daemonHost;
   return deploy;

@@ -8,7 +8,10 @@ use layerfs_bridge::{
 };
 use layerfs_history::{BranchId, HistoryCatalogConfig, HistoryName, LayerStackId, WorkspaceId};
 use layerfs_persistence::{PersistenceConfig, SqlitePersistenceProfile};
-use layerfs_sandbox::backend::docker::{Docker, SandboxRequest};
+use layerfs_sandbox::backend::{
+    docker::{Docker, SandboxRequest},
+    Runtime,
+};
 use layerfs_storage::StoragePolicy;
 use layerfs_telemetry::timer::Timing;
 use std::{
@@ -39,10 +42,17 @@ fn setup(private: [u8; 32], peer: [u8; 32]) -> DaemonSetup {
         existing_store: None,
     }
 }
+/// The Docker Sandbox this proof deploys.
+fn docker(owner: &ManagedSandbox) -> &layerfs_sandbox::backend::docker::Sandbox {
+    let Runtime::Docker(sandbox) = &owner.runtime else {
+        panic!("a Docker Sandbox");
+    };
+    sandbox
+}
 fn ordinary(owner: &ManagedSandbox) -> Result<(), Box<dyn std::error::Error>> {
     let command="set -e; test \"$(id -u)\" = 501; test \"$(id -g)\" = 20; test \"$(id -G)\" = 20; grep -q '^CapEff:[[:space:]]*0000000000000000$' /proc/self/status; grep -q '^CapAmb:[[:space:]]*0000000000000000$' /proc/self/status; grep -q '^NoNewPrivs:[[:space:]]*1$' /proc/self/status; for p in /layerfs-local/config/daemon.setup /layerfs-local/overlay/overlay.sqlite /layerfs-store/global/store.sqlite /proc/1/root/layerfs-local/config/daemon.setup /proc/1/root/layerfs-store/global/store.sqlite /proc/1/environ /proc/1/fd; do test ! -r \"$p\"; done; test ! -w /dev/fuse; test ! -w /sys/fs/fuse/connections; printf 'ORDINARY_ACCESS uid=501 gid=20 groups=20 CapEff=0 CapAmb=0 NoNewPrivs=1 private_backing_denied proc_aliases_denied fuse_control_denied\\n'";
     let created = layerfs_api::internal::exec(
-        &owner.runtime,
+        docker(owner),
         layerfs_sandbox::CommandIdentity { uid: 501, gid: 20 },
         vec!["bash".into(), "-c".into(), command.into()],
         vec![],
@@ -98,12 +108,12 @@ fn main() -> Result<(), Box<dyn std::error::Error>> {
     let docker = Docker::new(&args[1], Duration::from_secs(3))?;
     let api = SandboxApi::new(docker);
     let make = |setup: DaemonSetup| SandboxCreate {
-        deployment: SandboxRequest {
+        deployment: layerfs_api::Deployment::Docker(SandboxRequest {
             image: args[2].clone(),
             store_volume: args[3].clone(),
             port: 30421,
             labels: vec![],
-        },
+        }),
         setup,
         executable: PathBuf::from(&args[4]),
         controller_private: keys.private,

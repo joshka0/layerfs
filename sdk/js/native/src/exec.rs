@@ -27,23 +27,22 @@ fn run(
     arguments: Vec<String>,
     spool: bool,
 ) -> Result<(i32, Spool, Spool), SdkRefusal> {
-    let created = layerfs_api::internal::exec(
+    let (mut stdout, mut stderr) = (Spool::new(spool), Spool::new(spool));
+    let code = layerfs_api::internal::run(
         &state.runtime,
         state.identity,
         arguments,
         vec![HOME.to_owned()],
         directory.to_owned(),
-        false,
+        &mut stdout,
+        &mut stderr,
     )
-    .map_err(failed)?;
-    let attached = created.start().map_err(failed)?;
-    let (_input, output, handle) = attached.into_parts().map_err(failed)?;
-    let (mut stdout, mut stderr) = (Spool::new(spool), Spool::new(spool));
-    output.copy_to(&mut stdout, &mut stderr).map_err(failed)?;
-    let inspected = handle.inspect().map_err(failed)?;
-    let code = inspected
-        .known_root_exit()
-        .ok_or_else(|| refused("Unknown", "the command's exit code is not known"))?;
+    .map_err(|failure| match failure {
+        layerfs_api::RunFailure::UnknownExit => {
+            refused("Unknown", "the command's exit code is not known")
+        }
+        failure => failed(failure),
+    })?;
     Ok((code, stdout, stderr))
 }
 

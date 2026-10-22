@@ -15,7 +15,8 @@ use crate::registry::{lock, text, SandboxState, SANDBOXES};
 use layerfs_api::internal::split;
 use layerfs_api::sandbox::values;
 use layerfs_api::{
-    OperationFailure, SandboxApi, SandboxCause, SandboxCreate, SandboxFailure, SandboxPhase,
+    Deployment, OperationFailure, SandboxApi, SandboxCause, SandboxCreate, SandboxFailure,
+    SandboxPhase,
 };
 use layerfs_bridge::control::{SdkRefusal, SdkValue};
 use layerfs_bridge::daemon_setup::{DaemonLimits, DaemonSetup};
@@ -27,6 +28,10 @@ use std::time::Duration;
 
 /// Port the daemon listens on inside its container.
 const PORT: u16 = 30421;
+/// The directory of each daemon process Sandbox on this host,
+/// `<PROCESSES>/<prefix><project>-<n>`: its config, Overlay and mount home.
+#[cfg(target_os = "linux")]
+const PROCESSES: &str = "/var/lib/layerfs/sandboxes";
 /// Wait for the daemon's listener after Start.
 const STARTUP: Duration = Duration::from_secs(30);
 /// Wait for one Engine control response.
@@ -52,14 +57,43 @@ pub(crate) const WORKSPACES: u32 = 16;
 /// for this process and the rest for others (#352 F-017).
 pub(crate) const DAEMON_CONNECTIONS: u16 = 8;
 
-fn setup(private: [u8; 32], peer: [u8; 32]) -> DaemonSetup {
+/// Where a new Sandbox's daemon listens and keeps its Store, Overlay and mounts.
+struct Paths {
+    listen: String,
+    store: String,
+    overlay: String,
+    mounts: String,
+}
+impl Paths {
+    /// A container's fixed paths: the shared volume at `/layerfs-store`.
+    fn container() -> Self {
+        Self {
+            listen: format!("0.0.0.0:{PORT}"),
+            store: crate::project::LOCATOR.into(),
+            overlay: "/layerfs-local/overlay/overlay.sqlite".into(),
+            mounts: "/workspaces".into(),
+        }
+    }
+    /// A daemon process's: the Store file Init installed, and the Sandbox directory.
+    #[cfg(target_os = "linux")]
+    fn process(store: &str, layout: &layerfs_sandbox::backend::process::Layout) -> Self {
+        Self {
+            listen: "127.0.0.1:0".into(),
+            store: store.into(),
+            overlay: layout.overlay().display().to_string(),
+            mounts: layout.mounts().display().to_string(),
+        }
+    }
+}
+
+fn setup(private: [u8; 32], peer: [u8; 32], paths: Paths) -> DaemonSetup {
     DaemonSetup {
-        listen: format!("0.0.0.0:{PORT}"),
+        listen: paths.listen,
         private_key: private,
         control_peer: peer,
-        store: crate::project::LOCATOR.into(),
-        overlay: "/layerfs-local/overlay/overlay.sqlite".into(),
-        mounts: "/workspaces".into(),
+        store: paths.store,
+        overlay: paths.overlay,
+        mounts: paths.mounts,
         command_uid: 501,
         command_gid: 20,
         limits: DaemonLimits {
@@ -113,7 +147,86 @@ pub(crate) fn start(args: &SdkValue, directory: &Path) -> Result<Arc<SandboxStat
             format!("project {name} has no installed Store: its Import did not finish, so import it again"),
         ));
     };
-    let docker = text(deploy, "docker")?;
+    let executable = PathBuf::from(text(deploy, "daemon")?);
+    let placement = match deploy.get_text("runtime").unwrap_or("docker") {
+        "docker" => docker_placement(deploy)?,
+        #[cfg(target_os = "linux")]
+        "process" => Placement::Process(project.manifest.locator.clone()),
+        other => {
+            return Err(refused(
+                "Unsupported",
+                format!("Sandbox runtime {other} is not available here"),
+            ))
+        }
+    };
+    // A creation whose outcome is unknown is never silently attempted again.
+    let intent = directory.join("create.intent");
+    if intent.exists() {
+        let state = match crate::discovery::load(&intent) {
+            Ok(SdkValue::Text(state)) => state,
+            _ => "its record is unreadable".to_owned(),
+        };
+        let left = match &placement {
+            Placement::Docker { volume, .. } => {
+                format!("Remove any container it left (docker ps -a --filter volume={volume})")
+            }
+            #[cfg(target_os = "linux")]
+            Placement::Process(_) => {
+                format!("Stop any daemon it left and remove its directory under {PROCESSES}")
+            }
+        };
+        return Err(refused(
+            "Unknown",
+            format!(
+                "a prior Sandbox creation has an unresolved discovery intent: {state}. Its outcome \
+                 is unknown, so it is neither retried nor taken as done. {left}, then delete {}",
+                intent.display()
+            ),
+        ));
+    }
+    // The number is claimed before anything is made; a failed start gives it
+    // back (its directory holds no record yet), so the number is used again.
+    let (id, saved_directory) = crate::discovery::claim_next(args)?;
+    let made = start_claimed(
+        args,
+        directory,
+        &saved_directory,
+        &id,
+        (&project, installed),
+        (placement, executable),
+    );
+    if made.is_err() {
+        let _ = std::fs::remove_dir(&saved_directory);
+    }
+    made
+}
+
+/// The runtime inputs of a new Sandbox.
+enum Placement {
+    Docker {
+        docker: String,
+        image: String,
+        volume: String,
+    },
+    /// A daemon process serving the Store file at the project's locator.
+    #[cfg(target_os = "linux")]
+    Process(String),
+}
+
+/// A name that is one plain path component: Docker's container name rule.
+#[cfg(target_os = "linux")]
+fn plain_name(name: &str) -> bool {
+    name.len() <= 128
+        && name
+            .bytes()
+            .enumerate()
+            .all(|(i, b)| b.is_ascii_alphanumeric() || (i != 0 && matches!(b, b'_' | b'.' | b'-')))
+        && !name.is_empty()
+}
+
+/// A Docker Sandbox's Engine, exact image digest and Store volume.
+fn docker_placement(deploy: &SdkValue) -> Result<Placement, SdkRefusal> {
+    let docker = text(deploy, "docker")?.to_owned();
     let image = deploy
         .get_text("image")
         .ok_or_else(|| {
@@ -136,40 +249,11 @@ pub(crate) fn start(args: &SdkValue, directory: &Path) -> Result<Arc<SandboxStat
             format!("image must be an exact local image digest, sha256:<64 hex>, not {image}"),
         ));
     }
-    let store_volume = text(deploy, "volume")?.to_owned();
-    let executable = PathBuf::from(text(deploy, "daemon")?);
-    // A creation whose outcome is unknown is never silently attempted again.
-    let intent = directory.join("create.intent");
-    if intent.exists() {
-        let state = match crate::discovery::load(&intent) {
-            Ok(SdkValue::Text(state)) => state,
-            _ => "its record is unreadable".to_owned(),
-        };
-        return Err(refused(
-            "Unknown",
-            format!(
-                "a prior Sandbox creation has an unresolved discovery intent: {state}. Its outcome \
-                 is unknown, so it is neither retried nor taken as done. Remove any container it \
-                 left (docker ps -a --filter volume={store_volume}), then delete {}",
-                intent.display()
-            ),
-        ));
-    }
-    // The number is claimed before anything is made; a failed start gives it
-    // back (its directory holds no record yet), so the number is used again.
-    let (id, saved_directory) = crate::discovery::claim_next(args)?;
-    let made = start_claimed(
-        args,
-        directory,
-        &saved_directory,
-        &id,
-        (&project, installed),
-        (docker, image, store_volume, executable),
-    );
-    if made.is_err() {
-        let _ = std::fs::remove_dir(&saved_directory);
-    }
-    made
+    Ok(Placement::Docker {
+        docker,
+        image,
+        volume: text(deploy, "volume")?.to_owned(),
+    })
 }
 
 /// Starts the claimed Sandbox `id`: container, daemon on the installed
@@ -180,16 +264,12 @@ fn start_claimed(
     saved_directory: &Path,
     id: &str,
     (project, installed): (&crate::registry::Project, StoreManifest),
-    (docker, image, store_volume, executable): (&str, String, String, PathBuf),
+    (placement, executable): (Placement, PathBuf),
 ) -> Result<Arc<SandboxState>, SdkRefusal> {
     let name = text(args, "project")?;
     let controller = layerfs_bridge::duplex::generate_keypair().map_err(failed)?;
     let daemon = layerfs_bridge::duplex::generate_keypair().map_err(failed)?;
-    let mut daemon_setup = setup(daemon.private, controller.public);
-    let mut existing = project.manifest.clone();
-    existing.daemon_sqlite = installed.daemon_sqlite;
-    daemon_setup.existing_store = Some(existing);
-    // The container is `<prefix><project>-<n>`: the deployment's prefix
+    // The Sandbox is `<prefix><project>-<n>`: the deployment's prefix
     // (`layerfs-` by default; another LayerFS home on the same Engine sets
     // its own), so `docker ps` says what each one is and whose.
     let prefix = args
@@ -198,23 +278,51 @@ fn start_claimed(
         .filter(|prefix| !prefix.is_empty())
         .unwrap_or(PREFIX);
     let container_name = format!("{prefix}{name}-{id}");
-    let docker = Docker::new(docker, ENGINE)
-        .map_err(failed)?
-        .naming(&container_name)
-        .map_err(|_| refused("InvalidInput", format!("container name {container_name}")))?;
+    let (api, deployment, paths) = match placement {
+        Placement::Docker {
+            docker,
+            image,
+            volume,
+        } => {
+            let docker = Docker::new(&docker, ENGINE)
+                .map_err(failed)?
+                .naming(&container_name)
+                .map_err(|_| refused("InvalidInput", format!("container name {container_name}")))?;
+            let deployment = Deployment::Docker(SandboxRequest {
+                image,
+                store_volume: volume,
+                port: PORT,
+                labels: labels(name, id),
+            });
+            (SandboxApi::new(docker), deployment, Paths::container())
+        }
+        #[cfg(target_os = "linux")]
+        Placement::Process(store) => {
+            if !plain_name(&container_name) {
+                return Err(refused(
+                    "InvalidInput",
+                    format!("Sandbox name {container_name}"),
+                ));
+            }
+            let layout = layerfs_sandbox::backend::process::Layout {
+                directory: Path::new(PROCESSES).join(&container_name),
+            };
+            let paths = Paths::process(&store, &layout);
+            (SandboxApi::process(), Deployment::Process(layout), paths)
+        }
+    };
+    let mut daemon_setup = setup(daemon.private, controller.public, paths);
+    let mut existing = project.manifest.clone();
+    existing.daemon_sqlite = installed.daemon_sqlite;
+    daemon_setup.existing_store = Some(existing);
     // Read only if this process ends before the intent is resolved.
     crate::discovery::save(
         &directory.join("create.intent"),
         SdkValue::text(format!("creation of Sandbox {id} began and never finished")),
     )?;
-    let created = SandboxApi::new(docker).create_file(
+    let created = api.create_file(
         SandboxCreate {
-            deployment: SandboxRequest {
-                image,
-                store_volume,
-                port: PORT,
-                labels: labels(name, id),
-            },
+            deployment,
             setup: daemon_setup,
             executable,
             controller_private: controller.private,
@@ -226,7 +334,7 @@ fn start_claimed(
         &project.manifest,
     );
     let owner = created.map_err(|failure| abandon(directory, id, failure))?;
-    let container = owner.runtime.identity().to_string();
+    let container = owner.runtime.identity();
     let instance = owner.startup.instance;
     let (runtime, control, identity) = split(owner);
     let dial = crate::pool::Dial {
@@ -256,7 +364,8 @@ fn start_claimed(
         instance,
     )?;
     // plain text beside the record, for people and tools reading daemon logs:
-    // docker logs $(cat "$LAYERFS_HOME/<project>/sandboxes/<n>/container")
+    // docker logs $(cat "$LAYERFS_HOME/<project>/sandboxes/<n>/container"),
+    // or a process Sandbox's daemon.log in its directory
     crate::discovery::save_text(&state.directory.join("container"), &container)?;
     std::fs::remove_file(directory.join("create.intent")).map_err(failed)?;
     lock(&SANDBOXES)?.insert(state.directory.clone(), state.clone());
@@ -283,10 +392,7 @@ fn abandon(directory: &Path, id: &str, mut failure: Box<SandboxFailure>) -> SdkR
         "sandbox create stopped at {:?}: {:?}",
         failure.phase, failure.cause
     );
-    let container = failure
-        .sandbox
-        .as_ref()
-        .map(|sandbox| sandbox.identity().to_string());
+    let container = failure.sandbox.as_ref().map(|sandbox| sandbox.identity());
     drop(failure.control.take());
     let mut log = None;
     let left = if !settled(&failure) {
@@ -339,7 +445,7 @@ fn abandon(directory: &Path, id: &str, mut failure: Box<SandboxFailure>) -> SdkR
     }
 }
 
-/// Reclaims Sandbox `id`, whose container a reopen found gone or stopped
+/// Reclaims Sandbox `id`, whose container or daemon a reopen found gone or stopped
 /// (`container`, `stopped`): one unforced Delete of a stopped container, then
 /// its records, so its number is free again. Called under the project's
 /// guard; the Sandbox's own guard is taken too. The record is read again
@@ -364,10 +470,8 @@ pub(crate) fn reclaim(args: &SdkValue, id: &str, container: &str, stopped: bool)
         ));
     }
     if stopped {
-        let (docker, selector, request) = crate::discovery::runtime(&value)?;
-        match layerfs_sandbox::backend::docker::Sandbox::stopped(docker, selector, request).delete()
-        {
-            Err(failure) if !failure.container_gone() => return Err(failed(failure)),
+        match crate::discovery::runtime(&value)?.stopped().delete() {
+            Err(failure) if !failure.gone() => return Err(failed(failure)),
             _ => {}
         }
     }

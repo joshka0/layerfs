@@ -1,10 +1,10 @@
 [package]
 name = "layerfs-sandbox"
-description = "Ordinary local Engine commands, streams and exact runtime status"
+description = "Ordinary Sandbox runtimes (local Engine or daemon process), commands and exact status"
 version.workspace = true
 edition.workspace = true
 rust-version.workspace = true
 license.workspace = true
 
 [dependencies]
-nix = { version = "=0.31.3", features = ["poll", "socket", "fs"] }
+nix = { version = "=0.31.3", features = ["poll", "socket", "fs", "signal", "mount"] }

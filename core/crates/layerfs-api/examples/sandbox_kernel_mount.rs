@@ -14,7 +14,10 @@ use layerfs_bridge::{
 };
 use layerfs_history::{BranchId, HistoryCatalogConfig, HistoryName, LayerStackId, WorkspaceId};
 use layerfs_persistence::{PersistenceConfig, SqlitePersistenceProfile};
-use layerfs_sandbox::backend::docker::{Docker, SandboxRequest};
+use layerfs_sandbox::backend::{
+    docker::{Docker, SandboxRequest},
+    Runtime,
+};
 use layerfs_storage::StoragePolicy;
 use layerfs_telemetry::timer::Timing;
 use std::{
@@ -108,6 +111,13 @@ enum Directory<'a> {
     Mounted(&'a MountedWorkspace),
     Kernel(&'a str),
 }
+/// The Docker Sandbox this proof deploys.
+fn docker(owner: &ManagedSandbox) -> &layerfs_sandbox::backend::docker::Sandbox {
+    let Runtime::Docker(sandbox) = &owner.runtime else {
+        panic!("a Docker Sandbox");
+    };
+    sandbox
+}
 /// Mounted commands use SDK exec; outside-mount commands retain ordinary Sandbox execution.
 fn start(
     owner: &ManagedSandbox,
@@ -118,7 +128,7 @@ fn start(
     let created = match directory {
         Directory::Mounted(mounted) => WorkspaceApi::exec(owner, mounted, arguments, vec![], false),
         Directory::Kernel(directory) => layerfs_api::internal::exec(
-            &owner.runtime,
+            docker(owner),
             layerfs_sandbox::CommandIdentity { uid: 501, gid: 20 },
             arguments,
             vec![],
@@ -195,12 +205,12 @@ fn main() -> Result<(), Box<dyn Error>> {
     let mut owner = api
         .create(
             SandboxCreate {
-                deployment: SandboxRequest {
+                deployment: layerfs_api::Deployment::Docker(SandboxRequest {
                     image: args[2].clone(),
                     store_volume: args[3].clone(),
                     port: 30421,
                     labels: vec![],
-                },
+                }),
                 setup: setup(daemon.private, keys.public),
                 executable: PathBuf::from(&args[4]),
                 controller_private: keys.private,

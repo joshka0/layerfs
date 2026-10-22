@@ -138,12 +138,14 @@ impl Fixture {
             deployment_setup.existing_store = Some(manifest);
         }
         let request = SandboxCreate {
-            deployment: layerfs_sandbox::backend::docker::SandboxRequest {
-                image: IMAGE.into(),
-                store_volume: "lfs-test-borrowed".into(),
-                port: 30421,
-                labels: vec![],
-            },
+            deployment: layerfs_api::Deployment::Docker(
+                layerfs_sandbox::backend::docker::SandboxRequest {
+                    image: IMAGE.into(),
+                    store_volume: "lfs-test-borrowed".into(),
+                    port: 30421,
+                    labels: vec![],
+                },
+            ),
             setup: deployment_setup,
             executable: binary.clone(),
             controller_private: [31; 32],
@@ -201,11 +203,14 @@ fn failed_stop_preserves_original_owner_channel_inputs_and_attempt_without_delet
     let handshake = owner.handshake;
     let failure = fixture.api.close(owner).unwrap_err();
     assert_eq!(failure.phase, SandboxPhase::Stop);
-    let runtime = failure.sandbox.as_ref().unwrap();
+    let Some(layerfs_sandbox::backend::Runtime::Docker(runtime)) = failure.sandbox.as_ref() else {
+        panic!("the owned Docker Sandbox")
+    };
     assert_eq!(runtime.identity().to_string(), CID);
     assert!(!runtime.disposition().stopped);
     assert!(!runtime.disposition().deleted);
-    let SandboxCause::Runtime(cause) = &failure.cause else {
+    let SandboxCause::Runtime(layerfs_sandbox::backend::Failure::Docker(cause)) = &failure.cause
+    else {
         panic!("original runtime failure")
     };
     assert_eq!(cause.requested_container, Some(runtime.identity()));
@@ -227,11 +232,14 @@ fn failed_delete_retains_acknowledged_stop_and_exact_delete_failure() {
         .close(fixture.owner.take().unwrap())
         .unwrap_err();
     assert_eq!(failure.phase, SandboxPhase::Delete);
-    let runtime = failure.sandbox.as_ref().unwrap();
+    let Some(layerfs_sandbox::backend::Runtime::Docker(runtime)) = failure.sandbox.as_ref() else {
+        panic!("the owned Docker Sandbox")
+    };
     assert_eq!(runtime.identity().to_string(), CID);
     assert!(runtime.disposition().stopped);
     assert!(!runtime.disposition().deleted);
-    let SandboxCause::Runtime(cause) = &failure.cause else {
+    let SandboxCause::Runtime(layerfs_sandbox::backend::Failure::Docker(cause)) = &failure.cause
+    else {
         panic!("original runtime failure")
     };
     assert_eq!(cause.requested_container, Some(runtime.identity()));
@@ -436,12 +444,14 @@ fn create_mismatched_existing_project_refuses_before_any_deployment_or_control_e
     deployment_setup.existing_store = Some(manifest);
     let result = api.create(
         SandboxCreate {
-            deployment: layerfs_sandbox::backend::docker::SandboxRequest {
-                image: IMAGE.into(),
-                store_volume: "lfs-test-borrowed".into(),
-                port: 30421,
-                labels: vec![],
-            },
+            deployment: layerfs_api::Deployment::Docker(
+                layerfs_sandbox::backend::docker::SandboxRequest {
+                    image: IMAGE.into(),
+                    store_volume: "lfs-test-borrowed".into(),
+                    port: 30421,
+                    labels: vec![],
+                },
+            ),
             setup: deployment_setup,
             executable: project.project.store.path.clone(),
             controller_private: [31; 32],

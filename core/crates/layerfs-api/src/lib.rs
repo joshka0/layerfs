@@ -27,7 +27,7 @@ pub use project::{
 };
 #[cfg(unix)]
 pub use sandbox::{
-    connect_address, ManagedSandbox, SandboxApi, SandboxCause, SandboxCreate, SandboxFailure,
-    SandboxPhase,
+    connect_address, Deployment, ManagedSandbox, RunFailure, SandboxApi, SandboxCause,
+    SandboxCreate, SandboxFailure, SandboxPhase,
 };
 pub use sandbox::{BoundWorkspace, MountFailure, MountedWorkspace, Unmounted, WorkspaceApi};
