@@ -16,7 +16,14 @@
 # untrusted on the Mac.
 #
 # Agents may connect only to the Agent Vault proxy and the Mac bridge (an
-# iptables rule for uid 501). Root is not limited.
+# iptables rule for uid 501). Root is not limited. vm-boot.sh applies the
+# rule and starts sshd at each container start.
+#
+# iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
+#
+# sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
+# (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
+# the host keys live on the volume, so they survive a recreate.
 #
 # Agents start through the Herdr plugin joshka.lfs-bridge (herdr-plugins):
 #   bin/lfs-bridge agent <workspace> claude
@@ -28,7 +35,8 @@ sfw_package=$(dirname "$(dirname "$(readlink -f "$(whence -p sfw)")")")
 
 # `container` must not inherit an agent's proxy settings: it records its
 # environment in launchd plists. Keep only the proxy's host and port.
-proxy=${${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}#*@}
+proxy_url=${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}
+proxy=${proxy_url#*@}
 proxy_host=${proxy%%:*}
 proxy_port=${${proxy#*:}%%/*}
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
@@ -36,16 +44,17 @@ proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print 
 gateway=$(container network ls | awk '$1 == "default" { split($2, a, "/"); split(a[1], o, ".");
   print o[1] "." o[2] "." o[3] ".1" }')
 bridge_port=${LFS_BRIDGE_PORT:-47111}
+ssh_port=${LFS_VM_SSH_PORT:-2222}
 share=${LFS_SHARE:-$HOME/lfs-share}
 mkdir -p "$share"
 
 container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
 
-container run -d --name lfs-vm --cpus 6 --memory 12G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
-  --dns 1.1.1.1 -v lfs-data:/var/lib/layerfs-data \
+container run -d --init --name lfs-vm --cpus 6 --memory 12G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
+  --dns 1.1.1.1 -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
-  node:24-bookworm sleep infinity
+  node:24-bookworm /opt/layerfs/tools/vm-boot.sh run
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
 # MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
@@ -61,7 +70,10 @@ container exec -i -e CLAUDE_VERSION="$claude_version" -e PROXY_IP="$proxy_ip" -e
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" lfs-vm bash -s <<'SETUP'
 set -eu
 data=/var/lib/layerfs-data
-mkdir -p "$data/home" "$data/stores" "$data/agent-home"
+mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
+chmod 700 "$data/ssh-host-keys"
+printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\n' \
+  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -M -d /home/agent -s /bin/bash agent
@@ -84,16 +96,41 @@ if [ "$(as_agent claude --version 2>/dev/null | awk '{print $1}')" != "$CLAUDE_V
   as_agent sfw npm install --prefix /home/agent/.local -g "@anthropic-ai/claude-code@$CLAUDE_VERSION" >/dev/null
 fi
 echo "claude: $(as_agent claude --version)"
-# Agents (uid 501) may connect only to the proxy and the bridge.
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables >/dev/null
-for tool in iptables ip6tables; do
-  $tool -F OUTPUT
-  $tool -A OUTPUT -m owner --uid-owner 501 -o lo -j ACCEPT
-done
-iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
-iptables -A OUTPUT -m owner --uid-owner 501 -d "$GATEWAY" -p tcp --dport "$BRIDGE_PORT" -j ACCEPT
-iptables -A OUTPUT -m owner --uid-owner 501 -j REJECT
-ip6tables -A OUTPUT -m owner --uid-owner 501 -j REJECT
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 >/dev/null
+# Host keys from the volume, or keep the new ones there.
+if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
+  cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
+else
+  cp /etc/ssh/ssh_host_* "$data/ssh-host-keys/"
+fi
+cat > /etc/ssh/sshd_config.d/lfs-vm.conf <<'SSHD'
+PasswordAuthentication no
+KbdInteractiveAuthentication no
+PermitRootLogin no
+AllowUsers agent
+SSHD
+usermod -p '*' agent
+pkill -x sshd || true
+/opt/layerfs/tools/vm-boot.sh apply
 echo LFS_VM_READY
 SETUP
+
+# The proxy for every agent shell: ~/.lfs/profile.sh loads it (and the
+# bridge session the Herdr plugin writes). Through stdin only.
+{
+  printf "export HTTPS_PROXY='%s' HTTP_PROXY='%s' https_proxy='%s' http_proxy='%s'\n" \
+    "$proxy_url" "$proxy_url" "$proxy_url" "$proxy_url"
+  printf "export NO_PROXY='localhost,127.0.0.1,%s' no_proxy='localhost,127.0.0.1,%s'\n" "$proxy_host" "$proxy_host"
+  printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
+  printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
+} | container exec -i -u 501:20 lfs-vm sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
+container exec -i -u 501:20 lfs-vm sh -s <<'PROFILE'
+cat > /home/agent/.lfs/profile.sh <<'SH'
+export PATH="$HOME/.local/bin:$PATH"
+for f in "$HOME/.lfs/proxy.env" "$HOME/.lfs/bridge.env"; do [ -f "$f" ] && . "$f"; done
+SH
+for rc in /home/agent/.bashrc /home/agent/.profile; do
+  grep -qs '.lfs/profile.sh' "$rc" || echo '. "$HOME/.lfs/profile.sh"' >> "$rc"
+done
+PROFILE
