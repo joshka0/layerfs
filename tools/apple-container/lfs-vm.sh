@@ -21,6 +21,7 @@
 #
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
 # rsync and zstd let memoryd on the Mac pull agent transcripts over SSH.
+# clang (14 or newer) lets Bend build native binaries (`bend <file> -o <out>`).
 #
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
 # (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
@@ -50,7 +51,7 @@ mkdir -p "$share"
 
 container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
 
-container run -d --init --name lfs-vm --cpus 6 --memory 12G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
+container run -d --init --name lfs-vm --cpus 10 --memory 24G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
   --dns 1.1.1.1 -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
@@ -91,7 +92,7 @@ exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang >/dev/null
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
