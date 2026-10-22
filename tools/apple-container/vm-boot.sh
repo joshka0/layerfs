@@ -2,7 +2,8 @@
 # The command of the lfs-vm container, and the step that applies its boot
 # state after setup. A container restart is a VM boot: iptables rules and
 # sshd do not survive it, so this script brings them back.
-#   vm-boot.sh apply   apply the agent firewall and start sshd (when installed)
+#   vm-boot.sh apply   apply the agent firewall, start sshd and the shared
+#                      services (when installed)
 #   vm-boot.sh run     apply, then trim the disks hourly (the container command)
 # The container runs with --init, which reaps the processes sshd leaves.
 set -eu
@@ -44,6 +45,21 @@ apply() {
     mkdir -p /run/sshd
     /usr/sbin/sshd
   fi
+  # The VM must keep running without its services.
+  services || echo "vm-boot: shared services did not start" >&2
+}
+
+# The shared services (services.compose.yml) in Docker Engine. Docker needs IP
+# forwarding, and the container mounts /proc/sys read-only.
+services() {
+  command -v dockerd >/dev/null || return 0
+  if ! pgrep -x dockerd >/dev/null; then
+    mount -o remount,rw /proc/sys
+    echo 1 > /proc/sys/net/ipv4/ip_forward
+    dockerd > /var/log/dockerd.log 2>&1 &
+  fi
+  for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
+  docker compose -f /opt/layerfs/tools/services.compose.yml up -d --quiet-pull
 }
 
 case "${1:-}" in

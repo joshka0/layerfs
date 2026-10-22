@@ -1,0 +1,35 @@
+# Shared local services of lfs-vm. Root runs them in the VM's Docker Engine;
+# every agent uses the same instances on 127.0.0.1 and keeps its own
+# database, Redis key prefix or bucket. They listen on the VM's loopback only,
+# so the development credentials below never leave the VM.
+#   Postgres 18 with pgvector  127.0.0.1:5432  user postgres, no password
+#   Redis 7                    127.0.0.1:6379
+#   RustFS (S3)                127.0.0.1:9000  rustfsadmin / rustfsadmin
+# Data lives in Docker volumes under the data root on lfs-data, so it
+# survives a recreate. vm-boot.sh starts them at each boot.
+name: lfs-services
+services:
+  postgres:
+    image: pgvector/pgvector:pg18
+    restart: unless-stopped
+    environment:
+      POSTGRES_HOST_AUTH_METHOD: trust
+    ports: ["127.0.0.1:5432:5432"]
+    volumes: ["postgres:/var/lib/postgresql"]
+  redis:
+    image: redis:7
+    restart: unless-stopped
+    ports: ["127.0.0.1:6379:6379"]
+    volumes: ["redis:/data"]
+  rustfs:
+    image: rustfs/rustfs:latest
+    restart: unless-stopped
+    environment:
+      RUSTFS_ACCESS_KEY: rustfsadmin
+      RUSTFS_SECRET_KEY: rustfsadmin
+    ports: ["127.0.0.1:9000:9000"]
+    volumes: ["rustfs:/data"]
+volumes:
+  postgres:
+  redis:
+  rustfs:

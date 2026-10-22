@@ -23,6 +23,17 @@
 # rsync and zstd let memoryd on the Mac pull agent transcripts over SSH.
 # clang (14 or newer) lets Bend build native binaries (`bend <file> -o <out>`).
 # libsecret-1-0 is loaded by npm postinstall steps (uniwind-pro in praze).
+# The second apt line holds what the active repos' builds and tests need:
+# procps and build-essential (praze, yada, Rust crates), sqlite3
+# (herdr-blackboard), python3-venv (dreamd, herdr-loom), postgresql-client
+# (turtlr, infra-kit; Debian's 15), ffmpeg (dearday, praze-landing), and
+# chromium, fonts-noto and xvfb for browser tests (jev-hand, effect-folio,
+# pilotprospector, praze-landing).
+#
+# Docker Engine (root only) runs the shared services of services.compose.yml
+# that every agent uses: Postgres, Redis and RustFS. Its data root is on the
+# volume. CAP_SYS_PTRACE lets dockerd open the namespaces of an image that
+# runs as a non-root user (RustFS).
 #
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
 # (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
@@ -52,7 +63,7 @@ mkdir -p "$share"
 
 container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
 
-container run -d --init --name lfs-vm --cpus 10 --memory 24G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
+container run -d --init --name lfs-vm --cpus 10 --memory 24G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
   --dns 1.1.1.1 -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
@@ -94,6 +105,16 @@ LFS
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang libsecret-1-0 >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends procps build-essential \
+  sqlite3 python3-venv postgresql-client ffmpeg chromium fonts-noto xvfb >/dev/null
+install -m 0755 -d /etc/apt/keyrings /etc/docker
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+echo "deb [arch=arm64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
+  > /etc/apt/sources.list.d/docker.list
+DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends docker-ce docker-ce-cli \
+  containerd.io docker-compose-plugin >/dev/null
+printf '{"data-root": "%s/docker"}\n' "$data" > /etc/docker/daemon.json
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
