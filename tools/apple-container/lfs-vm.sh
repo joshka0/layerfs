@@ -15,6 +15,15 @@
 # the Mac is /share in the VM. Agents can write there, so treat its files as
 # untrusted on the Mac.
 #
+# Parts of the fleet-memory Obsidian vault ($LFS_VAULT, default
+# ~/vaults/fleet-memory), at /vaults/fleet-memory and, for agents, at
+# ~/vaults as on the Mac: features, diagrams and this year's summaries
+# read-write, router read-only. The generated memory pages stay out (agents
+# read them with `mac mem`), and so do summaries/foxway and the rest of
+# summaries: Foxway data must not reach the devin harness in the VM.
+# Each year's summaries folder is its own mount: at a new year, add it and
+# recreate. Removal condition: Foxway summaries move out of summaries/.
+#
 # Agents may use DNS and HTTPS to any host, the Agent Vault proxy, the Mac
 # bridge, and SSH of github.com and gitlab.com (iptables rules for uid 501). Root is not limited. vm-boot.sh applies the
 # rule and starts sshd at each container start.
@@ -60,6 +69,9 @@ bridge_port=${LFS_BRIDGE_PORT:-47111}
 ssh_port=${LFS_VM_SSH_PORT:-2222}
 share=${LFS_SHARE:-$HOME/lfs-share}
 mkdir -p "$share"
+vault=${LFS_VAULT:-$HOME/vaults/fleet-memory}
+year=$(date +%Y)
+mkdir -p "$vault/summaries/$year"
 
 container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
 
@@ -67,6 +79,9 @@ container run -d --init --name lfs-vm --cpus 10 --memory 24G --cap-add CAP_SYS_A
   --dns 1.1.1.1 -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
+  -v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams \
+  -v "$vault/summaries/$year":"/vaults/fleet-memory/summaries/$year" \
+  -v "$vault/router":/vaults/fleet-memory/router:ro \
   node:24-bookworm /opt/layerfs/tools/vm-boot.sh run
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
@@ -89,6 +104,10 @@ printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="g
   "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
+# The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
+mkdir -p /vaults/wiki
+ln -sfn /vaults/fleet-memory/summaries /vaults/wiki/summaries
+ln -sfn /vaults /home/agent/vaults
 id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -M -d /home/agent -s /bin/bash agent
 chown 501:20 "$data/agent-home" /opt/sfw/.sfw-cache
 # System CAs plus the Agent Vault CA: proxied hosts are re-signed by it,
@@ -145,6 +164,8 @@ SETUP
   printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
   # Node's fetch ignores the proxy variables without this; agents have no DNS.
   printf "export NODE_USE_ENV_PROXY=1\n"
+  # The Mac's time zone, so summaries and notes carry the operator's local time.
+  printf "export TZ='%s'\n" "$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"
 } | container exec -i -u 501:20 lfs-vm sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
 container exec -i -u 501:20 lfs-vm sh -s <<'PROFILE'
 cat > /home/agent/.lfs/profile.sh <<'SH'
