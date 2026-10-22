@@ -1,72 +1,99 @@
 #!/bin/zsh
-# Starts `lfs-vm`: one long-running Apple container that holds the LayerFS
-# Store, its daemons and the agents. Agents run as uid 501 (`agent`); the
-# LayerFS control (`lfs`) runs as root.
+# Creates `lfs-vm`: one long-running Apple container that holds the LayerFS
+# Stores, their daemons and the agents. Agents run as uid 501 (`agent`); the
+# LayerFS control (`lfs`) and the daemons run as root.
 #
 # usage: tools/apple-container/lfs-vm.sh <bundle-dir>
 #   <bundle-dir> holds layerfs-daemon and layerfs.node (process-e2e.sh makes it).
 #
-# Mounts: the bundle and this repo's SDK read-only; pi's managed release
-# read-only; ~/.pi/agent read-write, so pi in the VM shares the Mac's
-# auth.json (a token refresh on either side stays valid for both).
+# Lasting state lives on the named volume `lfs-data` (made once), mounted at
+# /var/lib/layerfs-data: the LayerFS home and Stores, and the agent home with
+# its Claude Code install and login. Recreating the container keeps them;
+# Sandboxes (daemons, Overlays, mounts) start fresh and are reclaimed.
+#
+# A shared folder, read-write both ways: $LFS_SHARE (default ~/lfs-share) on
+# the Mac is /share in the VM. Agents can write there, so treat its files as
+# untrusted on the Mac.
+#
+# Agents may connect only to the Agent Vault proxy and the Mac bridge (an
+# iptables rule for uid 501). Root is not limited.
 #
 # Agents start through the Herdr plugin joshka.lfs-bridge (herdr-plugins):
 #   bin/lfs-bridge agent <workspace> claude
 set -eu
 repo=${0:A:h:h:h}
 bundle=${1:?usage: lfs-vm.sh <bundle-dir>}
-pi_agent=$HOME/.pi/agent
-pi_release=$pi_agent/install/releases/$(<"$pi_agent/install/current-version")
+claude_version=$(claude --version | awk '{print $1}')
+sfw_package=$(dirname "$(dirname "$(readlink -f "$(whence -p sfw)")")")
 
 # `container` must not inherit an agent's proxy settings: it records its
-# environment in launchd plists. Keep only the proxy's host name.
-proxy_host=${${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}#*@}
-proxy_host=${proxy_host%%:*}
+# environment in launchd plists. Keep only the proxy's host and port.
+proxy=${${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}#*@}
+proxy_host=${proxy%%:*}
+proxy_port=${${proxy#*:}%%/*}
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
+proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
+gateway=$(container network ls | awk '$1 == "default" { split($2, a, "/"); split(a[1], o, ".");
+  print o[1] "." o[2] "." o[3] ".1" }')
+bridge_port=${LFS_BRIDGE_PORT:-47111}
+share=${LFS_SHARE:-$HOME/lfs-share}
+mkdir -p "$share"
 
-container run -d --name lfs-vm --cpus 4 --memory 8G --cap-add CAP_SYS_ADMIN --dns 1.1.1.1 \
+container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
+
+container run -d --name lfs-vm --cpus 6 --memory 12G --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN \
+  --dns 1.1.1.1 -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
-  -v "$repo/tools/apple-container":/opt/layerfs/tools:ro \
-  -v "$pi_release":/opt/pi:ro -v "$pi_agent":/opt/pi-host \
+  -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
   node:24-bookworm sleep infinity
 
-# The Agent Vault proxy: its CA, and its tailnet address (the VM's DNS has
-# no MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
-proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
+# The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
+# MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
 container exec -i lfs-vm sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
   < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
-container exec lfs-vm sh -c "grep -q ' $proxy_host\$' /etc/hosts || echo '$proxy_ip $proxy_host' >> /etc/hosts"
+container exec lfs-vm sh -c "echo '$proxy_ip $proxy_host' >> /etc/hosts"
+# sfw for agents' package installs (it caches its firewall binary beside itself).
+container exec lfs-vm mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
+container exec -i lfs-vm sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
+container exec -i lfs-vm sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
-container exec -i lfs-vm bash -s <<'SETUP'
+container exec -i -e CLAUDE_VERSION="$claude_version" -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
+  -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" lfs-vm bash -s <<'SETUP'
 set -eu
-id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -m -d /home/agent -s /bin/bash agent
+data=/var/lib/layerfs-data
+mkdir -p "$data/home" "$data/stores" "$data/agent-home"
+chmod 700 "$data/home"
+ln -sfn "$data/agent-home" /home/agent
+id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -M -d /home/agent -s /bin/bash agent
+chown 501:20 "$data/agent-home" /opt/sfw/.sfw-cache
 # System CAs plus the Agent Vault CA: proxied hosts are re-signed by it,
 # passed-through ones keep their public certificates.
 cat /etc/ssl/certs/ca-certificates.crt /opt/agent-vault-ca.pem > /opt/ca-bundle.pem
-# pi in the VM: Mac settings without its Mac-path extensions and packages,
-# and the Mac's own auth.json.
-d=/home/agent/.pi-vm
-mkdir -p "$d"
-node -e '
-  const fs = require("fs");
-  const s = JSON.parse(fs.readFileSync("/opt/pi-host/settings.json", "utf8"));
-  delete s.packages;
-  fs.writeFileSync(process.argv[1] + "/settings.json", JSON.stringify(s, null, 2));
-' "$d"
-cp /opt/pi-host/models.json "$d/"
-ln -sfn /opt/pi-host/auth.json "$d/auth.json"
-chown -R 501:20 "$d"
-cat > /usr/local/bin/pi <<'PI'
-#!/bin/sh
-export PI_CODING_AGENT_DIR=/home/agent/.pi-vm PI_SKIP_VERSION_CHECK=1
-exec /opt/pi/node_modules/.bin/pi "$@"
-PI
+printf '#!/bin/sh\nexec node /opt/sfw/dist/sfw.mjs "$@"\n' > /usr/local/bin/sfw
 cat > /usr/local/bin/lfs <<'LFS'
 #!/bin/sh
-export LAYERFS_RUNTIME=process LAYERFS_HOME=/root/lfs-home LAYERFS_DAEMON=/opt/layerfs/bundle/layerfs-daemon \
-  LAYERFS_NATIVE=/opt/layerfs/bundle/layerfs.node LAYERFS_STORE_ROOT=/var/lib/layerfs/stores
+export LAYERFS_RUNTIME=process LAYERFS_HOME=/var/lib/layerfs-data/home \
+  LAYERFS_DAEMON=/opt/layerfs/bundle/layerfs-daemon LAYERFS_NATIVE=/opt/layerfs/bundle/layerfs.node \
+  LAYERFS_STORE_ROOT=/var/lib/layerfs-data/stores
 exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
-chmod 755 /usr/local/bin/pi /usr/local/bin/lfs
+chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
+# Claude Code for agents, kept on the volume; installed once per version.
+as_agent() { setpriv --reuid=501 --regid=20 --clear-groups env HOME=/home/agent PATH=/home/agent/.local/bin:$PATH "$@"; }
+if [ "$(as_agent claude --version 2>/dev/null | awk '{print $1}')" != "$CLAUDE_VERSION" ]; then
+  as_agent sfw npm install --prefix /home/agent/.local -g "@anthropic-ai/claude-code@$CLAUDE_VERSION" >/dev/null
+fi
+echo "claude: $(as_agent claude --version)"
+# Agents (uid 501) may connect only to the proxy and the bridge.
+DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables >/dev/null
+for tool in iptables ip6tables; do
+  $tool -F OUTPUT
+  $tool -A OUTPUT -m owner --uid-owner 501 -o lo -j ACCEPT
+done
+iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
+iptables -A OUTPUT -m owner --uid-owner 501 -d "$GATEWAY" -p tcp --dport "$BRIDGE_PORT" -j ACCEPT
+iptables -A OUTPUT -m owner --uid-owner 501 -j REJECT
+ip6tables -A OUTPUT -m owner --uid-owner 501 -j REJECT
 echo LFS_VM_READY
 SETUP

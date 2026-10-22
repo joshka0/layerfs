@@ -244,7 +244,8 @@ impl Sandbox {
     }
 
     /// Detaches any mount the stopped daemon left in its mount home, then
-    /// removes the Sandbox directory. The shared Store is not in it.
+    /// removes the Sandbox directory. The shared Store is not in it. A
+    /// directory that is already gone (its host was recreated) is deleted.
     pub fn delete(&mut self) -> io::Result<()> {
         if !self.stopped {
             return Err(io::Error::new(
@@ -263,7 +264,10 @@ impl Sandbox {
                 }
             }
         }
-        fs::remove_dir_all(&self.layout.directory)
+        match fs::remove_dir_all(&self.layout.directory) {
+            Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
+            _ => Ok(()),
+        }
     }
 
     /// Runs `arguments` to their end as `identity` in `directory`, with
