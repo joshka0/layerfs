@@ -122,7 +122,9 @@ SETUP
 {
   printf "export HTTPS_PROXY='%s' HTTP_PROXY='%s' https_proxy='%s' http_proxy='%s'\n" \
     "$proxy_url" "$proxy_url" "$proxy_url" "$proxy_url"
-  printf "export NO_PROXY='localhost,127.0.0.1,%s' no_proxy='localhost,127.0.0.1,%s'\n" "$proxy_host" "$proxy_host"
+  # The bridge on the gateway is direct: the proxy cannot reach it.
+  printf "export NO_PROXY='localhost,127.0.0.1,%s,%s' no_proxy='localhost,127.0.0.1,%s,%s'\n" \
+    "$proxy_host" "$gateway" "$proxy_host" "$gateway"
   printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
   printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
 } | container exec -i -u 501:20 lfs-vm sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
