@@ -14,7 +14,7 @@ apply() {
   . "$config"
   if command -v iptables >/dev/null; then
     # Agents (uid 501) may use DNS, HTTPS (port 443) to any host, the proxy,
-    # the bridge, and SSH (port 22) of the Git hosts. Direct HTTPS is there for
+    # the bridge, and SSH (port 22) of the Git hosts and the operator's servers. Direct HTTPS is there for
     # Socket Firewall: its npm wrapper connects to registries itself. Each Git
     # host is pinned in /etc/hosts and allowed by address. The Agent Vault
     # proxy expects TLS in every tunnel, so it cannot carry SSH.
@@ -36,6 +36,10 @@ apply() {
       ip=$(getent ahostsv4 "$host" | awk 'NR == 1 { print $1 }')
       [ -n "$ip" ] || continue
       echo "$ip $host" >> /etc/hosts
+      iptables -A OUTPUT -m owner --uid-owner 501 -d "$ip" -p tcp --dport 22 -j ACCEPT
+    done
+    # The operator's servers (dev box, VPS) by address, from lfs-bridge install-vm.
+    for ip in ${SSH_SERVER_IPS:-}; do
       iptables -A OUTPUT -m owner --uid-owner 501 -d "$ip" -p tcp --dport 22 -j ACCEPT
     done
     iptables -A OUTPUT -m owner --uid-owner 501 -j REJECT
