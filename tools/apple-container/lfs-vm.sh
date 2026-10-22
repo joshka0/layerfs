@@ -8,7 +8,7 @@
 #
 # Lasting state lives on the named volume `lfs-data` (made once), mounted at
 # /var/lib/layerfs-data: the LayerFS home and Stores, and the agent home with
-# its Claude Code install and login. Recreating the container keeps them;
+# its agent harnesses and logins. Recreating the container keeps them;
 # Sandboxes (daemons, Overlays, mounts) start fresh and are reclaimed.
 #
 # A shared folder, read-write both ways: $LFS_SHARE (default ~/lfs-share) on
@@ -26,12 +26,11 @@
 # (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
 # the host keys live on the volume, so they survive a recreate.
 #
-# Agents start through the Herdr plugin joshka.lfs-bridge (herdr-plugins):
-#   bin/lfs-bridge agent <workspace> claude
+# The Herdr plugin joshka.lfs-bridge (herdr-plugins) makes this VM the Herdr
+# machine `lfs vm` and installs the agent harnesses.
 set -eu
 repo=${0:A:h:h:h}
 bundle=${1:?usage: lfs-vm.sh <bundle-dir>}
-claude_version=$(claude --version | awk '{print $1}')
 sfw_package=$(dirname "$(dirname "$(readlink -f "$(whence -p sfw)")")")
 
 # `container` must not inherit an agent's proxy settings: it records its
@@ -67,7 +66,7 @@ container exec lfs-vm mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
 container exec -i lfs-vm sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
 container exec -i lfs-vm sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
-container exec -i -e CLAUDE_VERSION="$claude_version" -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
+container exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" lfs-vm bash -s <<'SETUP'
 set -eu
 data=/var/lib/layerfs-data
@@ -91,12 +90,6 @@ export LAYERFS_RUNTIME=process LAYERFS_HOME=/var/lib/layerfs-data/home \
 exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
-# Claude Code for agents, kept on the volume; installed once per version.
-as_agent() { setpriv --reuid=501 --regid=20 --clear-groups env HOME=/home/agent PATH=/home/agent/.local/bin:$PATH "$@"; }
-if [ "$(as_agent claude --version 2>/dev/null | awk '{print $1}')" != "$CLAUDE_VERSION" ]; then
-  as_agent sfw npm install --prefix /home/agent/.local -g "@anthropic-ai/claude-code@$CLAUDE_VERSION" >/dev/null
-fi
-echo "claude: $(as_agent claude --version)"
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd >/dev/null
 # Host keys from the volume, or keep the new ones there.
@@ -127,6 +120,8 @@ SETUP
     "$proxy_host" "$gateway" "$proxy_host" "$gateway"
   printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
   printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
+  # Node's fetch ignores the proxy variables without this; agents have no DNS.
+  printf "export NODE_USE_ENV_PROXY=1\n"
 } | container exec -i -u 501:20 lfs-vm sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
 container exec -i -u 501:20 lfs-vm sh -s <<'PROFILE'
 cat > /home/agent/.lfs/profile.sh <<'SH'
