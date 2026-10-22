@@ -10,8 +10,8 @@
 # read-only; ~/.pi/agent read-write, so pi in the VM shares the Mac's
 # auth.json (a token refresh on either side stays valid for both).
 #
-# Then, for example:
-#   container exec -it -u 501:20 -w <workspace> lfs-vm pi
+# Agents start through the Herdr plugin joshka.lfs-bridge (herdr-plugins):
+#   bin/lfs-bridge agent <workspace> claude
 set -eu
 repo=${0:A:h:h:h}
 bundle=${1:?usage: lfs-vm.sh <bundle-dir>}
@@ -31,19 +31,11 @@ container run -d --name lfs-vm --cpus 4 --memory 8G --cap-add CAP_SYS_ADMIN --dn
   node:24-bookworm sleep infinity
 
 # The Agent Vault proxy: its CA, and its tailnet address (the VM's DNS has
-# no MagicDNS). The proxy URL itself goes to each agent (lfs-agent.sh).
+# no MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
 proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
 container exec -i lfs-vm sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
   < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
 container exec lfs-vm sh -c "grep -q ' $proxy_host\$' /etc/hosts || echo '$proxy_ip $proxy_host' >> /etc/hosts"
-
-# The Mac bridge (lfs-bridge.py): its client `mac`, and its token, readable
-# by the agent user only. Skipped when no bridge token exists yet.
-container exec -i lfs-vm sh -c 'cat > /usr/local/bin/mac && chmod 755 /usr/local/bin/mac' < "${0:A:h}/mac"
-bridge_token=$HOME/.config/lfs-bridge/token
-if [ -f "$bridge_token" ]; then
-  container exec -i lfs-vm sh -c 'umask 077; mkdir -p /home/agent; cat > /home/agent/.lfs-bridge-token' < "$bridge_token"
-fi
 
 container exec -i lfs-vm bash -s <<'SETUP'
 set -eu
@@ -64,7 +56,6 @@ node -e '
 cp /opt/pi-host/models.json "$d/"
 ln -sfn /opt/pi-host/auth.json "$d/auth.json"
 chown -R 501:20 "$d"
-[ -f /home/agent/.lfs-bridge-token ] && chown 501:20 /home/agent/.lfs-bridge-token
 cat > /usr/local/bin/pi <<'PI'
 #!/bin/sh
 export PI_CODING_AGENT_DIR=/home/agent/.pi-vm PI_SKIP_VERSION_CHECK=1
