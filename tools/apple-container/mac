@@ -1,0 +1,14 @@
+#!/bin/sh
+# mac <argv...>: run one allowed command on the Mac through lfs-bridge.
+token=$(cat "$HOME/.lfs-bridge-token") || exit 2
+body=$(node -e 'console.log(JSON.stringify({argv: process.argv.slice(1)}))' "$@")
+out=$(curl -sS --noproxy '*' -m 150 -H "Authorization: Bearer $token" -H "Content-Type: application/json" \
+  --data-binary "$body" -w '\n%{http_code}' "http://${LFS_BRIDGE:-192.168.64.1:47111}/") || exit 2
+json=${out%
+*}
+printf '%s' "$json" | node -e '
+  let s = ""; process.stdin.on("data", d => s += d).on("end", () => {
+    const v = JSON.parse(s);
+    if (v.error) { console.error("mac: " + v.error); process.exit(126); }
+    process.stdout.write(v.stdout); process.stderr.write(v.stderr); process.exit(v.code);
+  });'

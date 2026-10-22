@@ -37,6 +37,14 @@ container exec -i lfs-vm sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/
   < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
 container exec lfs-vm sh -c "grep -q ' $proxy_host\$' /etc/hosts || echo '$proxy_ip $proxy_host' >> /etc/hosts"
 
+# The Mac bridge (lfs-bridge.py): its client `mac`, and its token, readable
+# by the agent user only. Skipped when no bridge token exists yet.
+container exec -i lfs-vm sh -c 'cat > /usr/local/bin/mac && chmod 755 /usr/local/bin/mac' < "${0:A:h}/mac"
+bridge_token=$HOME/.config/lfs-bridge/token
+if [ -f "$bridge_token" ]; then
+  container exec -i lfs-vm sh -c 'umask 077; mkdir -p /home/agent; cat > /home/agent/.lfs-bridge-token' < "$bridge_token"
+fi
+
 container exec -i lfs-vm bash -s <<'SETUP'
 set -eu
 id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -m -d /home/agent -s /bin/bash agent
@@ -56,6 +64,7 @@ node -e '
 cp /opt/pi-host/models.json "$d/"
 ln -sfn /opt/pi-host/auth.json "$d/auth.json"
 chown -R 501:20 "$d"
+[ -f /home/agent/.lfs-bridge-token ] && chown 501:20 /home/agent/.lfs-bridge-token
 cat > /usr/local/bin/pi <<'PI'
 #!/bin/sh
 export PI_CODING_AGENT_DIR=/home/agent/.pi-vm PI_SKIP_VERSION_CHECK=1
