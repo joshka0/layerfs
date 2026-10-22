@@ -15,8 +15,8 @@
 # the Mac is /share in the VM. Agents can write there, so treat its files as
 # untrusted on the Mac.
 #
-# Agents may connect only to the Agent Vault proxy and the Mac bridge (an
-# iptables rule for uid 501). Root is not limited. vm-boot.sh applies the
+# Agents may connect only to the Agent Vault proxy, the Mac bridge, and SSH
+# of github.com and gitlab.com (an iptables rule for uid 501). Root is not limited. vm-boot.sh applies the
 # rule and starts sshd at each container start.
 #
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
@@ -72,7 +72,7 @@ set -eu
 data=/var/lib/layerfs-data
 mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
 chmod 700 "$data/ssh-host-keys"
-printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\n' \
+printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="github.com gitlab.com"\n' \
   "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent

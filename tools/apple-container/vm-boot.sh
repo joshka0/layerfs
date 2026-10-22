@@ -12,7 +12,10 @@ apply() {
   [ -f "$config" ] || return 0
   . "$config"
   if command -v iptables >/dev/null; then
-    # Agents (uid 501) may connect only to the proxy and the bridge.
+    # Agents (uid 501) may connect only to the proxy, the bridge, and SSH
+    # (port 22) of the Git hosts. Agents have no DNS: each Git host is
+    # looked up here and pinned in /etc/hosts. The Agent Vault proxy expects
+    # TLS in every tunnel, so it cannot carry SSH.
     for tool in iptables ip6tables; do
       $tool -F OUTPUT
       $tool -A OUTPUT -m owner --uid-owner 501 -o lo -j ACCEPT
@@ -20,6 +23,15 @@ apply() {
     done
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$GATEWAY" -p tcp --dport "$BRIDGE_PORT" -j ACCEPT
+    for host in ${GIT_SSH_HOSTS:-}; do
+      # /etc/hosts is a bind mount: rewrite it in place, never replace it.
+      grep -v " $host\$" /etc/hosts > /etc/hosts.lfs || true
+      cat /etc/hosts.lfs > /etc/hosts && rm -f /etc/hosts.lfs
+      ip=$(getent ahostsv4 "$host" | awk 'NR == 1 { print $1 }')
+      [ -n "$ip" ] || continue
+      echo "$ip $host" >> /etc/hosts
+      iptables -A OUTPUT -m owner --uid-owner 501 -d "$ip" -p tcp --dport 22 -j ACCEPT
+    done
     iptables -A OUTPUT -m owner --uid-owner 501 -j REJECT
     ip6tables -A OUTPUT -m owner --uid-owner 501 -j REJECT
   fi
