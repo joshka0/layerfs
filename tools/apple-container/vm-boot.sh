@@ -12,10 +12,11 @@ apply() {
   [ -f "$config" ] || return 0
   . "$config"
   if command -v iptables >/dev/null; then
-    # Agents (uid 501) may connect only to the proxy, the bridge, and SSH
-    # (port 22) of the Git hosts. Agents have no DNS: each Git host is
-    # looked up here and pinned in /etc/hosts. The Agent Vault proxy expects
-    # TLS in every tunnel, so it cannot carry SSH.
+    # Agents (uid 501) may use DNS, HTTPS (port 443) to any host, the proxy,
+    # the bridge, and SSH (port 22) of the Git hosts. Direct HTTPS is there for
+    # Socket Firewall: its npm wrapper connects to registries itself. Each Git
+    # host is pinned in /etc/hosts and allowed by address. The Agent Vault
+    # proxy expects TLS in every tunnel, so it cannot carry SSH.
     for tool in iptables ip6tables; do
       $tool -F OUTPUT
       $tool -A OUTPUT -m owner --uid-owner 501 -o lo -j ACCEPT
@@ -23,6 +24,10 @@ apply() {
     done
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$GATEWAY" -p tcp --dport "$BRIDGE_PORT" -j ACCEPT
+    for proto in udp tcp; do
+      iptables -A OUTPUT -m owner --uid-owner 501 -p "$proto" --dport 53 -j ACCEPT
+    done
+    iptables -A OUTPUT -m owner --uid-owner 501 -p tcp --dport 443 -j ACCEPT
     for host in ${GIT_SSH_HOSTS:-}; do
       # /etc/hosts is a bind mount: rewrite it in place, never replace it.
       grep -v " $host\$" /etc/hosts > /etc/hosts.lfs || true

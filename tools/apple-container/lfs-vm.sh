@@ -15,8 +15,8 @@
 # the Mac is /share in the VM. Agents can write there, so treat its files as
 # untrusted on the Mac.
 #
-# Agents may connect only to the Agent Vault proxy, the Mac bridge, and SSH
-# of github.com and gitlab.com (an iptables rule for uid 501). Root is not limited. vm-boot.sh applies the
+# Agents may use DNS and HTTPS to any host, the Agent Vault proxy, the Mac
+# bridge, and SSH of github.com and gitlab.com (iptables rules for uid 501). Root is not limited. vm-boot.sh applies the
 # rule and starts sshd at each container start.
 #
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
