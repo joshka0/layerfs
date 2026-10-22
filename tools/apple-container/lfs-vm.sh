@@ -19,17 +19,30 @@ pi_agent=$HOME/.pi/agent
 pi_release=$pi_agent/install/releases/$(<"$pi_agent/install/current-version")
 
 # `container` must not inherit an agent's proxy settings: it records its
-# environment in launchd plists.
-env -u HTTP_PROXY -u HTTPS_PROXY -u http_proxy -u https_proxy -u NO_PROXY -u no_proxy \
-  container run -d --name lfs-vm --cpus 4 --memory 8G --cap-add CAP_SYS_ADMIN --dns 1.1.1.1 \
+# environment in launchd plists. Keep only the proxy's host name.
+proxy_host=${${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}#*@}
+proxy_host=${proxy_host%%:*}
+unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
+
+container run -d --name lfs-vm --cpus 4 --memory 8G --cap-add CAP_SYS_ADMIN --dns 1.1.1.1 \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/apple-container":/opt/layerfs/tools:ro \
   -v "$pi_release":/opt/pi:ro -v "$pi_agent":/opt/pi-host \
   node:24-bookworm sleep infinity
 
+# The Agent Vault proxy: its CA, and its tailnet address (the VM's DNS has
+# no MagicDNS). The proxy URL itself goes to each agent (lfs-agent.sh).
+proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
+container exec -i lfs-vm sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
+  < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
+container exec lfs-vm sh -c "grep -q ' $proxy_host\$' /etc/hosts || echo '$proxy_ip $proxy_host' >> /etc/hosts"
+
 container exec -i lfs-vm bash -s <<'SETUP'
 set -eu
 id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -m -d /home/agent -s /bin/bash agent
+# System CAs plus the Agent Vault CA: proxied hosts are re-signed by it,
+# passed-through ones keep their public certificates.
+cat /etc/ssl/certs/ca-certificates.crt /opt/agent-vault-ca.pem > /opt/ca-bundle.pem
 # pi in the VM: Mac settings without its Mac-path extensions and packages,
 # and the Mac's own auth.json.
 d=/home/agent/.pi-vm
