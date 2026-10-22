@@ -22,6 +22,7 @@
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
 # rsync and zstd let memoryd on the Mac pull agent transcripts over SSH.
 # clang (14 or newer) lets Bend build native binaries (`bend <file> -o <out>`).
+# libsecret-1-0 is loaded by npm postinstall steps (uniwind-pro in praze).
 #
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
 # (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
@@ -92,7 +93,7 @@ exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang libsecret-1-0 >/dev/null
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
@@ -126,7 +127,9 @@ SETUP
 } | container exec -i -u 501:20 lfs-vm sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
 container exec -i -u 501:20 lfs-vm sh -s <<'PROFILE'
 cat > /home/agent/.lfs/profile.sh <<'SH'
-export PATH="$HOME/.local/bin:$PATH"
+# mise shims give each project the tool versions its .tool-versions pins.
+export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
+export LANG=C.UTF-8 LC_ALL=C.UTF-8
 for f in "$HOME/.lfs/proxy.env" "$HOME/.lfs/bridge.env"; do [ -f "$f" ] && . "$f"; done
 SH
 for rc in /home/agent/.bashrc /home/agent/.profile; do

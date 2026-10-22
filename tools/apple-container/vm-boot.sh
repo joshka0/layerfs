@@ -3,7 +3,7 @@
 # state after setup. A container restart is a VM boot: iptables rules and
 # sshd do not survive it, so this script brings them back.
 #   vm-boot.sh apply   apply the agent firewall and start sshd (when installed)
-#   vm-boot.sh run     apply, then wait forever (the container command)
+#   vm-boot.sh run     apply, then trim the disks hourly (the container command)
 # The container runs with --init, which reaps the processes sshd leaves.
 set -eu
 config=/etc/lfs-vm/boot.env
@@ -48,6 +48,8 @@ apply() {
 
 case "${1:-}" in
   apply) apply ;;
-  run) apply; exec sleep infinity ;;
+  # The Mac gets space back from the disk images only after a trim: deleted
+  # files (a discarded Workspace's Overlay) stay allocated until then.
+  run) apply; while :; do sleep 3600; fstrim -a >/dev/null 2>&1 || true; done ;;
   *) echo "usage: $0 apply|run" >&2; exit 2 ;;
 esac
