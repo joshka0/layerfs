@@ -1,0 +1,19 @@
+# The shared services of lfs-orb: services.compose.yml as sibling OrbStack
+# containers on the Docker network `lfs-orb`, with no ports on the Mac.
+# vm-boot.sh forwards each one to the workbench's 127.0.0.1 with socat, so
+# agents use the same addresses as in lfs-vm. lfs-vm.sh starts them; OrbStack
+# restarts them with the workbench.
+name: lfs-orb-services
+services:
+  postgres:
+    ports: !reset []
+    networks: [lfs-orb]
+  redis:
+    ports: !reset []
+    networks: [lfs-orb]
+  rustfs:
+    ports: !reset []
+    networks: [lfs-orb]
+networks:
+  lfs-orb:
+    external: true

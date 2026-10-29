@@ -1,6 +1,6 @@
 #!/bin/bash
-# The command of the lfs-vm container, and the step that applies its boot
-# state after setup. A container restart is a VM boot: iptables rules and
+# The command of the workbench container (lfs-vm or lfs-orb), and the step
+# that applies its boot state after setup. A container restart is a VM boot: iptables rules and
 # sshd do not survive it, so this script brings them back.
 #   vm-boot.sh apply   apply the agent firewall, start sshd and the shared
 #                      services (when installed)
@@ -53,9 +53,19 @@ apply() {
   services || echo "vm-boot: shared services did not start" >&2
 }
 
-# The shared services (services.compose.yml) in Docker Engine. Docker needs IP
-# forwarding, and the container mounts /proc/sys read-only.
+# The shared services (services.compose.yml). In lfs-orb they are sibling
+# containers: forward each to loopback (SERVICE_FORWARDS). In lfs-vm they run
+# in Docker Engine, which needs IP forwarding; the container mounts /proc/sys
+# read-only.
 services() {
+  if [ -n "${SERVICE_FORWARDS:-}" ]; then
+    for forward in $SERVICE_FORWARDS; do
+      port=${forward%%:*}
+      pgrep -f "socat TCP-LISTEN:$port," >/dev/null && continue
+      socat "TCP-LISTEN:$port,bind=127.0.0.1,fork,reuseaddr" "TCP:${forward#*:}" >/dev/null 2>&1 &
+    done
+    return 0
+  fi
   command -v dockerd >/dev/null || return 0
   if ! pgrep -x dockerd >/dev/null; then
     mount -o remount,rw /proc/sys
