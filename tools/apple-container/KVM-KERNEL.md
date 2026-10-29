@@ -39,3 +39,18 @@ On the dev box (x86_64 Ubuntu), cross-compile; it took 9 min 23 s at `-j8`.
 
 4. Copy the uncompressed `arch/arm64/boot/Image` to the Mac as the kernel
    file, and check that the `.config` has `CONFIG_KVM=y`.
+
+## Not enough for SPACE
+
+A spike on 2026-10-29 ran SPACE in one Apple container with this kernel and
+booted no sandbox:
+
+- SPACE also needs `BTRFS_FS`, `BLK_DEV_DM`, `DM_CRYPT`, `DM_SNAPSHOT` and
+  `FS_VERITY`: this kernel has none of them and no modules, so btrfs does not
+  mount and `dmsetup` finds no device. A build with those options (plus
+  `DM_THIN_PROVISIONING`, `DM_VERITY`, `XFS_FS`) took 10 min at `-j6`.
+- SPACE's Kind node image exited 255 after "starting init", cause unknown.
+- The container's network dropped after about 8 minutes, and then
+  `container stop` failed with errno 95.
+
+SPACE sandboxes stay on the dev box.
