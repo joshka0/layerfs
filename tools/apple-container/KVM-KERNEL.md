@@ -40,17 +40,44 @@ On the dev box (x86_64 Ubuntu), cross-compile; it took 9 min 23 s at `-j8`.
 4. Copy the uncompressed `arch/arm64/boot/Image` to the Mac as the kernel
    file, and check that the `.config` has `CONFIG_KVM=y`.
 
-## Not enough for SPACE
+## SPACE kernel
 
-A spike on 2026-10-29 ran SPACE in one Apple container with this kernel and
-booted no sandbox:
+SPACE needs more than `CONFIG_KVM`. A second kernel,
+`~/.local/share/lfs-vm/kernels/vmlinux-6.18.5-kvm-space-arm64` (sha256
+`566530ec9644f1effb1b198531b5a7e4dc044b782808fad4398dee6f07711973`, config
+`config-6.18.5-kvm-space-arm64` beside it), adds these as `=y`: `BTRFS_FS`,
+`BLK_DEV_DM`, `DM_CRYPT`, `DM_SNAPSHOT`, `DM_THIN_PROVISIONING`, `DM_VERITY`,
+`FS_VERITY`, `XFS_FS`, `NETFILTER_XTABLES_LEGACY`, `IP_NF_IPTABLES_LEGACY`,
+`IP_NF_NAT`, `IP_NF_TARGET_MASQUERADE`, `IP_NF_FILTER`, `IP_NF_MANGLE`,
+`IP6_NF_IPTABLES`, `IP6_NF_NAT`, `NF_NAT`, `NETFILTER_XT_MATCH_ADDRTYPE`,
+`NETFILTER_XT_MATCH_CONNTRACK`, `NETFILTER_XT_MARK`,
+`NETFILTER_XT_MATCH_COMMENT` and `NETFILTER_XT_MATCH_MULTIPORT`. Set their
+dependencies `MD`, `NETFILTER_ADVANCED`, `NF_CONNTRACK`, `BRIDGE_NETFILTER` and
+`NETFILTER_XTABLES` first, or `olddefconfig` drops them. The dev box build took
+9 min 4 s at `-j8`.
 
-- SPACE also needs `BTRFS_FS`, `BLK_DEV_DM`, `DM_CRYPT`, `DM_SNAPSHOT` and
-  `FS_VERITY`: this kernel has none of them and no modules, so btrfs does not
-  mount and `dmsetup` finds no device. A build with those options (plus
-  `DM_THIN_PROVISIONING`, `DM_VERITY`, `XFS_FS`) took 10 min at `-j6`.
-- SPACE's Kind node image exited 255 after "starting init", cause unknown.
-- The container's network dropped after about 8 minutes, and then
-  `container stop` failed with errno 95.
+## Run SPACE's Kind stack in one container
 
-SPACE sandboxes stay on the dev box.
+With the SPACE kernel, a 6-node Kind cluster reached Ready (2026-10-29,
+`container` 1.6.1, 6 CPUs, 12 GB). It needs all of these:
+
+1. Create the container with `--virtualization -k <SPACE kernel>
+   --dns 1.1.1.1 --cap-add ALL`. The gateway DNS (`192.168.64.1`) does not
+   answer. Without `CAP_SYS_RESOURCE`, runc in the Kind node fails on
+   `oom_score_adj`.
+2. Before `dockerd` starts, move every process out of the root cgroup:
+   `mkdir /sys/fs/cgroup/init`, write each pid of the root `cgroup.procs` to
+   `/sys/fs/cgroup/init/cgroup.procs`, then write
+   `+cpuset +cpu +pids +memory +io` to the root `cgroup.subtree_control`.
+   Otherwise the root becomes threaded and systemd in the Kind node exits 255.
+3. Set `fs.inotify.max_user_watches=1048576` and
+   `fs.inotify.max_user_instances=8192`, or Tilt cannot watch files.
+4. In SPACE's `docker/Dockerfile.rust-build-common`, use the aarch64
+   `sccache` and `wild` downloads with their own hashes, and rename the
+   `CARGO_TARGET_X86_64_*` variables to `AARCH64`.
+5. Remove the container with `container rm -f`. `container stop` fails with
+   errno 95 while Docker's threaded cgroups exist.
+
+No sandbox booted: Tilt compiles SPACE's Rust workspace once per service
+image, which takes hours on arm64. The network stayed up for 57 min under
+that load, after OrbStack's `network_bridge` was turned off (ADR 0003).
