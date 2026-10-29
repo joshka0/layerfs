@@ -215,7 +215,8 @@ cat > /home/agent/.lfs/profile.sh <<'SH'
 # mise shims give each project the tool versions its .tool-versions pins.
 export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
-for f in "$HOME/.lfs/proxy.env" "$HOME/.lfs/bridge.env"; do [ -f "$f" ] && . "$f"; done
+# A missing file must not fail the profile: callers run with `set -e`.
+for f in "$HOME/.lfs/proxy.env" "$HOME/.lfs/bridge.env"; do [ ! -f "$f" ] || . "$f"; done
 SH
 for rc in /home/agent/.bashrc /home/agent/.profile; do
   grep -qs '.lfs/profile.sh' "$rc" || echo '. "$HOME/.lfs/profile.sh"' >> "$rc"
