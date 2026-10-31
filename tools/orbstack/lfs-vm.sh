@@ -39,7 +39,8 @@
 # (herdr-blackboard), python3-venv (dreamd, herdr-loom), postgresql-client
 # (turtlr, infra-kit; Debian's 15), ffmpeg (dearday, praze-landing), and
 # chromium, fonts-noto and xvfb for browser tests (jev-hand, effect-folio,
-# pilotprospector, praze-landing).
+# pilotprospector, praze-landing). ripgrep, jq and fd-find (as `fd`) are
+# the search tools agents expect.
 #
 # The shared services of services.compose.yml that every agent uses on
 # 127.0.0.1: Postgres, Redis and RustFS. OrbStack runs them as sibling
@@ -144,6 +145,8 @@ DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server ip
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends procps build-essential \
   sqlite3 python3-venv postgresql-client ffmpeg chromium fonts-noto xvfb >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends socat >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends ripgrep jq fd-find >/dev/null
+ln -sfn /usr/bin/fdfind /usr/local/bin/fd
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
@@ -179,6 +182,9 @@ docker compose -f "$repo/tools/orbstack/services.compose.yml" \
   printf "export NO_PROXY='%s' no_proxy='%s'\n" "$direct" "$direct"
   printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
   printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
+  # gh needs a token to start; the proxy replaces this placeholder with the
+  # vault's GitHub key.
+  printf "export GH_TOKEN=agent-vault\n"
   # Node's fetch ignores the proxy variables without this; agents have no DNS.
   printf "export NODE_USE_ENV_PROXY=1\n"
   # The Mac's time zone, so summaries and notes carry the operator's local time.
