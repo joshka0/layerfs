@@ -51,6 +51,10 @@ code that nobody runs.
 - ADR 0003 turned off OrbStack's network bridge to protect Apple `container`
   bridges. With Apple `container` gone from the Mac, that reason no longer
   applies. This ADR does not change the OrbStack setting.
+  On 2026-10-31, `orbctl config set network_bridge true` restarted every
+  container and failed with `vmnet start timed out`, so the setting stays off.
+  The Mac reaches a dev server in the workbench through lfs-bridge's
+  `mac forward <port>` (sophiai), an `ssh -L` on the Mac's loopback.
 - `docker run` in `lfs-vm.sh` still adds `CAP_SYS_PTRACE`. The old comment
   says only the removed Docker Engine needed it. Remove it after a test shows that `lfs-orb`
   works without it.
