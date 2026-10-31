@@ -1,7 +1,7 @@
 # 0002: OrbStack workbench beside the Apple container one
 
 - Date: 2026-10-29
-- Status: accepted on branch `lfs-orb`
+- Status: accepted on branch `lfs-orb`; Option 3 replaced by ADR 0004
 - Topic: layerfs-container-port
 
 ## Context
@@ -29,7 +29,7 @@ runs Docker Engine inside to host the shared services.
 ## Choice
 
 Option 3 (operator's choice: "container should still be supported
-generally"). `LFS_VM_RUNTIME=orb tools/apple-container/lfs-vm.sh` creates
+generally"). `LFS_VM_RUNTIME=orb tools/orbstack/lfs-vm.sh` creates
 `lfs-orb`:
 
 - A Docker container in OrbStack, SSH on `127.0.0.1:2223`, Herdr machine

@@ -1,12 +1,13 @@
-# Shared local services of lfs-vm. Root runs them in the VM's Docker Engine;
-# every agent uses the same instances on 127.0.0.1 and keeps its own
-# database, Redis key prefix or bucket. They listen on the VM's loopback only,
-# so the development credentials below never leave the VM.
+# Shared local services of the workbench lfs-orb. services.orb.yml moves them
+# onto the Docker network `lfs-orb`. Every agent uses the same instances on
+# 127.0.0.1 (vm-boot.sh forwards the ports) and keeps its own database, Redis
+# key prefix or bucket. The Mac cannot reach them, so the development
+# credentials below stay in OrbStack.
 #   Postgres 18 with pgvector  127.0.0.1:5432  user postgres, no password
 #   Redis 7                    127.0.0.1:6379
 #   RustFS (S3)                127.0.0.1:9000  rustfsadmin / rustfsadmin
-# Data lives in Docker volumes under the data root on lfs-data, so it
-# survives a recreate. vm-boot.sh starts them at each boot.
+# Data lives in Docker volumes of OrbStack, so it survives a recreate of the
+# workbench.
 name: lfs-services
 services:
   postgres:

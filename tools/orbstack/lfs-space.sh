@@ -1,29 +1,28 @@
 #!/bin/zsh
-# Prints one JSON line of disk use for lfs-vm, for the LayerFS space trial.
+# Prints one JSON line of disk use for lfs-orb, for the LayerFS space trial.
 #
-# usage: tools/apple-container/lfs-space.sh [label]
+# usage: tools/orbstack/lfs-space.sh [label]
 #
-#   image     bytes the Mac allocates for lfs-vm (the real cost): the lfs-data
-#             volume (Stores, agent home) plus the container's root disk
-#             (system packages and the Sandboxes' Overlays)
-#   volume, rootfs   the two parts of image
+#   image     bytes lfs-orb holds in OrbStack (the real cost): the sum of
+#             volume, rootfs and sandboxes
+#   volume    the lfs-data volume (Stores, agent home)
+#   rootfs    the container's writable layer (system packages)
+#   sandboxes the volume at /var/lib/layerfs (the Sandboxes' Overlays)
 #   stores    bytes of each project's Store
 #   overlays  bytes of each Sandbox's Overlay (writes not yet committed)
 #   logical   apparent bytes of each mounted Workspace (what a checkout of it would hold)
 #
 # Append it to a log to sample over time:
-#   tools/apple-container/lfs-space.sh daily >> ~/.local/share/lfs-vm/space.jsonl
+#   tools/orbstack/lfs-space.sh daily >> ~/.local/share/lfs-vm/space.jsonl
 set -eu
 label=${1:-}
-base="$HOME/Library/Application Support/com.apple.container"
-volume=$(( $(du -k "$base/volumes/lfs-data/volume.img" | cut -f1) * 1024 ))
-rootfs=$(( $(du -k "$base/containers/lfs-vm/rootfs.ext4" | cut -f1) * 1024 ))
+rootfs=$(docker container inspect --size -f '{{.SizeRw}}' lfs-orb)
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
 
-container exec -i lfs-vm node - "$label" "$volume" "$rootfs" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'JS'
+docker exec -i lfs-orb node - "$label" "$rootfs" "$(date -u +%Y-%m-%dT%H:%M:%SZ)" <<'JS'
 const { execFileSync } = require("child_process");
 const fs = require("fs");
-const [label, volume, rootfs, at] = process.argv.slice(2);
+const [label, rootfs, at] = process.argv.slice(2);
 // du exits 1 when files move while it counts (an install in progress); its
 // total still holds.
 const bytes = (path, apparent) => {
@@ -36,6 +35,8 @@ const bytes = (path, apparent) => {
   }
   return Number(String(out).split("\t")[0]) || 0;
 };
+const volume = bytes("/var/lib/layerfs-data");
+const sandboxes = bytes("/var/lib/layerfs");
 const list = (dir) => (fs.existsSync(dir) ? fs.readdirSync(dir) : []);
 const stores = Object.fromEntries(list("/var/lib/layerfs-data/stores").map((p) => [p, bytes(`/var/lib/layerfs-data/stores/${p}`)]));
 const overlays = {};
@@ -46,6 +47,6 @@ for (const sandbox of list("/var/lib/layerfs/sandboxes")) {
   for (const w of list(`${root}/workspaces`)) logical[`${sandbox}/${w}`] = bytes(`${root}/workspaces/${w}`, true);
 }
 console.log(JSON.stringify({
-  at, label, image: Number(volume) + Number(rootfs), volume: Number(volume), rootfs: Number(rootfs), stores, overlays, logical,
+  at, label, image: volume + Number(rootfs) + sandboxes, volume, rootfs: Number(rootfs), sandboxes, stores, overlays, logical,
 }));
 JS
