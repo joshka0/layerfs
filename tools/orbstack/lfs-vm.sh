@@ -1,15 +1,12 @@
 #!/bin/zsh
-# Creates the workbench: one long-running Linux container that holds the
-# LayerFS Stores, their daemons and the agents. Agents run as uid 501
-# (`agent`); the LayerFS control (`lfs`) and the daemons run as root.
+# Creates the workbench `lfs-orb`: one long-running Linux container in
+# OrbStack (Docker) that holds the LayerFS Stores, their daemons and the
+# agents. Agents run as uid 501 (`agent`); the LayerFS control (`lfs`) and
+# the daemons run as root.
 #
-# usage: [LFS_VM_RUNTIME=container|orb] tools/apple-container/lfs-vm.sh <bundle-dir>
+# usage: tools/orbstack/lfs-vm.sh <bundle-dir>
 #   <bundle-dir> holds layerfs-daemon and layerfs.node (process-e2e.sh makes it).
-#   Run it in a proxied shell: `agent-vault-run shared -- tools/apple-container/lfs-vm.sh ...`.
-#
-# Two runtimes, each with its own workbench; both can exist at once:
-#   container (default)  `lfs-vm`, an Apple container; SSH on 127.0.0.1:2222.
-#   orb                  `lfs-orb`, a Docker container in OrbStack; SSH on 127.0.0.1:2223.
+#   Run it in a proxied shell: `agent-vault-run shared -- tools/orbstack/lfs-vm.sh ...`.
 #
 # Lasting state lives on the named volume `lfs-data` (made once), mounted at
 # /var/lib/layerfs-data: the LayerFS home and Stores, and the agent home with
@@ -45,33 +42,28 @@
 # pilotprospector, praze-landing).
 #
 # The shared services of services.compose.yml that every agent uses on
-# 127.0.0.1: Postgres, Redis and RustFS. In `lfs-vm`, Docker Engine (root
-# only) runs them; its data root is on the volume, and CAP_SYS_PTRACE lets
-# dockerd open the namespaces of an image that runs as a non-root user
-# (RustFS). In `lfs-orb`, OrbStack runs them as sibling containers on the
-# Docker network `lfs-orb` (services.orb.yml), and socat forwards each port
-# to the workbench's loopback. No Docker runs inside `lfs-orb`.
+# 127.0.0.1: Postgres, Redis and RustFS. OrbStack runs them as sibling
+# containers on the Docker network `lfs-orb` (services.orb.yml), and socat
+# forwards each port to the workbench's loopback. No Docker runs inside
+# `lfs-orb`.
 #
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
-# (default 2222) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
+# (default 2223) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
 # the host keys live on the volume, so they survive a recreate.
 #
-# The Herdr plugin joshka.lfs-bridge (herdr-plugins) makes this VM the Herdr
-# machine `lfs vm` and installs the agent harnesses.
+# The Herdr plugin joshka.lfs-bridge (herdr-plugins) makes this container the
+# Herdr machine `lfs orb` and installs the agent harnesses.
 set -eu
 repo=${0:A:h:h:h}
 bundle=${1:?usage: lfs-vm.sh <bundle-dir>}
 sfw_package=$(dirname "$(dirname "$(readlink -f "$(whence -p sfw)")")")
-runtime=${LFS_VM_RUNTIME:-container}
-case $runtime in
-  container) cli=container name=lfs-vm ssh_port=${LFS_VM_SSH_PORT:-2222} memory=${LFS_VM_MEMORY:-24G} ;;
-  # OrbStack's VM has 16 GB unless its memory_mib setting says otherwise.
-  orb) cli=docker name=lfs-orb ssh_port=${LFS_VM_SSH_PORT:-2223} memory=${LFS_VM_MEMORY:-12G} ;;
-  *) echo "lfs-vm.sh: LFS_VM_RUNTIME must be container or orb" >&2; exit 2 ;;
-esac
+name=lfs-orb
+ssh_port=${LFS_VM_SSH_PORT:-2223}
+# OrbStack's VM has 16 GB unless its memory_mib setting says otherwise.
+memory=${LFS_VM_MEMORY:-12G}
 
-# `container` must not inherit an agent's proxy settings: it records its
-# environment in launchd plists. Keep only the proxy's host and port.
+# The docker commands must not inherit an agent's proxy settings. Keep only
+# the proxy's host and port.
 proxy_url=${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}
 proxy=${proxy_url#*@}
 proxy_host=${proxy%%:*}
@@ -85,30 +77,22 @@ vault=${LFS_VAULT:-$HOME/vaults/fleet-memory}
 year=$(date +%Y)
 mkdir -p "$vault/summaries/$year"
 
-# Where the workbench reaches the Mac (the bridge): the Apple container
-# network's gateway, or OrbStack's host.docker.internal (the Mac's loopback).
-case $runtime in
-  container)
-    container volume ls | awk 'NR > 1 {print $1}' | grep -qx lfs-data || container volume create lfs-data >/dev/null
-    gateway=$(container network ls | awk '$1 == "default" { split($2, a, "/"); split(a[1], o, ".");
-      print o[1] "." o[2] "." o[3] ".1" }')
-    flags=(--dns 1.1.1.1) ;;
-  orb)
-    docker volume inspect lfs-data >/dev/null 2>&1 || docker volume create lfs-data >/dev/null
-    docker network inspect lfs-orb >/dev/null 2>&1 || docker network create lfs-orb >/dev/null
-    gateway=0.250.250.254
-    # The proxy's tailnet address, in the hosts file Docker keeps across restarts.
-    # LayerFS Sandboxes need a real filesystem: on OrbStack's overlay root, a
-    # commit finds no changes. An anonymous volume holds them; `docker rm -v`
-    # removes it, so a recreate starts them fresh as in lfs-vm.
-    flags=(--device /dev/fuse --network lfs-orb --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
-      -v /var/lib/layerfs) ;;
-esac
+docker volume inspect lfs-data >/dev/null 2>&1 || docker volume create lfs-data >/dev/null
+docker network inspect lfs-orb >/dev/null 2>&1 || docker network create lfs-orb >/dev/null
+# Where the workbench reaches the Mac (the bridge): OrbStack's
+# host.docker.internal, the Mac's loopback.
+gateway=0.250.250.254
+# The proxy's tailnet address, in the hosts file Docker keeps across restarts.
+# LayerFS Sandboxes need a real filesystem: on OrbStack's overlay root, a
+# commit finds no changes. An anonymous volume holds them; `docker rm -v`
+# removes it, so a recreate starts them fresh.
+flags=(--device /dev/fuse --network lfs-orb --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
+  -v /var/lib/layerfs)
 
-$cli run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
+docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
   $flags -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
-  -v "$repo/tools/apple-container":/opt/layerfs/tools:ro -v "$share":/share \
+  -v "$repo/tools/orbstack":/opt/layerfs/tools:ro -v "$share":/share \
   -v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams \
   -v "$vault/summaries/$year":"/vaults/fleet-memory/summaries/$year" \
   -v "$vault/router":/vaults/fleet-memory/router:ro \
@@ -116,15 +100,14 @@ $cli run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADM
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
 # MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
-$cli exec -i $name sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
+docker exec -i $name sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
   < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
-[ $runtime = orb ] || container exec lfs-vm sh -c "echo '$proxy_ip $proxy_host' >> /etc/hosts"
 # sfw for agents' package installs (it caches its firewall binary beside itself).
-$cli exec $name mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
-$cli exec -i $name sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
-$cli exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
+docker exec $name mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
+docker exec -i $name sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
+docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
-$cli exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" -e RUNTIME="$runtime" \
+docker exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" $name bash -s <<'SETUP'
 set -eu
 # OrbStack's docker exec starts with umask 0000.
@@ -134,8 +117,8 @@ mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /e
 chmod 700 "$data/ssh-host-keys"
 printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="github.com gitlab.com"\n' \
   "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" > /etc/lfs-vm/boot.env
-# lfs-orb: the sibling services, forwarded to loopback (<port>:<host>:<port>).
-[ "$RUNTIME" = container ] || echo 'SERVICE_FORWARDS="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"' >> /etc/lfs-vm/boot.env
+# The sibling services, forwarded to loopback (<port>:<host>:<port>).
+echo 'SERVICE_FORWARDS="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"' >> /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 # The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
@@ -160,18 +143,7 @@ DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang libsecret-1-0 >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends procps build-essential \
   sqlite3 python3-venv postgresql-client ffmpeg chromium fonts-noto xvfb >/dev/null
-if [ "$RUNTIME" = orb ]; then
-  DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends socat >/dev/null
-else
-install -m 0755 -d /etc/apt/keyrings /etc/docker
-curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
-echo "deb [arch=arm64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
-  > /etc/apt/sources.list.d/docker.list
-DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends docker-ce docker-ce-cli \
-  containerd.io docker-compose-plugin >/dev/null
-printf '{"data-root": "%s/docker"}\n' "$data" > /etc/docker/daemon.json
-fi
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends socat >/dev/null
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
@@ -190,9 +162,9 @@ pkill -x sshd || true
 echo LFS_VM_READY
 SETUP
 
-# lfs-orb: OrbStack runs the shared services next to the workbench.
-[ $runtime = container ] || docker compose -f "$repo/tools/apple-container/services.compose.yml" \
-  -f "$repo/tools/apple-container/services.orb.yml" up -d --quiet-pull
+# OrbStack runs the shared services next to the workbench.
+docker compose -f "$repo/tools/orbstack/services.compose.yml" \
+  -f "$repo/tools/orbstack/services.orb.yml" up -d --quiet-pull
 
 # The proxy for every agent shell: ~/.lfs/profile.sh loads it (and the
 # bridge session the Herdr plugin writes). Through stdin only.
@@ -211,8 +183,8 @@ SETUP
   printf "export NODE_USE_ENV_PROXY=1\n"
   # The Mac's time zone, so summaries and notes carry the operator's local time.
   printf "export TZ='%s'\n" "$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"
-} | $cli exec -i -u 501:20 $name sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
-$cli exec -i -u 501:20 $name sh -s <<'PROFILE'
+} | docker exec -i -u 501:20 $name sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
+docker exec -i -u 501:20 $name sh -s <<'PROFILE'
 umask 022
 cat > /home/agent/.lfs/profile.sh <<'SH'
 # mise shims give each project the tool versions its .tool-versions pins.

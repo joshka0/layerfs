@@ -1,9 +1,9 @@
 #!/bin/bash
-# The command of the workbench container (lfs-vm or lfs-orb), and the step
-# that applies its boot state after setup. A container restart is a VM boot: iptables rules and
-# sshd do not survive it, so this script brings them back.
-#   vm-boot.sh apply   apply the agent firewall, start sshd and the shared
-#                      services (when installed)
+# The command of the workbench container (lfs-orb), and the step that applies
+# its boot state after setup. A container restart loses the iptables rules
+# and sshd, so this script brings them back.
+#   vm-boot.sh apply   apply the agent firewall, start sshd and the
+#                      forwards to the shared services
 #   vm-boot.sh run     apply, then trim the disks hourly (the container command)
 # The container runs with --init, which reaps the processes sshd leaves.
 set -eu
@@ -49,43 +49,18 @@ apply() {
     mkdir -p /run/sshd
     /usr/sbin/sshd
   fi
-  # The VM must keep running without its services.
+  # The workbench must keep running without its services.
   services || echo "vm-boot: shared services did not start" >&2
 }
 
-# The shared services (services.compose.yml). In lfs-orb they are sibling
-# containers: forward each to loopback (SERVICE_FORWARDS). In lfs-vm they run
-# in Docker Engine, which needs IP forwarding; the container mounts /proc/sys
-# read-only.
+# The shared services (services.compose.yml) are sibling containers of
+# OrbStack. Forward each to loopback (SERVICE_FORWARDS).
 services() {
-  if [ -n "${SERVICE_FORWARDS:-}" ]; then
-    for forward in $SERVICE_FORWARDS; do
-      port=${forward%%:*}
-      pgrep -f "socat TCP-LISTEN:$port," >/dev/null && continue
-      socat "TCP-LISTEN:$port,bind=127.0.0.1,fork,reuseaddr" "TCP:${forward#*:}" >/dev/null 2>&1 &
-    done
-    return 0
-  fi
-  command -v dockerd >/dev/null || return 0
-  if ! pgrep -x dockerd >/dev/null; then
-    mount -o remount,rw /proc/sys
-    echo 1 > /proc/sys/net/ipv4/ip_forward
-    dockerd > /var/log/dockerd.log 2>&1 &
-  fi
-  for _ in $(seq 30); do docker info >/dev/null 2>&1 && break; sleep 1; done
-  docker compose -f /opt/layerfs/tools/services.compose.yml up -d --quiet-pull
-}
-
-# At `container stop`. Docker's cgroups are threaded, and the kernel cannot
-# kill a threaded cgroup: the stop fails with errno 95 while they exist. A
-# clean dockerd exit also shuts the services down cleanly.
-shutdown() {
-  if pgrep -x dockerd >/dev/null; then
-    pkill -TERM -x dockerd
-    for _ in $(seq 40); do pgrep -x dockerd >/dev/null || break; sleep 1; done
-  fi
-  [ -d /sys/fs/cgroup/docker ] && find /sys/fs/cgroup/docker -depth -type d -exec rmdir {} \;
-  exit 0
+  for forward in $SERVICE_FORWARDS; do
+    port=${forward%%:*}
+    pgrep -f "socat TCP-LISTEN:$port," >/dev/null && continue
+    socat "TCP-LISTEN:$port,bind=127.0.0.1,fork,reuseaddr" "TCP:${forward#*:}" >/dev/null 2>&1 &
+  done
 }
 
 case "${1:-}" in
@@ -94,7 +69,7 @@ case "${1:-}" in
   # files (a discarded Workspace's Overlay) stay allocated until then.
   # The sleep runs in the background, so the TERM trap runs at once.
   run)
-    trap shutdown TERM
+    trap 'exit 0' TERM
     apply
     while :; do sleep 3600 & wait $!; fstrim -a >/dev/null 2>&1 || true; done ;;
   *) echo "usage: $0 apply|run" >&2; exit 2 ;;
