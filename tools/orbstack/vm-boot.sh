@@ -56,7 +56,8 @@ apply() {
 }
 
 # The agent's rootless Docker (ADR 0005): dockerd as uid 501, its data in the
-# agent home on lfs-data, its socket in /run/user/501. The firewall above
+# agent home on lfs-data, its socket in /run/user/501. The data root is the
+# real path: /home/agent is a link, and runc refuses a rootfs path with one. The firewall above
 # applies to it and its containers, as to every process of the agent.
 agent_docker() {
   command -v dockerd-rootless.sh >/dev/null || return 0
@@ -64,7 +65,8 @@ agent_docker() {
   install -d -o 501 -g 20 -m 0700 /run/user/501
   install -d -o 501 -g 20 /home/agent/.local/state
   setpriv --reuid 501 --regid 20 --init-groups env -i HOME=/home/agent XDG_RUNTIME_DIR=/run/user/501 \
-    PATH=/usr/bin:/usr/sbin:/bin:/sbin sh -c 'exec dockerd-rootless.sh >> "$HOME/.local/state/dockerd.log" 2>&1' &
+    PATH=/usr/bin:/usr/sbin:/bin:/sbin sh -c 'exec dockerd-rootless.sh --data-root "$1" \
+      >> "$HOME/.local/state/dockerd.log" 2>&1' sh /var/lib/layerfs-data/agent-home/.local/share/docker &
 }
 
 # The shared services (services.compose.yml) are sibling containers of
