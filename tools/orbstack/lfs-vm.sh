@@ -52,6 +52,12 @@
 # (default 2223) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
 # the host keys live on the volume, so they survive a recreate.
 #
+# Agents run their own Docker (ADR 0005): rootless dockerd as `agent`, which
+# vm-boot.sh starts, with its data in the agent home. Its containers see the
+# Workspaces and publish ports on the workbench's loopback, and root in them
+# is uid 501 outside. It needs /dev/net/tun, a writable /proc/sys and the
+# seccomp profile seccomp.json (seccomp.sh writes it).
+#
 # The Herdr plugin joshka.lfs-bridge (herdr-plugins) makes this container the
 # Herdr machine `lfs orb` and installs the agent harnesses.
 set -eu
@@ -87,7 +93,8 @@ gateway=0.250.250.254
 # LayerFS Sandboxes need a real filesystem: on OrbStack's overlay root, a
 # commit finds no changes. An anonymous volume holds them; `docker rm -v`
 # removes it, so a recreate starts them fresh.
-flags=(--device /dev/fuse --network lfs-orb --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
+flags=(--device /dev/fuse --device /dev/net/tun --security-opt systempaths=unconfined
+  --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network lfs-orb --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
   -v /var/lib/layerfs)
 
 docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
@@ -147,6 +154,22 @@ DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends pr
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends socat >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends ripgrep jq fd-find >/dev/null
 ln -sfn /usr/bin/fdfind /usr/local/bin/fd
+# Rootless Docker from Docker's Debian repository, its key checked by
+# fingerprint, at versions two weeks old or more.
+install -m 0755 -d /etc/apt/keyrings
+curl -fsSL https://download.docker.com/linux/debian/gpg -o /etc/apt/keyrings/docker.asc
+[ "$(gpg --show-keys --with-colons /etc/apt/keyrings/docker.asc 2>/dev/null | awk -F: '/^fpr/ { print $10; exit }')" \
+  = 9DC858229FC7DD38854AE2D88D81803C0EBFCD88 ] || { echo "lfs-vm: Docker's apt key has an unknown fingerprint" >&2; exit 1; }
+chmod a+r /etc/apt/keyrings/docker.asc
+echo "deb [arch=arm64 signed-by=/etc/apt/keyrings/docker.asc] https://download.docker.com/linux/debian bookworm stable" \
+  > /etc/apt/sources.list.d/docker.list
+DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
+docker_version=5:29.9.1-1~debian.12~bookworm
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends uidmap slirp4netns \
+  docker-ce=$docker_version docker-ce-cli=$docker_version docker-ce-rootless-extras=$docker_version \
+  docker-compose-plugin=5.6.0-1~debian.12~bookworm >/dev/null
+grep -q '^agent:' /etc/subuid || echo agent:100000:65536 >> /etc/subuid
+grep -q '^agent:' /etc/subgid || echo agent:100000:65536 >> /etc/subgid
 # Host keys from the volume, or keep the new ones there.
 if ls "$data"/ssh-host-keys/ssh_host_* >/dev/null 2>&1; then
   cp "$data"/ssh-host-keys/ssh_host_* /etc/ssh/
@@ -196,6 +219,8 @@ cat > /home/agent/.lfs/profile.sh <<'SH'
 # mise shims give each project the tool versions its .tool-versions pins.
 export PATH="$HOME/.local/share/mise/shims:$HOME/.local/bin:$PATH"
 export LANG=C.UTF-8 LC_ALL=C.UTF-8
+# The agent's own rootless Docker (vm-boot.sh starts it).
+export DOCKER_HOST=unix:///run/user/501/docker.sock
 # A missing file must not fail the profile: callers run with `set -e`.
 for f in "$HOME/.lfs/proxy.env" "$HOME/.lfs/bridge.env"; do [ ! -f "$f" ] || . "$f"; done
 SH
