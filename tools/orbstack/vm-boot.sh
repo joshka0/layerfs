@@ -2,8 +2,9 @@
 # The command of the workbench container (lfs-orb), and the step that applies
 # its boot state after setup. A container restart loses the iptables rules
 # and sshd, so this script brings them back.
-#   vm-boot.sh apply   apply the agent firewall, start sshd and the
-#                      forwards to the shared services
+#   vm-boot.sh apply   apply the agent firewall, start sshd, the
+#                      forwards to the shared services and the agent's
+#                      rootless Docker
 #   vm-boot.sh run     apply, then trim the disks hourly (the container command)
 # The container runs with --init, which reaps the processes sshd leaves.
 set -eu
@@ -51,6 +52,19 @@ apply() {
   fi
   # The workbench must keep running without its services.
   services || echo "vm-boot: shared services did not start" >&2
+  agent_docker || echo "vm-boot: the agent's Docker did not start" >&2
+}
+
+# The agent's rootless Docker (ADR 0005): dockerd as uid 501, its data in the
+# agent home on lfs-data, its socket in /run/user/501. The firewall above
+# applies to it and its containers, as to every process of the agent.
+agent_docker() {
+  command -v dockerd-rootless.sh >/dev/null || return 0
+  pgrep -u 501 -f rootlesskit >/dev/null && return 0
+  install -d -o 501 -g 20 -m 0700 /run/user/501
+  install -d -o 501 -g 20 /home/agent/.local/state
+  setpriv --reuid 501 --regid 20 --init-groups env -i HOME=/home/agent XDG_RUNTIME_DIR=/run/user/501 \
+    PATH=/usr/bin:/usr/sbin:/bin:/sbin sh -c 'exec dockerd-rootless.sh >> "$HOME/.local/state/dockerd.log" 2>&1' &
 }
 
 # The shared services (services.compose.yml) are sibling containers of
