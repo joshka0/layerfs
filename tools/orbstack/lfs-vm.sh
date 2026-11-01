@@ -1,12 +1,23 @@
 #!/bin/zsh
-# Creates the workbench `lfs-orb`: one long-running Linux container in
-# OrbStack (Docker) that holds the LayerFS Stores, their daemons and the
-# agents. Agents run as uid 501 (`agent`); the LayerFS control (`lfs`) and
-# the daemons run as root.
+# Creates a workbench: one long-running Linux container in OrbStack (Docker)
+# that holds the LayerFS Stores, their daemons and the agents. Agents run as
+# uid 501 (`agent`); the LayerFS control (`lfs`) and the daemons run as root.
 #
-# usage: tools/orbstack/lfs-vm.sh <bundle-dir>
+# usage: tools/orbstack/lfs-vm.sh <bundle-dir> [lfs-orb|lfs-foxway]
 #   <bundle-dir> holds layerfs-daemon and layerfs.node (process-e2e.sh makes it).
-#   Run it in a proxied shell: `agent-vault-run shared -- tools/orbstack/lfs-vm.sh ...`.
+#   Run it in a shell proxied through the workbench's vault:
+#   `agent-vault-run shared -- tools/orbstack/lfs-vm.sh <bundle-dir>` for `lfs-orb`,
+#   `agent-vault-run foxway-workspace-dev -- tools/orbstack/lfs-vm.sh <bundle-dir> lfs-foxway`.
+#
+# Two workbenches, so Foxway files and credentials never share a container
+# with personal work:
+#   lfs-orb      personal repos: vault `shared`, SSH to github.com and
+#                gitlab.com, the shared services, volume `lfs-data`, port 2223.
+#   lfs-foxway   Foxway repos: a `foxway*` vault, SSH to ssh.dev.azure.com
+#                only, no shared services, only the Foxway summaries of the
+#                vault, volume `lfs-foxway-data`, port 2224.
+# The rest of this text describes `lfs-orb`; `lfs-foxway` is the same except
+# for those settings.
 #
 # Lasting state lives on the named volume `lfs-data` (made once), mounted at
 # /var/lib/layerfs-data: the LayerFS home and Stores, and the agent home with
@@ -64,10 +75,29 @@ set -eu
 repo=${0:A:h:h:h}
 bundle=${1:?usage: lfs-vm.sh <bundle-dir>}
 sfw_package=$(dirname "$(dirname "$(readlink -f "$(whence -p sfw)")")")
-name=lfs-orb
-ssh_port=${LFS_VM_SSH_PORT:-2223}
+name=${2:-lfs-orb}
+vault=${LFS_VAULT:-$HOME/vaults/fleet-memory}
+year=$(date +%Y)
 # OrbStack's VM has 16 GB unless its memory_mib setting says otherwise.
-memory=${LFS_VM_MEMORY:-12G}
+case $name in
+  lfs-orb)
+    [[ ${AGENT_VAULT_VAULT:-} != foxway* ]] || { echo "lfs-vm: lfs-orb never uses a Foxway vault" >&2; exit 64; }
+    volume=lfs-data ssh_port=${LFS_VM_SSH_PORT:-2223} memory=${LFS_VM_MEMORY:-12G}
+    git_ssh_hosts="github.com gitlab.com"
+    service_forwards="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"
+    mkdir -p "$vault/summaries/$year"
+    vault_mounts=(-v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams
+      -v "$vault/summaries/$year":"/vaults/fleet-memory/summaries/$year"
+      -v "$vault/router":/vaults/fleet-memory/router:ro) ;;
+  lfs-foxway)
+    [[ ${AGENT_VAULT_VAULT:-} == foxway* ]] || { echo "lfs-vm: lfs-foxway needs a Foxway vault (agent-vault-run foxway-workspace-dev)" >&2; exit 64; }
+    volume=lfs-foxway-data ssh_port=${LFS_VM_SSH_PORT:-2224} memory=${LFS_VM_MEMORY:-8G}
+    git_ssh_hosts="ssh.dev.azure.com"
+    service_forwards=""
+    mkdir -p "$vault/summaries/foxway"
+    vault_mounts=(-v "$vault/summaries/foxway":/vaults/fleet-memory/summaries/foxway) ;;
+  *) echo "usage: lfs-vm.sh <bundle-dir> [lfs-orb|lfs-foxway]" >&2; exit 64 ;;
+esac
 
 # The docker commands must not inherit an agent's proxy settings. Keep only
 # the proxy's host and port.
@@ -80,12 +110,9 @@ proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print 
 bridge_port=${LFS_BRIDGE_PORT:-47111}
 share=${LFS_SHARE:-$HOME/lfs-share}
 mkdir -p "$share"
-vault=${LFS_VAULT:-$HOME/vaults/fleet-memory}
-year=$(date +%Y)
-mkdir -p "$vault/summaries/$year"
 
-docker volume inspect lfs-data >/dev/null 2>&1 || docker volume create lfs-data >/dev/null
-docker network inspect lfs-orb >/dev/null 2>&1 || docker network create lfs-orb >/dev/null
+docker volume inspect $volume >/dev/null 2>&1 || docker volume create $volume >/dev/null
+docker network inspect $name >/dev/null 2>&1 || docker network create $name >/dev/null
 # Where the workbench reaches the Mac (the bridge): OrbStack's
 # host.docker.internal, the Mac's loopback.
 gateway=0.250.250.254
@@ -94,16 +121,13 @@ gateway=0.250.250.254
 # commit finds no changes. An anonymous volume holds them; `docker rm -v`
 # removes it, so a recreate starts them fresh.
 flags=(--device /dev/fuse --device /dev/net/tun --security-opt systempaths=unconfined
-  --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network lfs-orb --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
+  --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network $name --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
   -v /var/lib/layerfs)
 
 docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
-  $flags -p "127.0.0.1:$ssh_port:22" -v lfs-data:/var/lib/layerfs-data \
+  $flags -p "127.0.0.1:$ssh_port:22" -v $volume:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
-  -v "$repo/tools/orbstack":/opt/layerfs/tools:ro -v "$share":/share \
-  -v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams \
-  -v "$vault/summaries/$year":"/vaults/fleet-memory/summaries/$year" \
-  -v "$vault/router":/vaults/fleet-memory/router:ro \
+  -v "$repo/tools/orbstack":/opt/layerfs/tools:ro -v "$share":/share $vault_mounts \
   node:24-bookworm /opt/layerfs/tools/vm-boot.sh run
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
@@ -116,17 +140,17 @@ docker exec -i $name sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sf
 docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
 docker exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
-  -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" $name bash -s <<'SETUP'
+  -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" -e GIT_SSH_HOSTS="$git_ssh_hosts" \
+  -e SERVICE_FORWARDS="$service_forwards" $name bash -s <<'SETUP'
 set -eu
 # OrbStack's docker exec starts with umask 0000.
 umask 022
 data=/var/lib/layerfs-data
 mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
 chmod 700 "$data/ssh-host-keys"
-printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="github.com gitlab.com"\n' \
-  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" > /etc/lfs-vm/boot.env
 # The sibling services, forwarded to loopback (<port>:<host>:<port>).
-echo 'SERVICE_FORWARDS="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"' >> /etc/lfs-vm/boot.env
+printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\n' \
+  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 # The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
@@ -188,8 +212,8 @@ pkill -x sshd || true
 echo LFS_VM_READY
 SETUP
 
-# OrbStack runs the shared services next to the workbench.
-docker compose -f "$repo/tools/orbstack/services.compose.yml" \
+# OrbStack runs the shared services next to the personal workbench.
+[ -z "$service_forwards" ] || docker compose -f "$repo/tools/orbstack/services.compose.yml" \
   -f "$repo/tools/orbstack/services.orb.yml" up -d --quiet-pull
 
 # The proxy for every agent shell: ~/.lfs/profile.sh loads it (and the
@@ -206,8 +230,8 @@ docker compose -f "$repo/tools/orbstack/services.compose.yml" \
   printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
   printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
   # gh and glab need a token to start; the proxy replaces these placeholders
-  # with the vault's GitHub and GitLab keys.
-  printf "export GH_TOKEN=agent-vault GITLAB_TOKEN=agent-vault\n"
+  # with the vault's GitHub and GitLab keys. Foxway vaults have neither.
+  [ $name != lfs-orb ] || printf "export GH_TOKEN=agent-vault GITLAB_TOKEN=agent-vault\n"
   # Node's fetch ignores the proxy variables without this; agents have no DNS.
   printf "export NODE_USE_ENV_PROXY=1\n"
   # The Mac's time zone, so summaries and notes carry the operator's local time.
