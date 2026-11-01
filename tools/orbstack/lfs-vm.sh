@@ -15,7 +15,9 @@
 #                gitlab.com, the shared services, volume `lfs-data`, port 2223.
 #   lfs-foxway   Foxway repos: a `foxway*` vault, SSH to ssh.dev.azure.com
 #                only, no shared services, only the Foxway summaries of the
-#                vault, volume `lfs-foxway-data`, port 2224.
+#                vault, volume `lfs-foxway-data`, port 2224. Its Sandboxes are
+#                foxway-<project>-<n>, so a Sandbox path names its workbench
+#                (memoryd and lfs-bridge file Foxway sessions by it).
 # The rest of this text describes `lfs-orb`; `lfs-foxway` is the same except
 # for those settings.
 #
@@ -83,7 +85,7 @@ case $name in
   lfs-orb)
     [[ ${AGENT_VAULT_VAULT:-} != foxway* ]] || { echo "lfs-vm: lfs-orb never uses a Foxway vault" >&2; exit 64; }
     volume=lfs-data ssh_port=${LFS_VM_SSH_PORT:-2223} memory=${LFS_VM_MEMORY:-12G}
-    git_ssh_hosts="github.com gitlab.com"
+    git_ssh_hosts="github.com gitlab.com" sandbox_prefix=layerfs-
     service_forwards="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"
     mkdir -p "$vault/summaries/$year"
     vault_mounts=(-v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams
@@ -92,7 +94,7 @@ case $name in
   lfs-foxway)
     [[ ${AGENT_VAULT_VAULT:-} == foxway* ]] || { echo "lfs-vm: lfs-foxway needs a Foxway vault (agent-vault-run foxway-workspace-dev)" >&2; exit 64; }
     volume=lfs-foxway-data ssh_port=${LFS_VM_SSH_PORT:-2224} memory=${LFS_VM_MEMORY:-8G}
-    git_ssh_hosts="ssh.dev.azure.com"
+    git_ssh_hosts="ssh.dev.azure.com" sandbox_prefix=foxway-
     service_forwards=""
     mkdir -p "$vault/summaries/foxway"
     vault_mounts=(-v "$vault/summaries/foxway":/vaults/fleet-memory/summaries/foxway) ;;
@@ -141,7 +143,7 @@ docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package
 
 docker exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" -e GIT_SSH_HOSTS="$git_ssh_hosts" \
-  -e SERVICE_FORWARDS="$service_forwards" $name bash -s <<'SETUP'
+  -e SERVICE_FORWARDS="$service_forwards" -e SANDBOX_PREFIX="$sandbox_prefix" $name bash -s <<'SETUP'
 set -eu
 # OrbStack's docker exec starts with umask 0000.
 umask 022
@@ -167,9 +169,10 @@ cat > /usr/local/bin/lfs <<'LFS'
 #!/bin/sh
 export LAYERFS_RUNTIME=process LAYERFS_HOME=/var/lib/layerfs-data/home \
   LAYERFS_DAEMON=/opt/layerfs/bundle/layerfs-daemon LAYERFS_NATIVE=/opt/layerfs/bundle/layerfs.node \
-  LAYERFS_STORE_ROOT=/var/lib/layerfs-data/stores
+  LAYERFS_STORE_ROOT=/var/lib/layerfs-data/stores LAYERFS_CONTAINER_PREFIX=@SANDBOX_PREFIX@
 exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
+sed -i "s|@SANDBOX_PREFIX@|$SANDBOX_PREFIX|" /usr/local/bin/lfs
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang libsecret-1-0 >/dev/null
