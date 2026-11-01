@@ -66,7 +66,7 @@ agent_docker() {
   # rootlesskit makes dockerd's mount namespace once. With / shared, the
   # Workspaces mounted later reach it, so compose files can bind-mount their files.
   mount --make-rshared /
-  install -d -o 501 -g 20 /home/agent/.local/state
+  install -d -o 501 -g 20 /home/agent/.local /home/agent/.local/state
   setpriv --reuid 501 --regid 20 --init-groups env -i HOME=/home/agent XDG_RUNTIME_DIR=/run/user/501 \
     PATH=/usr/bin:/usr/sbin:/bin:/sbin sh -c 'exec dockerd-rootless.sh --data-root "$1" \
       >> "$HOME/.local/state/dockerd.log" 2>&1' sh /var/lib/layerfs-data/agent-home/.local/share/docker &
