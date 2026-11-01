@@ -43,15 +43,22 @@
 # bridge, and SSH of github.com and gitlab.com (iptables rules for uid 501). Root is not limited. vm-boot.sh applies the
 # rule and starts sshd at each container start.
 #
+# The base is node:24-bookworm-slim; agents cannot install apt packages, so
+# every package they need is listed here. Docs, man pages and translations
+# are not installed (/etc/dpkg/dpkg.cfg.d/lfs-vm), nor recommended packages.
 # iproute2 gives `ss`, which Herdr UI uses to list the ports agents listen on.
 # rsync and zstd let memoryd on the Mac pull agent transcripts over SSH.
 # clang (14 or newer) lets Bend build native binaries (`bend <file> -o <out>`).
 # libsecret-1-0 is loaded by npm postinstall steps (uniwind-pro in praze).
-# The second apt line holds what the active repos' builds and tests need:
+# The base tools line holds what the full node image gave and agents use:
+# Git, SSH, curl and archive tools, and the headers that native npm, Python
+# and Rust builds and mise's source builds link (OpenSSL, libffi, zlib,
+# SQLite, libpq, readline, libyaml, bzip2, xz, libxml2, libcurl).
+# The next line holds what the active repos' builds and tests need:
 # procps and build-essential (praze, yada, Rust crates), sqlite3
 # (herdr-blackboard), python3-venv (dreamd, herdr-loom), postgresql-client
 # (turtlr, infra-kit; Debian's 15), ffmpeg (dearday, praze-landing), and
-# chromium, fonts-noto and xvfb for browser tests (jev-hand, effect-folio,
+# chromium, fonts-noto-core and xvfb for browser tests (jev-hand, effect-folio,
 # pilotprospector, praze-landing). ripgrep, jq and fd-find (as `fd`) are
 # the search tools agents expect.
 #
@@ -129,7 +136,7 @@ docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_A
   $flags -p "127.0.0.1:$ssh_port:22" -v $volume:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
   -v "$repo/tools/orbstack":/opt/layerfs/tools:ro $vault_mounts \
-  node:24-bookworm /opt/layerfs/tools/vm-boot.sh run
+  node:24-bookworm-slim /opt/layerfs/tools/vm-boot.sh run
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
 # MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
@@ -173,10 +180,23 @@ exec node /opt/layerfs/tools/lfs.mjs "$@"
 LFS
 sed -i "s|@SANDBOX_PREFIX@|$SANDBOX_PREFIX|" /usr/local/bin/lfs
 chmod 755 /usr/local/bin/sfw /usr/local/bin/lfs
+cat > /etc/dpkg/dpkg.cfg.d/lfs-vm <<'DPKG'
+path-exclude /usr/share/doc/*
+path-include /usr/share/doc/*/copyright
+path-exclude /usr/share/man/*
+path-exclude /usr/share/info/*
+path-exclude /usr/share/locale/*
+path-include /usr/share/locale/locale.alias
+DPKG
 DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
-DEBIAN_FRONTEND=noninteractive apt-get -qq install -y iptables openssh-server iproute2 rsync zstd clang libsecret-1-0 >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends git openssh-client curl wget \
+  ca-certificates gnupg netbase unzip xz-utils bzip2 file patch less pkg-config autoconf automake libtool \
+  libssl-dev libffi-dev zlib1g-dev libsqlite3-dev libpq-dev libreadline-dev libyaml-dev libbz2-dev \
+  liblzma-dev libxml2-dev libcurl4-openssl-dev >/dev/null
+DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends iptables openssh-server \
+  iproute2 rsync zstd clang libsecret-1-0 >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends procps build-essential \
-  sqlite3 python3-venv postgresql-client ffmpeg chromium fonts-noto xvfb >/dev/null
+  sqlite3 python3-venv postgresql-client ffmpeg chromium fonts-noto-core xvfb >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends socat >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends ripgrep jq fd-find >/dev/null
 ln -sfn /usr/bin/fdfind /usr/local/bin/fd
@@ -194,6 +214,8 @@ docker_version=5:29.9.1-1~debian.12~bookworm
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends uidmap slirp4netns \
   docker-ce=$docker_version docker-ce-cli=$docker_version docker-ce-rootless-extras=$docker_version \
   docker-compose-plugin=5.6.0-1~debian.12~bookworm >/dev/null
+apt-get -qq clean
+rm -rf /var/lib/apt/lists/*
 grep -q '^agent:' /etc/subuid || echo agent:100000:65536 >> /etc/subuid
 grep -q '^agent:' /etc/subgid || echo agent:100000:65536 >> /etc/subgid
 # Host keys from the volume, or keep the new ones there.
