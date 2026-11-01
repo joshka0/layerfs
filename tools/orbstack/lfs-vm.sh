@@ -14,8 +14,8 @@
 #   lfs-orb      personal repos: vault `shared`, SSH to github.com and
 #                gitlab.com, the shared services, volume `lfs-data`, port 2223.
 #   lfs-foxway   Foxway repos: a `foxway*` vault, SSH to ssh.dev.azure.com
-#                only, no shared services, only the Foxway summaries of the
-#                vault, volume `lfs-foxway-data`, port 2224. Its Sandboxes are
+#                only, no shared services, no /share, only the Foxway
+#                summaries of the vault, volume `lfs-foxway-data`, port 2224. Its Sandboxes are
 #                foxway-<project>-<n>, so a Sandbox path names its workbench
 #                (memoryd and lfs-bridge file Foxway sessions by it).
 # The rest of this text describes `lfs-orb`; `lfs-foxway` is the same except
@@ -88,7 +88,9 @@ case $name in
     git_ssh_hosts="github.com gitlab.com" sandbox_prefix=layerfs-
     service_forwards="5432:postgres:5432 6379:redis:6379 9000:rustfs:9000"
     mkdir -p "$vault/summaries/$year"
-    vault_mounts=(-v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams
+    share=${LFS_SHARE:-$HOME/lfs-share}
+    mkdir -p "$share"
+    vault_mounts=(-v "$share":/share -v "$vault/features":/vaults/fleet-memory/features -v "$vault/diagrams":/vaults/fleet-memory/diagrams
       -v "$vault/summaries/$year":"/vaults/fleet-memory/summaries/$year"
       -v "$vault/router":/vaults/fleet-memory/router:ro) ;;
   lfs-foxway)
@@ -110,9 +112,6 @@ proxy_port=${${proxy#*:}%%/*}
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
 proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
 bridge_port=${LFS_BRIDGE_PORT:-47111}
-share=${LFS_SHARE:-$HOME/lfs-share}
-mkdir -p "$share"
-
 docker volume inspect $volume >/dev/null 2>&1 || docker volume create $volume >/dev/null
 docker network inspect $name >/dev/null 2>&1 || docker network create $name >/dev/null
 # Where the workbench reaches the Mac (the bridge): OrbStack's
@@ -129,7 +128,7 @@ flags=(--device /dev/fuse --device /dev/net/tun --security-opt systempaths=uncon
 docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
   $flags -p "127.0.0.1:$ssh_port:22" -v $volume:/var/lib/layerfs-data \
   -v "$bundle":/opt/layerfs/bundle:ro -v "$repo/sdk/js":/opt/layerfs/sdk:ro \
-  -v "$repo/tools/orbstack":/opt/layerfs/tools:ro -v "$share":/share $vault_mounts \
+  -v "$repo/tools/orbstack":/opt/layerfs/tools:ro $vault_mounts \
   node:24-bookworm /opt/layerfs/tools/vm-boot.sh run
 
 # The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
