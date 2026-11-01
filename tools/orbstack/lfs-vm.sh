@@ -167,9 +167,6 @@ ln -sfn /vaults/fleet-memory/summaries /vaults/wiki/summaries
 ln -sfn /vaults /home/agent/vaults
 id agent >/dev/null 2>&1 || useradd -u 501 -g 20 -M -d /home/agent -s /bin/bash agent
 chown 501:20 "$data/agent-home" /opt/sfw/.sfw-cache
-# System CAs plus the Agent Vault CA: proxied hosts are re-signed by it,
-# passed-through ones keep their public certificates.
-cat /etc/ssl/certs/ca-certificates.crt /opt/agent-vault-ca.pem > /opt/ca-bundle.pem
 printf '#!/bin/sh\nexec node /opt/sfw/dist/sfw.mjs "$@"\n' > /usr/local/bin/sfw
 cat > /usr/local/bin/lfs <<'LFS'
 #!/bin/sh
@@ -216,6 +213,9 @@ DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends ui
   docker-compose-plugin=5.6.0-1~debian.12~bookworm >/dev/null
 apt-get -qq clean
 rm -rf /var/lib/apt/lists/*
+# System CAs (ca-certificates, installed above) plus the Agent Vault CA: proxied hosts are re-signed by it,
+# passed-through ones keep their public certificates.
+cat /etc/ssl/certs/ca-certificates.crt /opt/agent-vault-ca.pem > /opt/ca-bundle.pem
 grep -q '^agent:' /etc/subuid || echo agent:100000:65536 >> /etc/subuid
 grep -q '^agent:' /etc/subgid || echo agent:100000:65536 >> /etc/subgid
 # Host keys from the volume, or keep the new ones there.
