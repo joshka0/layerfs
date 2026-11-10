@@ -42,8 +42,11 @@
 # The memoryd daemon runs in `lfs-orb` (memoryd ADR 0069). It reads these
 # Mac folders read-only at their Mac paths, so its folder keys match the
 # Mac's: the transcript roots of ~/.config/memoryd/config.json that have no
-# `host`, the pull mirror ~/.local/share/memoryd/remote, and ~/repos.
-# Agents can read them too, Foxway transcripts and repositories included:
+# `host`, the pull mirror ~/.local/share/memoryd/remote, ~/repos, the
+# summaries vault of that config and ~/.local/state/wt. The Mac's `mem` runs
+# in `lfs-orb` too, so ~/.local/state/memoryd (its compact state, which the
+# Mac's hooks read) is read-write. Agents can read them too, Foxway
+# transcripts, summaries and repositories included, and write that state:
 # the operator accepted that on 2026-11-10. A new root needs a recreate.
 #
 # Agents may use DNS and HTTPS to any host, the Agent Vault proxy, the Mac
@@ -110,12 +113,18 @@ case $name in
     memoryd_config=${MEMORYD_CONFIG:-$HOME/.config/memoryd/config.json}
     [[ -f $memoryd_config ]] || { echo "lfs-vm: lfs-orb needs the memoryd config $memoryd_config" >&2; exit 64; }
     memoryd_dirs=(${(f)"$(python3 -I -c 'import json, sys
-for r in json.load(open(sys.argv[1]))["roots"]:
-    if "host" not in r: print(r["path"])' "$memoryd_config")"} "$HOME/.local/share/memoryd/remote" "$HOME/repos")
+c = json.load(open(sys.argv[1]))
+for r in c["roots"]:
+    if "host" not in r: print(r["path"])
+if c.get("summaries"): print(c["summaries"]["root"])' "$memoryd_config")"} \
+      "$HOME/.local/share/memoryd/remote" "$HOME/repos" "$HOME/.local/state/wt")
     memoryd_mounts=()
     for dir in $memoryd_dirs; do
       [[ -d $dir ]] && memoryd_mounts+=(-v "${dir}:${dir}:ro")
-    done ;;
+    done
+    # The Mac's mem hooks and mem in lfs-orb share the compact state.
+    mkdir -p "$HOME/.local/state/memoryd"
+    memoryd_mounts+=(-v "$HOME/.local/state/memoryd:$HOME/.local/state/memoryd") ;;
   lfs-foxway)
     [[ ${AGENT_VAULT_VAULT:-} == foxway* ]] || { echo "lfs-vm: lfs-foxway needs a Foxway vault (agent-vault-run foxway-workspace-dev)" >&2; exit 64; }
     volume=lfs-foxway-data ssh_port=${LFS_VM_SSH_PORT:-2224} memory=${LFS_VM_MEMORY:-8G}
