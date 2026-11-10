@@ -42,7 +42,8 @@
 # The memoryd daemon runs in `lfs-orb` (memoryd ADR 0069). It reads these
 # Mac folders read-only at their Mac paths, so its folder keys match the
 # Mac's: the transcript roots of ~/.config/memoryd/config.json that have no
-# `host`, the pull mirror ~/.local/share/memoryd/remote, ~/repos, the
+# `host`, the pull mirror ~/.local/share/memoryd/remote, ~/repos, the Herdr
+# worktrees ~/.herdr/worktrees (a quarter of Mac sessions start there), the
 # summaries vault of that config and ~/.local/state/wt. The Mac's `mem` runs
 # in `lfs-orb` too, so ~/.local/state/memoryd (its compact state, which the
 # Mac's hooks read) is read-write. Agents can read them too, Foxway
@@ -117,7 +118,7 @@ c = json.load(open(sys.argv[1]))
 for r in c["roots"]:
     if "host" not in r: print(r["path"])
 if c.get("summaries"): print(c["summaries"]["root"])' "$memoryd_config")"} \
-      "$HOME/.local/share/memoryd/remote" "$HOME/repos" "$HOME/.local/state/wt")
+      "$HOME/.local/share/memoryd/remote" "$HOME/repos" "$HOME/.herdr/worktrees" "$HOME/.local/state/wt")
     memoryd_mounts=()
     for dir in $memoryd_dirs; do
       [[ -d $dir ]] && memoryd_mounts+=(-v "${dir}:${dir}:ro")
