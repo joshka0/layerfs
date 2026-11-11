@@ -82,6 +82,9 @@
 # sshd takes key logins for `agent` only, on 127.0.0.1:$LFS_VM_SSH_PORT
 # (default 2223) of the Mac. Put public keys in /home/agent/.ssh/authorized_keys;
 # the host keys live on the volume, so they survive a recreate.
+# One connection takes 100 sessions (the sshd default is 10): the Mac's `mem`
+# and `memoryd` run here through one shared connection (memoryd ADR 0069,
+# amendment of 2026-11-11), and each of their calls is a session.
 #
 # Agents run their own Docker (ADR 0005): rootless dockerd as `agent`, which
 # vm-boot.sh starts, with its data in the agent home. Its containers see the
@@ -256,6 +259,7 @@ PasswordAuthentication no
 KbdInteractiveAuthentication no
 PermitRootLogin no
 AllowUsers agent
+MaxSessions 100
 SSHD
 usermod -p '*' agent
 pkill -x sshd || true
