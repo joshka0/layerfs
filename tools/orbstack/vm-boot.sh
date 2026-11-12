@@ -58,6 +58,10 @@ direct_egress() {
     echo "$ip $host" >> /etc/hosts
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$ip" -p tcp --dport 22 -j ACCEPT
   done
+  # One address and port each (<address>:<port>): the span endpoint of memoryd, from lfs-vm.sh.
+  for target in ${TCP_EGRESS:-}; do
+    iptables -A OUTPUT -m owner --uid-owner 501 -d "${target%:*}" -p tcp --dport "${target##*:}" -j ACCEPT
+  done
   # The operator's servers (dev box, VPS) by address, from lfs-bridge install-vm.
   for ip in ${SSH_SERVER_IPS:-}; do
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$ip" -p tcp --dport 22 -j ACCEPT
