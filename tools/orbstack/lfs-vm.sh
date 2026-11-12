@@ -44,7 +44,8 @@
 # Mac's: the transcript roots of ~/.config/memoryd/config.json that have no
 # `host`, the pull mirror ~/.local/share/memoryd/remote, ~/repos, the Herdr
 # worktrees ~/.herdr/worktrees (a quarter of Mac sessions start there), the
-# summaries vault of that config and ~/.local/state/wt. The Mac's `mem` runs
+# summaries vault of that config, the feature notes folder beside it
+# (memoryd reads `features` beside the summaries root) and ~/.local/state/wt. The Mac's `mem` runs
 # in `lfs-orb` too, so ~/.local/state/memoryd (its compact state, which the
 # Mac's hooks read) is read-write. Agents can read them too, Foxway
 # transcripts, summaries and repositories included, and write that state:
@@ -116,11 +117,13 @@ case $name in
       -v "$vault/router":/vaults/fleet-memory/router:ro)
     memoryd_config=${MEMORYD_CONFIG:-$HOME/.config/memoryd/config.json}
     [[ -f $memoryd_config ]] || { echo "lfs-vm: lfs-orb needs the memoryd config $memoryd_config" >&2; exit 64; }
-    memoryd_dirs=(${(f)"$(python3 -I -c 'import json, sys
+    memoryd_dirs=(${(f)"$(python3 -I -c 'import json, os, sys
 c = json.load(open(sys.argv[1]))
 for r in c["roots"]:
     if "host" not in r: print(r["path"])
-if c.get("summaries"): print(c["summaries"]["root"])' "$memoryd_config")"} \
+if c.get("summaries"):
+    print(c["summaries"]["root"])
+    print(os.path.join(os.path.dirname(c["summaries"]["root"]), "features"))' "$memoryd_config")"} \
       "$HOME/.local/share/memoryd/remote" "$HOME/repos" "$HOME/.herdr/worktrees" "$HOME/.local/state/wt")
     memoryd_mounts=()
     for dir in $memoryd_dirs; do
