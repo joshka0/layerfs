@@ -52,7 +52,8 @@
 # the operator accepted that on 2026-11-10. A new root needs a recreate.
 #
 # Agents may use DNS and HTTPS to any host, the Agent Vault proxy, the Mac
-# bridge, and SSH of github.com and gitlab.com (iptables rules for uid 501). Root is not limited. vm-boot.sh applies the
+# bridge, SSH of github.com and gitlab.com, and in `lfs-orb` the span endpoint
+# of memoryd (iptables rules for uid 501). Root is not limited. vm-boot.sh applies the
 # rule and starts sshd at each container start.
 #
 # The base is node:24-bookworm-slim; agents cannot install apt packages, so
@@ -125,6 +126,11 @@ if c.get("summaries"):
     print(c["summaries"]["root"])
     print(os.path.join(os.path.dirname(c["summaries"]["root"]), "features"))' "$memoryd_config")"} \
       "$HOME/.local/share/memoryd/remote" "$HOME/repos" "$HOME/.herdr/worktrees" "$HOME/.local/state/wt")
+    # memoryd sends its spans to the `otlp` endpoint of that config. Agents may reach that one
+    # address and port, and no other port of that host.
+    tcp_egress=$(python3 -I -c 'import json, sys, urllib.parse
+u = urllib.parse.urlparse(json.load(open(sys.argv[1])).get("otlp") or "")
+print(f"{u.hostname}:{u.port}" if u.hostname and u.port else "")' "$memoryd_config")
     memoryd_mounts=()
     for dir in $memoryd_dirs; do
       [[ -d $dir ]] && memoryd_mounts+=(-v "${dir}:${dir}:ro")
@@ -135,7 +141,7 @@ if c.get("summaries"):
   lfs-foxway)
     [[ ${AGENT_VAULT_VAULT:-} == foxway* ]] || { echo "lfs-vm: lfs-foxway needs a Foxway vault (agent-vault-run foxway-workspace-dev)" >&2; exit 64; }
     volume=lfs-foxway-data ssh_port=${LFS_VM_SSH_PORT:-2224} memory=${LFS_VM_MEMORY:-8G}
-    git_ssh_hosts="ssh.dev.azure.com" sandbox_prefix=foxway-
+    git_ssh_hosts="ssh.dev.azure.com" sandbox_prefix=foxway- tcp_egress=""
     service_forwards=""
     mkdir -p "$vault/summaries/foxway"
     vault_mounts=(-v "$vault/summaries/foxway":/vaults/fleet-memory/summaries/foxway)
@@ -182,7 +188,7 @@ docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package
 
 docker exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" -e GIT_SSH_HOSTS="$git_ssh_hosts" \
-  -e SERVICE_FORWARDS="$service_forwards" -e SANDBOX_PREFIX="$sandbox_prefix" $name bash -s <<'SETUP'
+  -e SERVICE_FORWARDS="$service_forwards" -e TCP_EGRESS="$tcp_egress" -e SANDBOX_PREFIX="$sandbox_prefix" $name bash -s <<'SETUP'
 set -eu
 # OrbStack's docker exec starts with umask 0000.
 umask 022
@@ -190,8 +196,8 @@ data=/var/lib/layerfs-data
 mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
 chmod 700 "$data/ssh-host-keys"
 # The sibling services, forwarded to loopback (<port>:<host>:<port>).
-printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\n' \
-  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" > /etc/lfs-vm/boot.env
+printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\nTCP_EGRESS="%s"\n' \
+  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" "$TCP_EGRESS" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 # The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
