@@ -10,7 +10,7 @@
 //! next mount or listing, which reclaims it.
 use crate::job::{failed, Outcome};
 use crate::registry::{
-    lock, naming, random, sandbox, sandbox_live, sandbox_refreshed, text, Mount, SandboxState,
+    lock, naming, random, sandbox, sandbox_placing, sandbox_refreshed, text, Mount, SandboxState,
 };
 use crate::sandbox::{operation, WORKSPACES};
 use layerfs_api::internal::workspace;
@@ -33,8 +33,14 @@ fn recorded(directory: &Path) -> Result<usize, SdkRefusal> {
 
 /// The Sandbox for a new Workspace, under the project's guard: the
 /// lowest-numbered running one of the call's image with a free slot, else a
-/// new one.
-fn place(args: &SdkValue, project: &Path) -> Result<Arc<SandboxState>, SdkRefusal> {
+/// new one. A Sandbox with saved overlays is revived first; the answer item
+/// of each revive that failed is returned too, since the new Workspace is
+/// then placed elsewhere.
+fn place(
+    args: &SdkValue,
+    project: &Path,
+) -> Result<(Arc<SandboxState>, Vec<SdkValue>), SdkRefusal> {
+    let mut revived = Vec::new();
     let image = args
         .get("deploy")
         .and_then(|deploy| deploy.get_text("image"));
@@ -48,20 +54,24 @@ fn place(args: &SdkValue, project: &Path) -> Result<Arc<SandboxState>, SdkRefusa
         if image.is_some() && crate::discovery::load(&record)?.get_text("image") != image {
             continue;
         }
-        match sandbox_live(&naming(args, &id)) {
-            Ok(state) => return Ok(state),
+        match sandbox_placing(&naming(args, &id)) {
+            Ok(state) => return Ok((state, revived)),
             Err(refusal) => match crate::discovery::gone_container(&refusal) {
                 Some((container, stopped)) => {
                     match crate::sandbox::reclaim(args, &id, container, stopped) {
                         Ok(_) => {}
                         // saved overlays: start it again and use it if it has room
                         Err(kept) if kept.code == crate::sandbox::KEPT => {
-                            if let Some((_, Some(state))) =
-                                crate::discovery::revive(args, &id, false)?
-                            {
-                                if recorded(&directory)? < WORKSPACES as usize {
-                                    return Ok(state);
+                            match crate::discovery::revive(args, &id, false)? {
+                                Some((_, Some(state))) => {
+                                    if recorded(&directory)? < WORKSPACES as usize {
+                                        return Ok((state, revived));
+                                    }
                                 }
+                                Some((item, None)) if item.get_text("state") == Some("failed") => {
+                                    revived.push(item)
+                                }
+                                Some(_) | None => {}
                             }
                         }
                         Err(refusal) => return Err(refusal),
@@ -71,16 +81,17 @@ fn place(args: &SdkValue, project: &Path) -> Result<Arc<SandboxState>, SdkRefusa
             },
         }
     }
-    crate::sandbox::start(args, project)
+    Ok((crate::sandbox::start(args, project)?, revived))
 }
 
 /// `workspace.mount(branch)`: a new Workspace of `branch`, placed in one of
-/// the project's Sandboxes; its `sandbox` and `path`.
+/// the project's Sandboxes; its `sandbox` and `path`, and `revived`: the
+/// `operator.sandbox.reopen` item of each Sandbox whose revive failed.
 pub(crate) fn mount(args: &SdkValue) -> Outcome {
     let branch = text(args, "branch")?;
     let project = crate::discovery::project_dir(args)?;
     let _placing = crate::discovery::guard(&project)?;
-    let state = place(args, &project)?;
+    let (state, revived) = place(args, &project)?;
     let _guard = crate::discovery::guard(&state.directory)?;
     let id = WorkspaceId::from_authority(random()?).map_err(failed)?;
     // The Branch is found by name in this process; the daemon binds its id.
@@ -102,6 +113,7 @@ pub(crate) fn mount(args: &SdkValue) -> Outcome {
             layerfs_sandbox::backend::Runtime::Process(_) => None,
         };
         fields.push(("image".to_owned(), SdkValue::opt_text(image)));
+        fields.push(("revived".to_owned(), SdkValue::List(revived)));
     }
     crate::discovery::save_workspace(&state, &mounted, branch)?;
     lock(&state.mounts)?.insert(
@@ -249,5 +261,5 @@ pub(crate) fn unmount(args: &SdkValue) -> Outcome {
 }
 
 #[cfg(all(test, target_os = "linux"))]
-#[path = "../tests/unit/list.rs"]
-mod list_tests;
+#[path = "../tests/unit/restarting.rs"]
+mod restarting_tests;

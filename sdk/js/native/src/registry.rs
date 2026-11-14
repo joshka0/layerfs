@@ -79,35 +79,93 @@ pub(crate) fn text<'a>(args: &'a SdkValue, name: &str) -> Result<&'a str, SdkRef
 /// that needs every mount or process another process may have changed takes
 /// [`sandbox_refreshed`].
 pub(crate) fn sandbox(args: &SdkValue) -> Result<Arc<SandboxState>, SdkRefusal> {
+    state(args, ProjectGuard::Free)
+}
+
+/// Whether the caller holds the project's guard. A caller that does not
+/// waits for it before it calls a Sandbox gone: a call that holds it may be
+/// restarting that Sandbox (`operator.sandbox.reopen`, #373 F41).
+#[derive(Clone, Copy)]
+enum ProjectGuard {
+    Free,
+    Held,
+}
+
+fn state(args: &SdkValue, project: ProjectGuard) -> Result<Arc<SandboxState>, SdkRefusal> {
     let directory = crate::discovery::sandbox_dir(args, text(args, "sandbox")?)?;
     let existing = lock(&SANDBOXES)?.get(&directory).cloned();
     match existing {
         Some(state) => Ok(state),
         None => {
-            let state = crate::discovery::reopen(args)?;
+            let state = reopen(args, project)?;
             lock(&SANDBOXES)?.insert(directory, state.clone());
             Ok(state)
         }
     }
 }
 
+/// The Sandbox reopened from its records. One found gone, by a caller that
+/// does not hold the project's guard, is reopened again from its records
+/// read under that guard: a restart that held it has finished. A guard
+/// still held after its wait refuses `Busy`: the Sandbox is restarting.
+fn reopen(args: &SdkValue, project: ProjectGuard) -> Result<Arc<SandboxState>, SdkRefusal> {
+    let refusal = match crate::discovery::reopen(args) {
+        Err(refusal)
+            if matches!(project, ProjectGuard::Free)
+                && crate::discovery::gone_container(&refusal).is_some() =>
+        {
+            refusal
+        }
+        other => return other,
+    };
+    let _placing = match crate::discovery::guard(&crate::discovery::project_dir(args)?) {
+        Ok(placing) => placing,
+        Err(busy) if busy.code == "Busy" => {
+            return Err(SdkRefusal {
+                code: "Busy".to_owned(),
+                message: format!("Sandbox {} is restarting", text(args, "sandbox")?),
+                detail: refusal.detail,
+            })
+        }
+        Err(other) => return Err(other),
+    };
+    crate::discovery::reopen(args)
+}
+
 /// The Sandbox `args` name when its container still runs it: this
 /// process's state, checked with one Engine inspection, or reopened from its
 /// records (which inspects too). A container found gone or stopped (an idle
 /// Sandbox's daemon ends itself, #373) is the refusal of
-/// `discovery::gone`, and this process forgets the state.
+/// `discovery::gone`, and this process forgets the state; one found ended
+/// is first reopened as [`sandbox`] does.
 pub(crate) fn sandbox_live(args: &SdkValue) -> Result<Arc<SandboxState>, SdkRefusal> {
+    live(args, ProjectGuard::Free)
+}
+
+/// [`sandbox_live`] for a caller that holds the project's guard: a Sandbox
+/// found gone is gone at once.
+pub(crate) fn sandbox_placing(args: &SdkValue) -> Result<Arc<SandboxState>, SdkRefusal> {
+    live(args, ProjectGuard::Held)
+}
+
+fn live(args: &SdkValue, project: ProjectGuard) -> Result<Arc<SandboxState>, SdkRefusal> {
     let directory = crate::discovery::sandbox_dir(args, text(args, "sandbox")?)?;
     let Some(state) = lock(&SANDBOXES)?.get(&directory).cloned() else {
-        return sandbox(args);
+        return self::state(args, project);
     };
     if let Err(failure) = state.runtime.endpoint() {
         lock(&SANDBOXES)?.remove(&directory);
-        return Err(if failure.gone() || failure.stopped() {
-            crate::discovery::gone(&state.id, &state.runtime.identity(), failure.stopped())
+        return if !(failure.gone() || failure.stopped()) {
+            Err(crate::job::failed(failure))
+        } else if matches!(project, ProjectGuard::Free) {
+            self::state(args, project)
         } else {
-            crate::job::failed(failure)
-        });
+            Err(crate::discovery::gone(
+                &state.id,
+                &state.runtime.identity(),
+                failure.stopped(),
+            ))
+        };
     }
     Ok(state)
 }

@@ -4,11 +4,13 @@
 // image is `options.image`, else the deployment's; one project's Sandboxes
 // may run different images. The Branch is found by name in this process's
 // Store; the daemon binds its id. Returns the Workspace, `{ sandbox, path }`,
-// and its Sandbox's `image`.
+// its Sandbox's `image`, and `revived`: the `operator.sandbox.reopen` item of
+// each Sandbox with saved overlays whose revive failed (its Workspaces stay
+// unmounted and kept; the new Workspace is placed elsewhere).
 import { deployment, invokeClient } from "../client.js";
 export async function mount(client, branch, options = {}) {
   await client.store();
   const deploy = deployment({ ...client.options.deploy, ...(options.image ? { image: options.image } : {}) });
   const value = await invokeClient(client, "workspace.mount", { branch, deploy });
-  return { sandbox: value.sandbox, path: value.path, image: value.image };
+  return { sandbox: value.sandbox, path: value.path, image: value.image, revived: value.revived };
 }

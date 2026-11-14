@@ -3,7 +3,7 @@
 //
 //   lfs init <project> <source-dir>
 //   lfs fork <project> <branch> [from]
-//   lfs mount <project> <branch>            prints {"sandbox","path"}
+//   lfs mount <project> <branch>            prints {"sandbox","path","revived"}
 //   lfs commit <project> <sandbox> <path> <message>
 //   lfs unmount <project> <sandbox> <path> [--discard]
 //   lfs read <project> <ref> <file>
@@ -44,7 +44,7 @@ try {
       break;
     case "mount": {
       const ws = await layerfs.workspace.mount(rest[0]);
-      print({ sandbox: ws.sandbox, path: ws.path });
+      print({ sandbox: ws.sandbox, path: ws.path, revived: ws.revived });
       break;
     }
     case "commit":
