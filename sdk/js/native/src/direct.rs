@@ -182,22 +182,6 @@ pub(crate) fn branch_id(
     Ok(layerfs_store_service::history::lookup::branch(&service.store, &stack, name)?.id)
 }
 
-/// The effective root of `branch` now (its head Commit's, else its base
-/// Layer's), read in this process.
-#[cfg(target_os = "linux")]
-pub(crate) fn branch_root(
-    args: &SdkValue,
-    branch: layerfs_history::BranchId,
-) -> Result<[u8; 32], SdkRefusal> {
-    let service = service(args)?;
-    let snapshot = service
-        .store
-        .published(|history| history.branch_snapshot(branch))
-        .map_err(failed)?
-        .ok_or_else(|| refused("NoSuchBranch", "the saved Workspace's Branch is gone"))?;
-    Ok(snapshot.effective_root.to_bytes())
-}
-
 /// The newest Commit of `branch`, read in this process; `None` when it has none.
 pub(crate) fn head(
     args: &SdkValue,

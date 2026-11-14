@@ -33,25 +33,9 @@ pub(crate) fn next(found: Found, saved: usize) -> Next {
     }
 }
 
-/// The base a saved Workspace reopens on.
-#[derive(Clone, Copy, Debug, Eq, PartialEq)]
-pub(crate) enum Base {
-    /// The root its record saved at mount.
-    Saved([u8; 32]),
-    /// The current root of its Branch: a record from before roots were saved,
-    /// accepted only on the caller's explicit `legacyHead`.
-    /// Stopgap (operator, 2026-11-14): remove `BranchHead` and `legacyHead`
-    /// once the overlays saved before the reboot of 2026-11-14 are reopened.
-    BranchHead,
-}
-
-pub(crate) fn base(saved: Option<[u8; 32]>, legacy_head: bool) -> Result<Base, &'static str> {
-    match (saved, legacy_head) {
-        (Some(root), _) => Ok(Base::Saved(root)),
-        (None, true) => Ok(Base::BranchHead),
-        (None, false) => Err(
-            "its record has no saved base root (written before reopen existed); \
-             reopen it on the Branch head only with legacyHead",
-        ),
-    }
+/// The base a saved Workspace reopens on: the root its record saved at
+/// mount. A record without one (written before reopen existed) does not
+/// reopen.
+pub(crate) fn base(saved: Option<[u8; 32]>) -> Result<[u8; 32], &'static str> {
+    saved.ok_or("its record has no saved base root (written before reopen existed)")
 }
