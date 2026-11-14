@@ -3,3 +3,5 @@
 poc/evidence/**/*.typescript -text
 tools/orbstack/seccomp.json linguist-generated
 core/docs/issues/373/receipts/*.log linguist-generated
+
+quint/sandbox-reopen/receipts/d08-73-history-index.json linguist-generated

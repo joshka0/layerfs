@@ -1,0 +1,28 @@
+{
+  "head": "d88521701d56f7b0a1a9cd1aba6a3c2ce7787191",
+  "export": "/var/folders/ys/phtk8q0j1xz9p77zz0gl3dyw0000gn/T/layerfs-quint-boundary-final-3mjeuhal",
+  "results": [
+    {
+      "command": [
+        "python3",
+        "-B",
+        "core/tools/check_product_boundary.py"
+      ],
+      "cwd": "/var/folders/ys/phtk8q0j1xz9p77zz0gl3dyw0000gn/T/layerfs-quint-boundary-final-3mjeuhal",
+      "exit_code": 1
+    },
+    {
+      "command": [
+        "python3",
+        "-B",
+        "core/tools/check_product_boundary.py"
+      ],
+      "cwd": "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind",
+      "exit_code": 1
+    },
+    {
+      "check": "exact baseline/current bytes",
+      "exit_code": 0
+    }
+  ]
+}

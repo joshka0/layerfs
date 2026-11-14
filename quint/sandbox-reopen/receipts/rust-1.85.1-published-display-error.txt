@@ -1,0 +1,26 @@
+error[E0433]: failed to resolve: use of undeclared crate or module `itf`
+ --> /published/src/value/display.rs:1:5
+  |
+1 | use itf::value::{Map, Record, Value};
+  |     ^^^ use of undeclared crate or module `itf`
+
+error[E0658]: `let` expressions in this position are unstable
+  --> /published/src/value/display.rs:85:12
+   |
+85 |         && let Some(Value::String(tag)) = rec.get("tag")
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: see issue #53667 <https://github.com/rust-lang/rust/issues/53667> for more information
+
+error[E0658]: `let` expressions in this position are unstable
+  --> /published/src/value/display.rs:86:12
+   |
+86 |         && let Some(value) = rec.get("value")
+   |            ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^
+   |
+   = note: see issue #53667 <https://github.com/rust-lang/rust/issues/53667> for more information
+
+error: aborting due to 3 previous errors
+
+Some errors have detailed explanations: E0433, E0658.
+For more information about an error, try `rustc --explain E0433`.

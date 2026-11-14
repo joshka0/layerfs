@@ -1,0 +1,19 @@
+#!/usr/bin/env python3
+"""Run the pinned Quint CLI and retain its exact generated ITF traces."""
+import os
+from pathlib import Path
+import shutil
+import subprocess
+import sys
+
+args = sys.argv[1:]
+cli = Path(__file__).resolve().parents[1] / 'node_modules/.bin/quint'
+result = subprocess.run([str(cli), *args, '--backend', 'typescript'])
+if '--out-itf' in args:
+    pattern = Path(args[args.index('--out-itf') + 1])
+    target = Path(os.environ['REOPEN_OUTPUT']) / 'traces'
+    target.mkdir(parents=True, exist_ok=True)
+    for path in pattern.parent.iterdir():
+        if path.name.endswith('.itf.json'):
+            shutil.copyfile(path, target / path.name)
+sys.exit(result.returncode)

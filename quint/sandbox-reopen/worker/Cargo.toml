@@ -1,0 +1,24 @@
+[package]
+name = "layerfs-reopen-worker"
+version = "0.1.0"
+edition = "2021"
+rust-version = "1.85"
+publish = false
+
+[workspace]
+
+[[bin]]
+name = "reopen-worker"
+path = "main.rs"
+
+[dependencies]
+layerfs-api = { path = "../../../core/crates/layerfs-api" }
+layerfs-bridge = { path = "../../../core/crates/layerfs-bridge" }
+layerfs-history = { path = "../../../core/crates/layerfs-history" }
+layerfs-persistence = { path = "../../../core/crates/layerfs-persistence" }
+layerfs-sandbox = { path = "../../../core/crates/layerfs-sandbox" }
+layerfs-storage = { path = "../../../core/crates/layerfs-storage" }
+layerfs-store-service = { path = "../../../core/crates/layerfs-store-service" }
+layerfs-telemetry = { path = "../../../core/crates/layerfs-telemetry" }
+napi = "=2.16.17"
+napi-derive = "=2.16.13"

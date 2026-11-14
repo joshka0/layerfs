@@ -1,0 +1,342 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-2",
+      "--plant",
+      "none",
+      "--seed",
+      "2",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 2,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-2"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-3",
+      "--plant",
+      "none",
+      "--seed",
+      "3",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 3,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-3"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-6",
+      "--plant",
+      "none",
+      "--seed",
+      "6",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 6,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-6"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-7",
+      "--plant",
+      "none",
+      "--seed",
+      "7",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 7,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-7"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-11",
+      "--plant",
+      "none",
+      "--seed",
+      "11",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 11,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-11"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-none-14",
+      "--plant",
+      "none",
+      "--seed",
+      "14",
+      "--samples",
+      "1"
+    ],
+    "plant": "none",
+    "seed": 14,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-none-14"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_kept-7",
+      "--plant",
+      "no_kept",
+      "--seed",
+      "7",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_kept",
+    "seed": 7,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_kept-7"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_running_check-3",
+      "--plant",
+      "no_running_check",
+      "--seed",
+      "3",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_running_check",
+    "seed": 3,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_running_check-3"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_guard-3",
+      "--plant",
+      "no_guard",
+      "--seed",
+      "3",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_guard",
+    "seed": 3,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_guard-3"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-leak_guard-3",
+      "--plant",
+      "leak_guard",
+      "--seed",
+      "3",
+      "--samples",
+      "1"
+    ],
+    "plant": "leak_guard",
+    "seed": 3,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-leak_guard-3"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-boot_reclaims-2",
+      "--plant",
+      "boot_reclaims",
+      "--seed",
+      "2",
+      "--samples",
+      "1"
+    ],
+    "plant": "boot_reclaims",
+    "seed": 2,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-boot_reclaims-2"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-keep_failed_daemon-11",
+      "--plant",
+      "keep_failed_daemon",
+      "--seed",
+      "11",
+      "--samples",
+      "1"
+    ],
+    "plant": "keep_failed_daemon",
+    "seed": 11,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-keep_failed_daemon-11"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_revived_report-11",
+      "--plant",
+      "no_revived_report",
+      "--seed",
+      "11",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_revived_report",
+    "seed": 11,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_revived_report-11"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-status_no_wait-6",
+      "--plant",
+      "status_no_wait",
+      "--seed",
+      "6",
+      "--samples",
+      "1"
+    ],
+    "plant": "status_no_wait",
+    "seed": 6,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-status_no_wait-6"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_fallback-11",
+      "--plant",
+      "no_fallback",
+      "--seed",
+      "11",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_fallback",
+    "seed": 11,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_fallback-11"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-count_unattached-14",
+      "--plant",
+      "count_unattached",
+      "--seed",
+      "14",
+      "--samples",
+      "1"
+    ],
+    "plant": "count_unattached",
+    "seed": 14,
+    "exit_code": 1,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-count_unattached-14"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/model-73-matrix-no_revive_check-3",
+      "--plant",
+      "no_revive_check",
+      "--seed",
+      "3",
+      "--samples",
+      "1"
+    ],
+    "plant": "no_revive_check",
+    "seed": 3,
+    "exit_code": 0,
+    "out": "quint/sandbox-reopen/results/model-73-matrix-no_revive_check-3"
+  }
+]

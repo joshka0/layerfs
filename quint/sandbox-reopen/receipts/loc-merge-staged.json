@@ -1,0 +1,50 @@
+{
+  "combined": 110244,
+  "root": "/private/var/folders/ys/phtk8q0j1xz9p77zz0gl3dyw0000gn/T/layerfs-quint-loc-staged-tm_mx6sv",
+  "scopes": {
+    "core": {
+      "crates": {
+        "layerfs-api": 2520,
+        "layerfs-bridge": 3544,
+        "layerfs-content": 25943,
+        "layerfs-daemon": 6057,
+        "layerfs-fuse": 4523,
+        "layerfs-history": 990,
+        "layerfs-overlay": 9872,
+        "layerfs-persistence": 8400,
+        "layerfs-project": 1667,
+        "layerfs-sandbox": 3833,
+        "layerfs-storage": 8993,
+        "layerfs-store-service": 10203,
+        "layerfs-telemetry": 2280,
+        "layerfs-workspace": 8991
+      },
+      "files": 821,
+      "lines": 97816
+    },
+    "dsh": {
+      "crates": {
+        "@dsh-layerfs/client": 1979,
+        "@dsh-layerfs/host": 2382,
+        "@dsh-layerfs/mock": 739,
+        "@dsh-layerfs/model": 960,
+        "@dsh-layerfs/view": 2671
+      },
+      "files": 93,
+      "lines": 8731
+    },
+    "reference": {
+      "crates": {},
+      "files": 0,
+      "lines": 0
+    },
+    "sdk": {
+      "crates": {
+        "@layerfs/sdk": 533,
+        "layerfs-node": 3164
+      },
+      "files": 54,
+      "lines": 3697
+    }
+  }
+}
