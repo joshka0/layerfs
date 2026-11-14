@@ -87,22 +87,6 @@ export const lockPhases = {
         }
         assert.deepEqual(misses, [], JSON.stringify(misses));
       });
-      // R4-B1, sharper: a stand-in daemon gives exactly the real refusal
-      // (the one stderr line, status 1) with no startup, so it exits as fast
-      // as a refused daemon can.
-      const refused = "/usr/local/bin/refused-layerfs-daemon";
-      writeFileSync(refused, `#!/bin/sh\necho 'layerfs-daemon: the Sandbox folder is held by daemon pid ${holder.pid}' >&2\nexit 1\n`, { mode: 0o755 });
-      await check("R4-B1", "rlock1: 20 revives whose daemon is refused at once each answer failed naming the holder pid", () => {
-        const misses = [];
-        for (let round = 1; round <= 20; round++) {
-          const r = lfsWith({ LAYERFS_DAEMON: refused }, "reopen", "rlock1");
-          const box = r.json?.sandboxes?.find((b) => b.name === folder);
-          if (box?.state !== "failed" || !String(box.reason).includes(`held by daemon pid ${holder.pid}`)) {
-            misses.push({ round, status: r.status, state: box?.state, reason: box?.reason ?? `${r.stdout}${r.stderr}`.slice(0, 300) });
-          }
-        }
-        assert.deepEqual(misses, [], `${misses.length} of 20 rounds: ${JSON.stringify(misses.slice(0, 3))}`);
-      });
       process.kill(holder.pid, "SIGKILL");
       await until("the holder to die", () => !daemons().some((d) => d.pid === holder.pid));
       await check("F45 F26", "rlock1: once the holder is gone, a reopen mounts the saved Workspace", () => {

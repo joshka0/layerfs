@@ -53,7 +53,7 @@ trap cleanup EXIT
 
 # REOPEN_E2E_PHASES="races live" runs only those phases (each must stand
 # alone: races and live do); the default is every phase in order.
-selected=" ${REOPEN_E2E_PHASES:-seed-legacy seed tamper check boot-unmounted boot live races names lock} "
+selected=" ${REOPEN_E2E_PHASES:-seed-legacy seed tamper check boot-unmounted boot live races names lock holder} "
 
 # phase <name> <sdk-dir> <bundle-dir> [sandbox volume: yes|no]
 phase() {
@@ -90,6 +90,7 @@ phase live "$repo/sdk/js" "$bundle"
 phase races "$repo/sdk/js" "$bundle"
 phase names "$repo/sdk/js" "$bundle"
 phase lock "$repo/sdk/js" "$bundle"
+phase holder "$repo/sdk/js" "$bundle"
 
 {
   cat "$report/run.txt"
