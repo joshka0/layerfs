@@ -12,9 +12,13 @@ overlays. Three callers race on it, each its own process:
 - a mount (`workspace.mount` placement),
 - a listing (`operator.sandbox.list`).
 
-Each caller reads the record outside any guard, takes the project guard,
-reads the record and the running daemon again, chooses (use, restart and
-reopen, or reclaim), and acts in a later step. The source is
+The boot reopen and a mount take the project guard first; a boot visits the
+Sandbox only while its record exists. A listing reads the record and the
+daemon with no guard, ends there when the daemon runs or the record is gone,
+and takes the guard only to reclaim, which reads the record again (Busy) and
+refuses saved overlays (Kept). Under the guard a caller chooses (use,
+restart and reopen, reclaim, or nothing: a revive never deletes), and acts
+in a later step. The source is
 `sdk/js/native/src/discovery/revive.rs`, `sandbox.rs` (`reclaim`) and
 `workspace.rs`; the choice is `revive_rules::next`. See
 [REOPEN.md](../../core/docs/issues/373/REOPEN.md).
@@ -39,7 +43,7 @@ fail.
 | Plant | Bug | Breaks |
 | --- | --- | --- |
 | `no_kept` | reclaim deletes a folder with overlays | `NoOverlayLoss` |
-| `stale_restart` | revive decides on the record read outside the guard | `OneDaemon` |
+| `no_running_check` | revive restarts without checking that the saved daemon runs | `OneDaemon` |
 | `no_guard` | callers act without the guard | `OneDaemon` |
 | `leak_guard` | a caller ends without releasing the guard | `AllEnd` |
 | `boot_reclaims` | a revive with no saved overlay deletes the folder | `BootNeverDeletes` |

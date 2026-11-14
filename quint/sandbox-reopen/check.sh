@@ -21,7 +21,7 @@ done <<'TABLE'
 none Safety invariant ok
 none AllEnd temporal ok
 no_kept NoOverlayLoss invariant violation
-stale_restart OneDaemon invariant violation
+no_running_check OneDaemon invariant violation
 no_guard OneDaemon invariant violation
 leak_guard AllEnd temporal violation
 boot_reclaims BootNeverDeletes invariant violation

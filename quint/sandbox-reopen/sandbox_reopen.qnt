@@ -1,29 +1,37 @@
 // One process Sandbox folder after a restart: the daemon its record names
 // has ended, and the folder may hold saved Workspace overlays. Three
-// callers race on it, each its own process: the boot reopen (lfs reopen),
-// a mount (placement) and a listing (operator.sandbox.list).
+// callers race on it, each its own process:
 //
-// Each caller observes the record outside any guard, takes the project
-// guard (one lock: every mutating path takes it first), then reads the
-// record and the running daemon again and acts: use the daemon, restart it
-// and reopen the Workspaces, or reclaim (delete) the folder. Source:
-// sdk/js/native/src/discovery/revive.rs, sandbox.rs reclaim, workspace.rs.
+// - boot (operator.sandbox.reopen, revive.rs reopen_all): takes the project
+//   guard first, then visits the Sandbox only while its record exists, and
+//   revives it: use a running daemon, restart an ended one that holds
+//   saved overlays, or answer "ended" (no saved overlay; the folder stays).
+// - mount (workspace.rs place): takes the project guard first, then observes
+//   the daemon; a running one is used; an ended one is reclaimed unless
+//   reclaim refuses it Kept (saved overlays), and then it is revived.
+// - list (workspace.rs list): observes the record and the daemon with no
+//   guard. A running daemon or an absent record ends the call there. An
+//   ended daemon is reclaimed under the project guard; reclaim reads the
+//   record again (Busy) and refuses saved overlays (Kept).
+//
+// A check under the guard and its effect (a spawn, a delete) are separate
+// steps: only the guard keeps another caller out in between.
 //
 // PLANT selects one deliberate bug, for witness traces:
-//   "none"          the code as written
-//   "no_kept"       reclaim deletes a folder that holds overlays
-//   "stale_restart" revive restarts on the observation made outside the
-//                   guard, without reading the record again
-//   "no_guard"      act without holding the guard
-//   "leak_guard"    a caller ends without releasing the guard
-//   "boot_reclaims" a revive with no saved overlay deletes the folder (the
-//                   model before F1; the code answers "ended" instead)
+//   "none"             the code as written
+//   "no_kept"          reclaim deletes a folder that holds overlays
+//   "no_running_check" revive restarts without checking that the saved
+//                      daemon runs
+//   "no_guard"         callers act without holding the guard
+//   "leak_guard"       a caller ends without releasing the guard
+//   "boot_reclaims"    a revive with no saved overlay deletes the folder
+//                      (the model before F1; the code answers "ended")
 module sandbox_reopen {
   const PLANT: str
 
   val CALLERS = Set("boot", "mount", "list")
 
-  // The Sandbox folder exists.
+  // The Sandbox folder and its record exist.
   var folder: bool
   // Saved Workspace overlay files in it (0 or 1 is enough to show loss).
   var overlays: int
@@ -34,9 +42,9 @@ module sandbox_reopen {
   var nextId: int
   // Holder of the project guard, or "".
   var guard: str
-  // idle -> observed -> held -> checked -> done
+  // idle -> [observed ->] held -> checked -> done
   var phase: str -> str
-  // The record each caller saw outside the guard.
+  // The record list saw outside the guard.
   var seen: str -> int
   // What each caller chose under the guard.
   var plan: str -> str
@@ -70,18 +78,24 @@ module sandbox_reopen {
     deleter' = deleter,
   }
 
-  // Outside any guard: read the record (and so the daemon it names).
+  // list only, with no guard: read the record and whether its daemon runs.
+  // A running daemon or an absent record ends the call.
   action observe(c: str): bool = all {
+    c == "list",
     phase.get(c) == "idle",
-    seen' = seen.set(c, recorded),
+    val ends = not(folder) or live.contains(recorded)
+    all {
+      seen' = seen.set(c, recorded),
+      phase' = phase.set(c, if (ends) "done" else "observed"),
+    },
     plan' = plan,
-    phase' = phase.set(c, "observed"),
     guard' = guard,
     unchanged_shell,
   }
 
+  // boot and mount take the guard first; list only after it saw an ended daemon.
   action acquire(c: str): bool = all {
-    phase.get(c) == "observed",
+    if (c == "list") phase.get(c) == "observed" else phase.get(c) == "idle",
     guard == "" or PLANT == "no_guard",
     guard' = if (PLANT == "no_guard") guard else c,
     phase' = phase.set(c, "held"),
@@ -90,35 +104,43 @@ module sandbox_reopen {
     unchanged_shell,
   }
 
-  // Under the guard: read the record and the running daemon again and
-  // choose what to do. The effect is a later step (a spawn or a delete
-  // takes time); only the guard keeps another caller out in between.
+  // What a revive does with the Sandbox as it is now.
+  def revived: str = {
+    val running = live.contains(recorded) and PLANT != "no_running_check"
+    val decided = decide(running, overlays)
+    // "ended": a revive never deletes (revive.rs Next::Reclaim, after F1)
+    if (decided == "reclaim" and PLANT != "boot_reclaims") "none" else decided
+  }
+
+  // Under the guard: read the Sandbox again and choose. A boot or mount
+  // that finds no record has no Sandbox to visit: it ends here.
   action check(c: str): bool = all {
     phase.get(c) == "held",
     guard == c or PLANT == "no_guard",
-    val running = if (PLANT == "stale_restart") live.contains(seen.get(c))
-                  else live.contains(recorded)
-    // A revive never deletes: with no saved overlay it answers "ended" and
-    // keeps the folder (revive.rs, Next::Reclaim, after F1). Only reclaim
-    // (a mount or listing, past its Busy and Kept checks) deletes.
-    val decided = decide(running, overlays)
-    val revived = if (not(folder) or (decided == "reclaim" and PLANT != "boot_reclaims")) "none"
-                  else decided
-    val seenRunning = live.contains(seen.get(c))
-    val chosen =
-      if (c == "boot") revived
-      else if (seenRunning or not(folder)) "none"
-      // reclaim refuses Busy (started again meanwhile) and Kept (overlays)
-      else if (recorded != seen.get(c)) "none"
-      else if (overlays == 0 or PLANT == "no_kept") "reclaim"
-      else if (c == "mount") revived
-      else "none"
-    all {
-      plan' = plan.set(c, chosen),
-      phase' = phase.set(c, "checked"),
-      guard' = guard, seen' = seen,
-      unchanged_shell,
+    if (not(folder) and c != "list") all {
+      plan' = plan.set(c, "none"),
+      phase' = phase.set(c, "done"),
+      guard' = if (guard == c and PLANT != "leak_guard") "" else guard,
+    } else {
+      val chosen =
+        if (c == "boot") revived
+        else if (c == "mount")
+          if (live.contains(recorded)) "none"
+          // reclaim, unless Kept; then the mount revives it
+          else if (overlays == 0 or PLANT == "no_kept") "reclaim"
+          else revived
+        // list: reclaim reads the record again (Busy) and refuses Kept
+        else if (not(folder) or recorded != seen.get(c)) "none"
+        else if (overlays == 0 or PLANT == "no_kept") "reclaim"
+        else "none"
+      all {
+        plan' = plan.set(c, chosen),
+        phase' = phase.set(c, "checked"),
+        guard' = guard,
+      }
     },
+    seen' = seen,
+    unchanged_shell,
   }
 
   action effect(c: str): bool = all {
@@ -129,8 +151,7 @@ module sandbox_reopen {
       recorded' = nextId,
       nextId' = nextId + 1,
       mounted' = overlays,
-      folder' = folder, overlays' = overlays,
-      deleter' = deleter,
+      folder' = folder, overlays' = overlays, deleter' = deleter,
     }
     else if (p == "reclaim") all {
       folder' = false,
@@ -139,6 +160,7 @@ module sandbox_reopen {
       live' = live, recorded' = recorded, nextId' = nextId, mounted' = mounted,
       deleter' = c,
     }
+    // a revive of a running daemon reopens the Workspaces it lacks
     else if (p == "use") all {
       mounted' = overlays,
       folder' = folder, overlays' = overlays, live' = live,
