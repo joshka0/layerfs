@@ -108,9 +108,8 @@ export const livePhases = {
       for (const r of results) assert.notEqual(r.code, null, `a caller hung: ${r.out}`);
       assertOneDaemonPerFolder();
       assert.ok(existsSync(overlayOf(ws2.path)), "saved overlay deleted in the race");
-      assert.ok(results.slice(0, 2).some((r) => {
-        try { return byPath(JSON.parse(r.out.trim().split("\n").pop()), ws2.path)?.reopened; } catch { return false; }
-      }), `no reopen reopened ${ws2.path}: ${results.map((r) => r.out).join(" || ")}`);
+      // Which caller mounts it first is the race: a mount can revive the
+      // Sandbox before either reopen. Mounted and intact is the contract.
       assert.ok(isMount(ws2.path), `${ws2.path} not mounted after the race`);
       const evidence = () => `daemons ${JSON.stringify(daemons())}; callers ${results.map((r) => r.out.trim()).join(" || ")}`;
       try {

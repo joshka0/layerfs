@@ -27,11 +27,12 @@ report=$work/report
 mkdir -p "$report"
 run_id=reopen-e2e-$$
 data=$run_id-data sbx=$run_id-sbx
-# lfs-orb's base image plus procps: vm-boot.sh needs pgrep. Built once and
-# kept; remove it with `docker image rm reopen-e2e-node24`.
-image=reopen-e2e-node24
+# lfs-orb's base image plus procps (vm-boot.sh needs pgrep) and e2fsprogs
+# (chattr, for F42). Built once and kept; remove it with
+# `docker image rm reopen-e2e-node24:2`.
+image=reopen-e2e-node24:2
 docker image inspect $image >/dev/null 2>&1 || printf '%s\n' 'FROM node:24-bookworm-slim' \
-  'RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends procps && rm -rf /var/lib/apt/lists/*' |
+  'RUN apt-get -qq update && apt-get -qq install -y --no-install-recommends procps e2fsprogs && rm -rf /var/lib/apt/lists/*' |
   docker build -q -t $image - >/dev/null || exit 1
 docker volume create $data >/dev/null
 docker volume create $sbx >/dev/null
@@ -56,7 +57,7 @@ phase() {
   [[ $with_sbx == yes ]] && vols+=(-v $sbx:/var/lib/layerfs)
   docker rm -f $run_id >/dev/null 2>&1
   # Each phase is one test command: at most 120 s (AGENTS.md).
-  timeout 120 docker run --rm --name $run_id --init --cap-add SYS_ADMIN --device /dev/fuse \
+  timeout 120 docker run --rm --name $run_id --init --cap-add SYS_ADMIN --cap-add LINUX_IMMUTABLE --device /dev/fuse \
     --security-opt apparmor=unconfined $vols \
     -v "$sdk":/opt/layerfs/sdk:ro -v "$bun":/opt/layerfs/bundle:ro \
     -v "$repo/tools/orbstack":/opt/layerfs/tools:ro -v "$repo/sdk/js/test/reopen":/opt/reopen-test:ro \
@@ -67,6 +68,12 @@ phase() {
   return 0
 }
 
+# The legacy bundle must predate the change: a redeployed lfs-orb bundle
+# would seed records with `root` and turn F32 into a false failure.
+if [[ -n $legacy_bundle ]] && cmp -s "$legacy_bundle/layerfs-daemon" "$bundle/layerfs-daemon"; then
+  echo "the legacy bundle $legacy_bundle is the bundle under test; give the pre-change bundle" >&2
+  exit 2
+fi
 [[ -n $legacy_bundle && -n $legacy_sdk ]] && phase seed-legacy "${legacy_sdk:A}" "${legacy_bundle:A}"
 phase seed "$repo/sdk/js" "$bundle"
 phase tamper "$repo/sdk/js" "$bundle"
@@ -74,6 +81,7 @@ phase check "$repo/sdk/js" "$bundle"
 phase boot-unmounted "$repo/sdk/js" "$bundle" no
 phase boot "$repo/sdk/js" "$bundle"
 phase live "$repo/sdk/js" "$bundle"
+phase races "$repo/sdk/js" "$bundle"
 
 {
   cat "$report/run.txt"
