@@ -1,0 +1,29 @@
+memoryd worktree_test (memoryd main 50c1409a7, zig 0.16.0, aarch64-linux, sha256 9e6bf4f7d49888fc...) run as uid 501 from inside a mounted LayerFS Workspace (fuseblk), one container per bundle. Runner: wt6-run.sh, wt6-mount.mjs. Same binary from plain /tmp: All 9 tests passed.
+
+## before (main 34d57a297)
+filesystem: fuseblk
+1/9 worktree_test.test.WT1 ... OK
+2/9 worktree_test.test.WT2 ... OK
+3/9 worktree_test.test.WT3 ... OK
+4/9 worktree_test.test.WT4 ... OK
+5/9 worktree_test.test.WT5 ... OK
+6/9 worktree_test.test.WT6 ... WT6 escape: outcome faulted, source { { 117, 110, 114, 101, 115, 111, 108, 118, 101, 100 
+7/9 worktree_test.test.WT7 ... OK
+8/9 worktree_test.test.WT8 ... OK
+9/9 worktree_test.test.WT9 ... OK
+8 passed; 0 skipped; 1 failed.
+worktree_test exit 1
+
+## after (fix-backslash-name 63d0342a0)
+filesystem: fuseblk
+1/9 worktree_test.test.WT1 ... OK
+2/9 worktree_test.test.WT2 ... OK
+3/9 worktree_test.test.WT3 ... OK
+4/9 worktree_test.test.WT4 ... OK
+5/9 worktree_test.test.WT5 ... OK
+6/9 worktree_test.test.WT6 ... OK
+7/9 worktree_test.test.WT7 ... OK
+8/9 worktree_test.test.WT8 ... OK
+9/9 worktree_test.test.WT9 ... OK
+All 9 tests passed.
+worktree_test exit 0

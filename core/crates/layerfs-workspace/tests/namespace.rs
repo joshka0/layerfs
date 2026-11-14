@@ -464,7 +464,6 @@ fn unrepresentable_names_targets_and_reservations_are_refused_before_any_job() {
     // nothing outside them can reach an owner job or be silently dropped.
     for invalid in [
         &b"\xff\xfe"[..],
-        b"back\\slash",
         b"a/b",
         b".",
         b"..",

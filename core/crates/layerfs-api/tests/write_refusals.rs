@@ -46,15 +46,15 @@ fn a_write_refusal_names_its_cause() {
         ("NotFile", "expected a regular file")
     );
 
-    // A `\` or a name over 255 bytes passes the path check and is refused by
-    // the name grammar, on the way to the entry and at the entry itself.
+    // A name over 255 bytes passes the path check and is refused by the name
+    // grammar, on the way to the entry and at the entry itself.
     let long = format!("/{}", "n".repeat(256));
+    let deep = format!("{long}/a");
     for (method, path) in [
-        ("fs.write", "/a\\b"),
-        ("fs.write", "/dir/a\\b"),
         ("fs.write", long.as_str()),
-        ("fs.mkdir", "/a\\b"),
-        ("fs.rm", "/a\\b"),
+        ("fs.write", deep.as_str()),
+        ("fs.mkdir", long.as_str()),
+        ("fs.rm", long.as_str()),
     ] {
         let r = refused(&fixture, method, path);
         assert_eq!(
@@ -64,7 +64,7 @@ fn a_write_refusal_names_its_cause() {
         );
     }
     // The read route answers the same input the same way.
-    assert_eq!(refused(&fixture, "fs.stat", "/a\\b").code, "InvalidInput");
+    assert_eq!(refused(&fixture, "fs.stat", &long).code, "InvalidInput");
 
     let commits = fixture.call(
         "branch.list_commits",
