@@ -85,8 +85,8 @@ change refuses that shape (parked decision P1).
    such a Sandbox, it revives it, and uses it if it has a free slot. If that
    revive fails or ends the Sandbox, the mount places the new Workspace in
    another Sandbox or starts a new one. The old Sandbox, its records and its
-   overlay files are kept. The mount answer does not report the failed
-   revive: only `operator.sandbox.reopen` and `lfs reopen` show it.
+   overlay files are kept. The mount answer reports the failed revive in
+   `revived` (Interfaces).
 5. `lfs reopen <project>` calls it. `vm-boot.sh apply` runs it for each
    project at boot.
 
@@ -122,6 +122,34 @@ change refuses that shape (parked decision P1).
 - `mounted` is true when the Workspace is mounted after the call.
   `reopened` is true when this call reopened it. `reason` is `null` exactly
   when `reopened` is `true`.
+
+`workspace.mount(branch)` (JS `layerfs.workspace.mount`, `lfs mount`)
+answers its usual fields and `revived`:
+
+```
+{ sandbox: "2", path: "...", image: null,
+  revived: [ <one operator.sandbox.reopen sandboxes item, state "failed"> ] }
+```
+
+- `revived` is empty unless placement revived a Sandbox with saved overlays
+  and that revive failed. Then it holds that Sandbox's item exactly as
+  `operator.sandbox.reopen` gives it: `id`, `name`, `state: "failed"`,
+  `reason`, and each saved Workspace by `path` with `mounted: false` and a
+  non-empty `reason`. The new Workspace is placed in another Sandbox; the
+  failed Sandbox, its records and its overlay files are kept.
+- If the mount itself then fails, its refusal does not carry `revived`.
+
+A Sandbox is `restarting` while another call holds the project's guard
+and the Sandbox's saved daemon has ended: `operator.sandbox.reopen` holds
+that guard while it revives each Sandbox.
+
+- `operator.sandbox.list` lists a `restarting` Sandbox.
+- A Workspace call (`workspace.status`, `commit`, `exec`, `unmount`, process
+  calls) that finds its saved daemon ended waits for the project's guard, at
+  most 60 s, then reads the Sandbox record again: it answers normally from a
+  restarted daemon, and refuses `NoSuchSandbox` for a Sandbox that is still
+  gone. If the guard is still held after 60 s, it refuses
+  `Busy` with message `Sandbox <id> is restarting`.
 
 `lfs reopen <project>` prints that answer as one JSON line. It exits 0 when
 every listed Workspace has `mounted: true`, 1 otherwise, and 2 on a usage
