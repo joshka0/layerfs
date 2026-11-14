@@ -5,7 +5,7 @@ The binding branch merges `origin/main` at `13df7f874` (model PR 26, `68ced0c90`
 | Check | Exit | Result |
 | --- | --- | --- |
 | Seed 42, first trace, merged model | 0 | One trace; 29 state comparisons pass |
-| Seed 42, first trace, compiled `no_guard` | 1 | Intended `State invariant failed` at comparison 4 |
+| Seed 42, first trace, compiled `no_guard` | 1 | Intended `State invariant failed` at trace step 2 (`acquire mount`); three comparisons include init |
 | Binding diff whitespace check against main | 0 | No binding whitespace errors |
 | First-parent staged whitespace check | 2 | Existing trailing whitespace in six main receipt files; bytes preserved |
 
