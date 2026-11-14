@@ -1,0 +1,205 @@
+# reopen-copy-e2e, commit 3497e09d4, 2026-11-14
+# bundle sha256: 584c69c774fe7ae642be35cd2701ae25ce5994c059d23bfbd46eef327d11a8fa  layerfs-daemon 26e2daf3d549e68790762a9cf4323cb3955560b111c682f8e0a0f7fed8c9f388  layerfs.node 
+# command: tools/orbstack/reopen-copy-e2e.sh <bundle> memoryd layerfs-memoryd-1 6
+# fixture: reflink copies of the rescue snapshot (SDK home, Sandbox folder) and of the memoryd Store
+== overlay files before
+total 19310288
+drwx------ 1 root root         168 Nov 13 19:57 .
+drwxr-xr-x 1 root root          66 Nov 10 13:00 ..
+-rw------- 1 root root      806912 Nov 10 13:18 1.sqlite
+-rw------- 1 root root  1246023680 Nov 12 08:14 19.sqlite
+-rw------- 1 root root 13042417664 Nov 13 18:22 27.sqlite
+-rw------- 1 root root    37949440 Nov 13 13:03 31.sqlite
+-rw------- 1 root root   122617856 Nov 13 17:44 32.sqlite
+-rw------- 1 root root    15114240 Nov 13 12:08 33.sqlite
+-rw------- 1 root root   205414400 Nov 13 21:58 34.sqlite
+-rw------- 1 root root  5103325184 Nov 14 09:09 6.sqlite
+-rw------- 1 root root       77824 Nov 10 13:00 overlay.sqlite
+== lfs reopen without --legacy-head (old records must refuse)
+{"kind":"ok","sandboxes":[{"id":"1","name":"layerfs-memoryd-1","state":"restarted","reason":null,"workspaces":[{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/1","workspace":"24221a2d6b3b9b23f5b786bec00d4f5d0d80b80de9f65d1016927ede3c0ae24c","namespace":1,"branch":"base","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6","workspace":"b3b0bc4fe2de3f0a0a9786b47b1ff00fc0bf8b5c91d7761fec5621797332d836","namespace":6,"branch":"ziglead-2-mwb14ppm","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/19","workspace":"4f0800a2b0a3b687a7812a7d2d1a782507ccef98b701518a36ca1542c7cfe57d","namespace":19,"branch":"lapsegate-mwc4jvsz","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/27","workspace":"53c84b9248d2d2a4d8fa30aa17ab99ab63367580fe8394ad40dff84dcffe313b","namespace":27,"branch":"heldgate-mwd8i31r","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/31","workspace":"0c94140f1e2e0c2551bf8da00d71c6c867897ffe3e21e6288bd3408e1736fe1b","namespace":31,"branch":"judge-closures-mweps84i","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/32","workspace":"eeeba5bb952d7e6518ac314619a6f72a9f79d0ccff9c1ca4fdafe8c33f0d092a","namespace":32,"branch":"proactive-monitor-mwetx06h","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/33","workspace":"3ff6ba283254cca9578554495edd19f0f33a0fcf71aea23f93259ad548ddba5c","namespace":33,"branch":"operator-repeats-mwewxcri","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/34","workspace":"1861469d6844510cea4773def72922bfba49a923830450f866789f99f0d34a12","namespace":34,"branch":"agy-capture-mwfefdje","mounted":false,"reopened":false,"reason":"its record has no saved base root (written before reopen existed); reopen it on the Branch head only with legacyHead"}]}]}
+exit 1
+== lfs reopen --legacy-head
+{"kind":"ok","sandboxes":[{"id":"1","name":"layerfs-memoryd-1","state":"running","reason":null,"workspaces":[{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/1","workspace":"24221a2d6b3b9b23f5b786bec00d4f5d0d80b80de9f65d1016927ede3c0ae24c","namespace":1,"branch":"base","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6","workspace":"b3b0bc4fe2de3f0a0a9786b47b1ff00fc0bf8b5c91d7761fec5621797332d836","namespace":6,"branch":"ziglead-2-mwb14ppm","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/19","workspace":"4f0800a2b0a3b687a7812a7d2d1a782507ccef98b701518a36ca1542c7cfe57d","namespace":19,"branch":"lapsegate-mwc4jvsz","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/27","workspace":"53c84b9248d2d2a4d8fa30aa17ab99ab63367580fe8394ad40dff84dcffe313b","namespace":27,"branch":"heldgate-mwd8i31r","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/31","workspace":"0c94140f1e2e0c2551bf8da00d71c6c867897ffe3e21e6288bd3408e1736fe1b","namespace":31,"branch":"judge-closures-mweps84i","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/32","workspace":"eeeba5bb952d7e6518ac314619a6f72a9f79d0ccff9c1ca4fdafe8c33f0d092a","namespace":32,"branch":"proactive-monitor-mwetx06h","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/33","workspace":"3ff6ba283254cca9578554495edd19f0f33a0fcf71aea23f93259ad548ddba5c","namespace":33,"branch":"operator-repeats-mwewxcri","mounted":true,"reopened":true,"reason":null},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/34","workspace":"1861469d6844510cea4773def72922bfba49a923830450f866789f99f0d34a12","namespace":34,"branch":"agy-capture-mwfefdje","mounted":true,"reopened":true,"reason":null}]}]}
+exit 0 ms 411
+== lfs reopen again (daemon runs: nothing restarted)
+{"kind":"ok","sandboxes":[{"id":"1","name":"layerfs-memoryd-1","state":"running","reason":null,"workspaces":[{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/1","workspace":"24221a2d6b3b9b23f5b786bec00d4f5d0d80b80de9f65d1016927ede3c0ae24c","namespace":1,"branch":"base","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6","workspace":"b3b0bc4fe2de3f0a0a9786b47b1ff00fc0bf8b5c91d7761fec5621797332d836","namespace":6,"branch":"ziglead-2-mwb14ppm","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/19","workspace":"4f0800a2b0a3b687a7812a7d2d1a782507ccef98b701518a36ca1542c7cfe57d","namespace":19,"branch":"lapsegate-mwc4jvsz","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/27","workspace":"53c84b9248d2d2a4d8fa30aa17ab99ab63367580fe8394ad40dff84dcffe313b","namespace":27,"branch":"heldgate-mwd8i31r","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/31","workspace":"0c94140f1e2e0c2551bf8da00d71c6c867897ffe3e21e6288bd3408e1736fe1b","namespace":31,"branch":"judge-closures-mweps84i","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/32","workspace":"eeeba5bb952d7e6518ac314619a6f72a9f79d0ccff9c1ca4fdafe8c33f0d092a","namespace":32,"branch":"proactive-monitor-mwetx06h","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/33","workspace":"3ff6ba283254cca9578554495edd19f0f33a0fcf71aea23f93259ad548ddba5c","namespace":33,"branch":"operator-repeats-mwewxcri","mounted":true,"reopened":false,"reason":"already mounted"},{"path":"/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/34","workspace":"1861469d6844510cea4773def72922bfba49a923830450f866789f99f0d34a12","namespace":34,"branch":"agy-capture-mwfefdje","mounted":true,"reopened":false,"reason":"already mounted"}]}]}
+exit 0
+== mounts
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/1 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/19 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/27 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/31 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/32 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/33 layerfs
+/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/34 layerfs
+== workspace listing
+total 255
+drwxrwxrwx 29  501 dialout     0 Nov 13 14:17 .
+drwxr-xr-x  1 root root       28 Nov 14 12:43 ..
+drwxrwxrwx  3  501 dialout     0 Oct 29 12:23 .agents
+drwxrwxrwx  3  501 dialout     0 Oct 29 12:23 .claude
+drwxrwxrwx  8  501 dialout     0 Nov 14 09:09 .git
+-rw-r--r--  1  501 dialout  1964 Nov 12 12:05 .gitattributes
+-rw-r--r--  1  501 dialout    69 Nov 13 13:07 .gitignore
+drwxr-xr-x  3  501 dialout     0 Nov 13 13:07 .herdr
+-rw-r--r--  1  501 dialout  1162 Nov 13 14:17 AGENTS.md
+-rw-rw-rw-  1  501 dialout 10411 Oct 29 12:23 GATE-REPORT.md
+-rw-rw-rw-  1  501 dialout 22337 Oct 29 12:23 HANDOFF.md
+-rw-rw-rw-  1  501 dialout  8318 Oct 29 12:23 INTENT.md
+-rw-rw-rw-  1  501 dialout 32589 Oct 29 12:23 Kernel.bend
+-rw-rw-rw-  1  501 dialout 78090 Oct 29 12:23 LAWS-READING.md
+-rw-rw-rw-  1  501 dialout 43803 Oct 29 12:23 LAWS.bend
+-rw-rw-rw-  1  501 dialout  3878 Oct 29 12:23 PROOF.bend
+-rw-r--r--  1  501 dialout 10361 Nov 12 01:53 README.md
+-rw-rw-rw-  1  501 dialout  9168 Oct 29 12:23 ROADMAP.md
+-rw-rw-rw-  1  501 dialout 10636 Oct 29 12:23 SPEC.md
+entries: 49
+== file count and bytes under the Workspace
+32522
+2731144978
+== git
+b1a7841e mem(zig): the agy default root and harness name in the config reader (main e5e82c59); remove seven parity run records that held a private word
+66767d0b Merge remote-tracking branch 'origin/main' into lfs/ziglead-2
+f787ac00 Merge branch 'docs/adr-0044-landed-seq' into 'main'
+changed paths: 0
+dangling tree 3c853ed620db22f80f67209320fcb30f37db9cfc
+dangling tree 4c3ec7edac5c712b5cf79beaa39a39dad84221c3
+dangling blob 8742335637278848df3a83026eafe7addb8093c5
+fsck exit 0
+== write a probe file, commit
+{"kind":"Committed","head":"12f7c8d75d7aad1e631c0c7c12ca5474808884c4de0b885d134a9cd5c710bcd40c","commit":{"id":"12f7c8d75d7aad1e631c0c7c12ca5474808884c4de0b885d134a9cd5c710bcd40c","branch":null,"parent":"124d642c1a40bd3fb8e93bf7dac041d9d23adc856d297bbc8d6cb939cf799f28dc","secondParent":null,"base":"3266a8f6e2f830efd978e9c95114d4078bef1405c997cf21deaf0fb32421c922c1","root":"6a083924a9fccb02a457e3095a0d276039ac3767f4ea3469160445d9fef478ef","via":"exec","message":"reopen e2e commit","mergedFrom":null,"time":1794660214601,"logical":2731144503,"newCanonical":80820482,"newStored":27399514,"newMetadata":443756,"displaced":null,"lww":[],"lwwTruncated":false},"displacedHead":null,"merged":null,"lww":[],"lwwTruncated":false}
+exit 0
+== read the committed probe from branch ziglead-2-mwb14ppm
+{"kind":"ok","snapshot":"ziglead-2-mwb14ppm@f7c8d75d7aad","root":"6a083924a9fccb02a457e3095a0d276039ac3767f4ea3469160445d9fef478ef","path":"/reopen-e2e-probe.txt","text":"reopen e2e 2026-11-14T12:43:29Z\n","startLine":1,"endLine":1,"lineTruncated":false,"truncated":false,"nextLine":null,"size":32}
+exit 0
+probe matches
+{"items":[{"id":"12f7c8d75d7aad1e631c0c7c12ca5474808884c4de0b885d134a9cd5c710bcd40c","branch":"ziglead-2-mwb14ppm","parent":"124d642c1a40bd3fb8e93bf7dac041d9d23adc856d297bbc8d6cb939cf799f28dc","secondParent":null,"base":"3266a8f6e2f830efd978e9c95114d4078bef1405c997cf21deaf0fb32421c922c1","root":"6a083924a9fccb02a457e3095a0d276039ac3767f4ea3469160445d9fef478ef","via":"exec","message":"reopen e2e co
+== unmount every reopened Workspace with discard
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(24221a2d6b3b9b23f5b786bec00d4f5d0d80b80de9f65d1016927ede3c0ae24c), namespace: 1 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(24221a2d6b3b9b23f5b786bec00d4f5d0d80b80de9f65d1016927ede3c0ae24c), namespace: 1 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/1 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(b3b0bc4fe2de3f0a0a9786b47b1ff00fc0bf8b5c91d7761fec5621797332d836), namespace: 6 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(b3b0bc4fe2de3f0a0a9786b47b1ff00fc0bf8b5c91d7761fec5621797332d836), namespace: 6 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 74724, served: 74724, inline: 2, refused: 2, terminal: 0, forget_units: 2 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 74728, completed: 74724, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(4f0800a2b0a3b687a7812a7d2d1a782507ccef98b701518a36ca1542c7cfe57d), namespace: 19 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(4f0800a2b0a3b687a7812a7d2d1a782507ccef98b701518a36ca1542c7cfe57d), namespace: 19 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/19 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(53c84b9248d2d2a4d8fa30aa17ab99ab63367580fe8394ad40dff84dcffe313b), namespace: 27 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(53c84b9248d2d2a4d8fa30aa17ab99ab63367580fe8394ad40dff84dcffe313b), namespace: 27 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/27 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(0c94140f1e2e0c2551bf8da00d71c6c867897ffe3e21e6288bd3408e1736fe1b), namespace: 31 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(0c94140f1e2e0c2551bf8da00d71c6c867897ffe3e21e6288bd3408e1736fe1b), namespace: 31 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/31 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(eeeba5bb952d7e6518ac314619a6f72a9f79d0ccff9c1ca4fdafe8c33f0d092a), namespace: 32 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(eeeba5bb952d7e6518ac314619a6f72a9f79d0ccff9c1ca4fdafe8c33f0d092a), namespace: 32 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/32 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(3ff6ba283254cca9578554495edd19f0f33a0fcf71aea23f93259ad548ddba5c), namespace: 33 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(3ff6ba283254cca9578554495edd19f0f33a0fcf71aea23f93259ad548ddba5c), namespace: 33 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/33 exit 1
+file:///opt/layerfs/sdk/src/client.js:28
+    throw new LayerFSError(code, message, detail);
+          ^
+
+LayerFSError: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(1861469d6844510cea4773def72922bfba49a923830450f866789f99f0d34a12), namespace: 34 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(1861469d6844510cea4773def72922bfba49a923830450f866789f99f0d34a12), namespace: 34 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 0, served: 0, inline: 0, refused: 0, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 0, completed: 0, terminal: true })", forced: None }) }
+    at outcome (file:///opt/layerfs/sdk/src/client.js:28:11)
+    at invoke (file:///opt/layerfs/sdk/src/client.js:11:10)
+    at async file:///opt/layerfs/tools/lfs.mjs:54:13 {
+  code: 'Failed',
+  detail: null
+}
+
+Node.js v24.22.3
+unmount --discard /var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/34 exit 1
+== mounts after
+0
+== overlay files after
+total 19310288
+drwx------ 1 root root         168 Nov 14 12:43 .
+drwxr-xr-x 1 root root         104 Nov 14 12:43 ..
+-rw------- 1 root root      806912 Nov 10 13:18 1.sqlite
+-rw------- 1 root root  1246023680 Nov 12 08:14 19.sqlite
+-rw------- 1 root root 13042417664 Nov 13 18:22 27.sqlite
+-rw------- 1 root root    37949440 Nov 13 13:03 31.sqlite
+-rw------- 1 root root   122617856 Nov 13 17:44 32.sqlite
+-rw------- 1 root root    15114240 Nov 13 12:08 33.sqlite
+-rw------- 1 root root   205414400 Nov 13 21:58 34.sqlite
+-rw------- 1 root root  5103325184 Nov 14 12:43 6.sqlite
+-rw------- 1 root root       77824 Nov 14 12:43 overlay.sqlite
