@@ -305,15 +305,18 @@ module sandbox_reopen {
     goneMidRestart' = goneMidRestart,
   }
 
-  // After the spawn, revive.rs restart_daemon ends in one of four outcomes:
+  // After the spawn, revive.rs restart_daemon ends in one of four outcomes.
+  // Every failure stops the spawned daemon (stop_spawned); where the record
+  // stands depends on when the failure came:
   // - "ok": handshake and record save succeed; the record names the new
   //   daemon and the Workspaces reattach;
   // - "stopped": the handshake fails or never sees the listen line; the
-  //   spawned daemon is stopped and the record is unchanged;
-  // - "stop_failed": as "stopped", but the stop fails; the record is
-  //   rewritten to name the still-running daemon (3dd211bd3);
-  // - "after_record": the record save succeeded, a later step (the
-  //   container file, the registry) fails; the record names the daemon.
+  //   daemon is stopped and the record is unchanged;
+  // - "after_record": the record save succeeded and a later step (the
+  //   container file rename, the registry) fails; the daemon is stopped
+  //   and the record names it (replay of d08e3b656, binder seed 42);
+  // - "stop_failed": a failure whose stop fails; the record is made to name
+  //   the still-running daemon (3dd211bd3).
   action finish(c: str): bool = all {
     phase.get(c) == "spawned",
     val id = spawned.get(c)
@@ -332,8 +335,8 @@ module sandbox_reopen {
       target' = target.set(c, "failed"),
       reported' = reportedAfter(c),
       live' =
-        if (outcome == "stopped" and PLANT != "keep_failed_daemon") live.exclude(Set(id))
-        else live,
+        if (outcome == "stop_failed" or PLANT == "keep_failed_daemon") live
+        else live.exclude(Set(id)),
     },
     folder' = folder, overlays' = overlays, eligible' = eligible,
     nextId' = nextId, deleter' = deleter,

@@ -27,9 +27,10 @@ answers from a restarted daemon, else the Sandbox is gone.
 A restart is two steps: the spawn, which `process.rs` refuses while the
 saved daemon runs, then `finish`, with four outcomes: `ok` (the record
 names the new daemon; the Workspaces reattach), `stopped` (the handshake
-fails; the daemon is stopped, the record unchanged), `stop_failed` (the
-stop fails; the record names the running daemon), `after_record` (a step
-after the record save fails; the record names the daemon).
+fails; the daemon is stopped, the record unchanged), `after_record` (a step
+after the record save fails; the daemon is stopped, the record names it),
+`stop_failed` (a failure whose stop fails; the record names the running
+daemon).
 
 A mount's call result and its target revive outcome are separate
 variables (`result`, `target`): when the revive fails, the mount places its
