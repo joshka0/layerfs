@@ -8,6 +8,9 @@
 #   Run it in a shell proxied through the workbench's vault:
 #   `agent-vault-run shared -- tools/orbstack/lfs-vm.sh <bundle-dir>` for `lfs-orb`,
 #   `agent-vault-run foxway-workspace-dev -- tools/orbstack/lfs-vm.sh <bundle-dir> lfs-foxway`.
+#   The Mac av-proxy must run (skills agent-vault/scripts/av-proxy-install). Agents reach it
+#   through the OrbStack gateway with a proxy URL that names the vault of that shell
+#   (AGENT_VAULT_VAULT) and holds no token (tools/orbstack/lfs-proxy-env.sh).
 #
 # Two workbenches, so Foxway files and credentials never share a container
 # with personal work:
@@ -149,26 +152,25 @@ print(f"{u.hostname}:{u.port}" if u.hostname and u.port else "")' "$memoryd_conf
   *) echo "usage: lfs-vm.sh <bundle-dir> [lfs-orb|lfs-foxway]" >&2; exit 64 ;;
 esac
 
-# The docker commands must not inherit an agent's proxy settings. Keep only
-# the proxy's host and port.
-proxy_url=${HTTPS_PROXY:?the Agent Vault proxy (HTTPS_PROXY) is not set}
-proxy=${proxy_url#*@}
-proxy_host=${proxy%%:*}
-proxy_port=${${proxy#*:}%%/*}
+# The docker commands must not inherit an agent's proxy settings.
 unset HTTP_PROXY HTTPS_PROXY http_proxy https_proxy NO_PROXY no_proxy ALL_PROXY all_proxy
-proxy_ip=$(dscacheutil -q host -a name "$proxy_host" | awk '/ip_address/ {print $2; exit}')
 bridge_port=${LFS_BRIDGE_PORT:-47111}
+# The Mac av-proxy: agents reach its proxy listener through the gateway. Its control
+# listener gives the broker CA.
+shim_port=${AV_PROXY_PORT:-14390}
+shim_control=${AV_CONTROL_PORT:-14391}
+ca_pem=$(curl -fsS --noproxy '*' -m 5 "http://127.0.0.1:$shim_control/v1/mitm/ca.pem") \
+  || { echo "lfs-vm: the Mac av-proxy does not answer on 127.0.0.1:$shim_control (av-proxy-install)" >&2; exit 69; }
 docker volume inspect $volume >/dev/null 2>&1 || docker volume create $volume >/dev/null
 docker network inspect $name >/dev/null 2>&1 || docker network create $name >/dev/null
 # Where the workbench reaches the Mac (the bridge): OrbStack's
 # host.docker.internal, the Mac's loopback.
 gateway=0.250.250.254
-# The proxy's tailnet address, in the hosts file Docker keeps across restarts.
 # LayerFS Sandboxes need a real filesystem: on OrbStack's overlay root, a
 # commit finds no changes. An anonymous volume holds them; `docker rm -v`
 # removes it, so a recreate starts them fresh.
 flags=(--device /dev/fuse --device /dev/net/tun --security-opt systempaths=unconfined
-  --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network $name --restart unless-stopped --add-host "$proxy_host:$proxy_ip"
+  --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network $name --restart unless-stopped
   -v /var/lib/layerfs)
 
 docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
@@ -177,16 +179,14 @@ docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_A
   -v "$repo/tools/orbstack":/opt/layerfs/tools:ro $vault_mounts $memoryd_mounts \
   node:24-bookworm-slim /opt/layerfs/tools/vm-boot.sh run
 
-# The Agent Vault proxy: its CA and its tailnet address (the VM's DNS has no
-# MagicDNS). The proxy URL itself goes to each agent (lfs-bridge agent).
-docker exec -i $name sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem' \
-  < "${CURL_CA_BUNDLE:?the Agent Vault CA (CURL_CA_BUNDLE) is not set}"
+# The Agent Vault broker CA: the broker intercepts TLS in each tunnel.
+printf '%s\n' "$ca_pem" | docker exec -i $name sh -c 'cat > /opt/agent-vault-ca.pem && chmod 644 /opt/agent-vault-ca.pem'
 # sfw for agents' package installs (it caches its firewall binary beside itself).
 docker exec $name mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
 docker exec -i $name sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
 docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
-docker exec -i -e PROXY_IP="$proxy_ip" -e PROXY_PORT="$proxy_port" \
+docker exec -i \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" -e GIT_SSH_HOSTS="$git_ssh_hosts" \
   -e SERVICE_FORWARDS="$service_forwards" -e TCP_EGRESS="$tcp_egress" -e SANDBOX_PREFIX="$sandbox_prefix" $name bash -s <<'SETUP'
 set -eu
@@ -196,8 +196,9 @@ data=/var/lib/layerfs-data
 mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
 chmod 700 "$data/ssh-host-keys"
 # The sibling services, forwarded to loopback (<port>:<host>:<port>).
-printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\nTCP_EGRESS="%s"\n' \
-  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" "$TCP_EGRESS" > /etc/lfs-vm/boot.env
+# PROXY_IP and PROXY_PORT come later, from lfs-proxy-apply.sh, with the agents' proxy.env.
+printf 'GATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\nTCP_EGRESS="%s"\n' \
+  "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" "$TCP_EGRESS" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 # The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
@@ -280,27 +281,10 @@ SETUP
 [ -z "$service_forwards" ] || docker compose -f "$repo/tools/orbstack/services.compose.yml" \
   -f "$repo/tools/orbstack/services.orb.yml" up -d --quiet-pull
 
-# The proxy for every agent shell: ~/.lfs/profile.sh loads it (and the
-# bridge session the Herdr plugin writes). Through stdin only.
-{
-  printf "export HTTPS_PROXY='%s' HTTP_PROXY='%s' https_proxy='%s' http_proxy='%s'\n" \
-    "$proxy_url" "$proxy_url" "$proxy_url" "$proxy_url"
-  # The bridge on the gateway is direct: the proxy cannot reach it. Package
-  # installs are direct too (the firewall allows port 443): the registry and
-  # Socket Firewall need no key, and one install opens more connections than
-  # the shared proxy's rate limit allows every agent together.
-  direct="localhost,127.0.0.1,$proxy_host,$gateway,registry.npmjs.org,.socket.dev"
-  printf "export NO_PROXY='%s' no_proxy='%s'\n" "$direct" "$direct"
-  printf "export SSL_CERT_FILE=/opt/ca-bundle.pem CURL_CA_BUNDLE=/opt/ca-bundle.pem GIT_SSL_CAINFO=/opt/ca-bundle.pem\n"
-  printf "export REQUESTS_CA_BUNDLE=/opt/ca-bundle.pem NODE_EXTRA_CA_CERTS=/opt/agent-vault-ca.pem\n"
-  # gh and glab need a token to start; the proxy replaces these placeholders
-  # with the vault's GitHub and GitLab keys. Foxway vaults have neither.
-  [ $name != lfs-orb ] || printf "export GH_TOKEN=agent-vault GITLAB_TOKEN=agent-vault\n"
-  # Node's fetch ignores the proxy variables without this; agents have no DNS.
-  printf "export NODE_USE_ENV_PROXY=1\n"
-  # The Mac's time zone, so summaries and notes carry the operator's local time.
-  printf "export TZ='%s'\n" "$(readlink /etc/localtime | sed 's|.*/zoneinfo/||')"
-} | docker exec -i -u 501:20 $name sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
+# The proxy for every agent shell (~/.lfs/profile.sh loads proxy.env, with the bridge session the
+# Herdr plugin writes) and the one proxy address the agent firewall allows, both from one shim
+# address. The cutover of an existing workbench runs the same script.
+"$repo/tools/orbstack/lfs-proxy-apply.sh" $name --vault "${AGENT_VAULT_VAULT:?run lfs-vm.sh through agent-vault-run <vault>}" --shim "$gateway:$shim_port"
 docker exec -i -u 501:20 $name sh -s <<'PROFILE'
 umask 022
 cat > /home/agent/.lfs/profile.sh <<'SH'
