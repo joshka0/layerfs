@@ -44,7 +44,8 @@ trap cleanup EXIT
 
 {
   echo "command: REOPEN_E2E_PHASES='${REOPEN_E2E_PHASES:-}' $0 $*"
-  echo "repo: $repo $(git -C "$repo" rev-parse HEAD) dirty=$(git -C "$repo" status --porcelain | wc -l | tr -d ' ')"
+  # An exported tree (git archive) names its commit in REOPEN_E2E_PRODUCT.
+  echo "repo: $repo ${REOPEN_E2E_PRODUCT:-$(git -C "$repo" rev-parse HEAD) dirty=$(git -C "$repo" status --porcelain | wc -l | tr -d ' ')}"
   shasum -a 256 "$bundle"/layerfs-daemon "$bundle"/layerfs.node
   [[ -n $legacy_bundle ]] && shasum -a 256 "$legacy_bundle"/layerfs-daemon "$legacy_bundle"/layerfs.node
   date -u +%Y-%m-%dT%H:%M:%SZ
@@ -52,7 +53,7 @@ trap cleanup EXIT
 
 # REOPEN_E2E_PHASES="races live" runs only those phases (each must stand
 # alone: races and live do); the default is every phase in order.
-selected=" ${REOPEN_E2E_PHASES:-seed-legacy seed tamper check boot-unmounted boot live races} "
+selected=" ${REOPEN_E2E_PHASES:-seed-legacy seed tamper check boot-unmounted boot live races names} "
 
 # phase <name> <sdk-dir> <bundle-dir> [sandbox volume: yes|no]
 phase() {
@@ -87,6 +88,7 @@ phase boot-unmounted "$repo/sdk/js" "$bundle" no
 phase boot "$repo/sdk/js" "$bundle"
 phase live "$repo/sdk/js" "$bundle"
 phase races "$repo/sdk/js" "$bundle"
+phase names "$repo/sdk/js" "$bundle"
 
 {
   cat "$report/run.txt"
