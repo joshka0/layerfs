@@ -34,13 +34,13 @@ fn recorded(directory: &Path) -> Result<usize, SdkRefusal> {
 /// The Sandbox for a new Workspace, under the project's guard: the
 /// lowest-numbered running one of the call's image with a free slot, else a
 /// new one. A Sandbox with saved overlays is revived first; the answer item
-/// of each revive that failed is returned too, since the new Workspace is
-/// then placed elsewhere.
+/// of each revive that failed is added to `revived`, since the new Workspace
+/// is then placed elsewhere.
 fn place(
     args: &SdkValue,
     project: &Path,
-) -> Result<(Arc<SandboxState>, Vec<SdkValue>), SdkRefusal> {
-    let mut revived = Vec::new();
+    revived: &mut Vec<SdkValue>,
+) -> Result<Arc<SandboxState>, SdkRefusal> {
     let image = args
         .get("deploy")
         .and_then(|deploy| deploy.get_text("image"));
@@ -55,7 +55,7 @@ fn place(
             continue;
         }
         match sandbox_placing(&naming(args, &id)) {
-            Ok(state) => return Ok((state, revived)),
+            Ok(state) => return Ok(state),
             Err(refusal) => match crate::discovery::gone_container(&refusal) {
                 Some((container, stopped)) => {
                     match crate::sandbox::reclaim(args, &id, container, stopped) {
@@ -65,7 +65,7 @@ fn place(
                             match crate::discovery::revive(args, &id, false)? {
                                 Some((_, Some(state))) => {
                                     if recorded(&directory)? < WORKSPACES as usize {
-                                        return Ok((state, revived));
+                                        return Ok(state);
                                     }
                                 }
                                 Some((item, None)) if item.get_text("state") == Some("failed") => {
@@ -81,17 +81,32 @@ fn place(
             },
         }
     }
-    Ok((crate::sandbox::start(args, project)?, revived))
+    crate::sandbox::start(args, project)
 }
 
 /// `workspace.mount(branch)`: a new Workspace of `branch`, placed in one of
 /// the project's Sandboxes; its `sandbox` and `path`, and `revived`: the
-/// `operator.sandbox.reopen` item of each Sandbox whose revive failed.
+/// `operator.sandbox.reopen` item of each Sandbox whose revive failed. A
+/// refusal carries the same `revived` in its detail.
 pub(crate) fn mount(args: &SdkValue) -> Outcome {
+    let mut revived = Vec::new();
+    placed_mount(args, &mut revived).map_err(|mut refusal| {
+        if !revived.is_empty() {
+            let revived = ("revived".to_owned(), SdkValue::List(revived));
+            match &mut refusal.detail {
+                SdkValue::Map(fields) => fields.push(revived),
+                detail => *detail = SdkValue::Map(vec![revived]),
+            }
+        }
+        refusal
+    })
+}
+
+fn placed_mount(args: &SdkValue, revived: &mut Vec<SdkValue>) -> Outcome {
     let branch = text(args, "branch")?;
     let project = crate::discovery::project_dir(args)?;
     let _placing = crate::discovery::guard(&project)?;
-    let (state, revived) = place(args, &project)?;
+    let state = place(args, &project, revived)?;
     let _guard = crate::discovery::guard(&state.directory)?;
     let id = WorkspaceId::from_authority(random()?).map_err(failed)?;
     // The Branch is found by name in this process; the daemon binds its id.
@@ -113,7 +128,7 @@ pub(crate) fn mount(args: &SdkValue) -> Outcome {
             layerfs_sandbox::backend::Runtime::Process(_) => None,
         };
         fields.push(("image".to_owned(), SdkValue::opt_text(image)));
-        fields.push(("revived".to_owned(), SdkValue::List(revived)));
+        fields.push(("revived".to_owned(), SdkValue::List(revived.clone())));
     }
     crate::discovery::save_workspace(&state, &mounted, branch)?;
     lock(&state.mounts)?.insert(

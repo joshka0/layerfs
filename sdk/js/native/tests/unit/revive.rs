@@ -152,3 +152,34 @@ fn an_ended_daemon_with_an_empty_log_is_ended_not_unobservable() {
     std::fs::remove_dir_all(&base).unwrap();
     assert!(restarted, "the ended daemon was not restarted: {item:?}");
 }
+
+#[test]
+fn a_mount_that_fails_after_a_failed_revive_reports_the_revive() {
+    // workspace.mount revives Sandbox 1 (saved overlay, daemon ended); the
+    // restart's handshake fails, and the replacement Sandbox's start fails
+    // too. The refusal carries `revived` as a success answer would
+    // (operator, 2026-11-14: a revive failure must not be hidden).
+    let (base, args) = fixture("mount-fails", "LAYERFS_DAEMON_LISTEN 127.0.0.1:1");
+    let SdkValue::Map(mut fields) = args else {
+        unreachable!()
+    };
+    fields.push(("branch".to_owned(), SdkValue::text("work")));
+    let refusal = crate::workspace::mount(&SdkValue::Map(fields));
+    if let Ok(pid) = std::fs::read_to_string(base.join("pid")) {
+        let _ = std::process::Command::new("kill")
+            .arg("-9")
+            .arg(pid.trim())
+            .status();
+    }
+    std::fs::remove_dir_all(&base).unwrap();
+    let refusal = match refusal {
+        Ok(value) => panic!("the mount succeeded: {value:?}"),
+        Err(refusal) => refusal,
+    };
+    let Some(SdkValue::List(revived)) = refusal.detail.get("revived") else {
+        panic!("no `revived` in the refusal: {refusal:?}");
+    };
+    assert_eq!(revived.len(), 1, "{refusal:?}");
+    assert_eq!(revived[0].get_text("id"), Some("1"), "{refusal:?}");
+    assert_eq!(revived[0].get_text("state"), Some("failed"), "{refusal:?}");
+}

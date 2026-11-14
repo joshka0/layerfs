@@ -1,0 +1,10 @@
+R3-B2 fault-injection repro on d08e3b656 (2026-11-14). Scratch SDK unit test (not committed; the
+committed regression test is core/crates/layerfs-daemon/tests/folder_lock.rs): a fake daemon whose
+handshake fails (closed port); a seccomp filter on the test process makes every kill syscall
+EPERM (python3-seccomp wrapper); the Sandbox records folder is chattr +i during the first revive.
+
+REPRO spawned daemon pid 339 running true
+REPRO record pid Some(0) container Some("pid:0@0")
+REPRO second item Some("failed") Some("Os { code: 111, kind: ConnectionRefused, message: \"Connection refused\" }; stopping the restarted daemon pid:342@1155004 failed: Operation not permitted (os error 1); its record now names it")
+REPRO after second revive: first daemon 339 running true, second daemon 342 running true
+test result: ok. 1 passed; 0 failed; 0 ignored; 0 measured; 14 filtered out; finished in 0.04s

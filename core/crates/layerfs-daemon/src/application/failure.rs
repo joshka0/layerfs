@@ -10,6 +10,8 @@ use std::{fmt, io};
 pub enum ApplicationError {
     /// Before-effect configuration/listener/kernel file error.
     Io(io::Error),
+    /// Another daemon, this pid, holds the Sandbox folder; nothing started.
+    Held(String),
     /// Original initialized Overlay owner failure.
     Owner(Box<crate::OwnerStart>),
     /// Original later startup failure, retaining the successfully initialized Overlay owner.
@@ -48,6 +50,10 @@ impl fmt::Display for ApplicationError {
     fn fmt(&self, f: &mut fmt::Formatter<'_>) -> fmt::Result {
         match self {
             Self::Io(e) => write!(f, "daemon I/O: {e}"),
+            Self::Held(pid) => write!(
+                f,
+                "layerfs-daemon: the Sandbox folder is held by daemon pid {pid}"
+            ),
             Self::Owner(e) => write!(f, "Overlay startup: {:?}", e.result.as_ref().err()),
             Self::AfterOverlay { cause, .. } => write!(f, "after Overlay startup: {cause}"),
             Self::Store(e) => write!(f, "Store open: {e}"),
