@@ -14,8 +14,8 @@ use std::{
 /// (pid 0, never running) ended, one saved Workspace with an overlay file,
 /// and a fake daemon executable that prints a listen line for a closed port,
 /// writes its pid and sleeps.
-fn fixture() -> (PathBuf, SdkValue) {
-    let base = std::env::temp_dir().join(format!("layerfs-revive-{}", std::process::id()));
+fn fixture(tag: &str, first_line: &str) -> (PathBuf, SdkValue) {
+    let base = std::env::temp_dir().join(format!("layerfs-revive-{}-{tag}", std::process::id()));
     let private = |path: &Path| {
         std::fs::DirBuilder::new()
             .mode(0o700)
@@ -36,7 +36,7 @@ fn fixture() -> (PathBuf, SdkValue) {
     std::fs::write(
         &daemon,
         format!(
-            "#!/bin/sh\necho $$ > {}\necho LAYERFS_DAEMON_LISTEN 127.0.0.1:1\nexec sleep 600\n",
+            "#!/bin/sh\necho $$ > {}\necho {first_line}\nexec sleep 600\n",
             base.join("pid").display()
         ),
     )
@@ -90,9 +90,10 @@ fn running(pid: u32) -> bool {
         .is_ok_and(|stat| !matches!(stat.rsplit_once(") ").map(|(_, r)| &r[..1]), Some("Z")))
 }
 
-#[test]
-fn a_restart_whose_handshake_fails_stops_its_daemon() {
-    let (base, args) = fixture();
+/// Revives Sandbox 1 of a fixture whose fake daemon prints `first_line`;
+/// the restart must fail and leave its daemon stopped.
+fn failed_restart_leaves_no_daemon(tag: &str, first_line: &str) {
+    let (base, args) = fixture(tag, first_line);
     let (item, state) = revive(&args, "1", false).unwrap().expect("listed");
     assert!(state.is_none(), "no state for a failed restart");
     assert_eq!(item.get_text("state"), Some("failed"), "{item:?}");
@@ -116,6 +117,19 @@ fn a_restart_whose_handshake_fails_stops_its_daemon() {
     std::fs::remove_dir_all(&base).unwrap();
     assert!(
         !left,
-        "the spawned daemon {pid} still runs after the failed restart"
+        "the spawned daemon {pid} still runs after the failed restart: {item:?}"
     );
+}
+
+#[test]
+fn a_restart_whose_handshake_fails_stops_its_daemon() {
+    // a listen line for a closed port: the spawn succeeds, the handshake fails
+    failed_restart_leaves_no_daemon("handshake", "LAYERFS_DAEMON_LISTEN 127.0.0.1:1");
+}
+
+#[test]
+fn a_restart_whose_daemon_never_listens_stops_its_daemon() {
+    // output before any listen line: the spawn fails at its Listener step
+    // with the daemon still running (process.rs StartFailure::Listener)
+    failed_restart_leaves_no_daemon("listener", "not-a-listen-line");
 }
