@@ -9,7 +9,7 @@ import {
 import { DatabaseSync } from "node:sqlite";
 import { basename, dirname, join } from "node:path";
 import {
-  BASE, BIG, BIG_SHA, DATA, HOME, LayerFS, LayerFSOperator, MAIN_EDIT, MIXED, OPERATOR, SANDBOXES, SDK, STATE, STORES, answerWorkspaces, assertAnswerShape, assertOneDaemonPerFolder, byPath, check, daemons, failures, init, installLfs, isMount, killDaemons, lfsCli, loadState, manifest, mountTargets, open, overlayOf, records, reopen, same, sandboxRoot, saveState, sh, sha, sidecars, text, until, wsOf,
+  BASE, BIG, BIG_SHA, execInFreshProcess, DATA, HOME, LayerFS, LayerFSOperator, MAIN_EDIT, MIXED, OPERATOR, SANDBOXES, SDK, STATE, STORES, answerWorkspaces, assertAnswerShape, assertOneDaemonPerFolder, byPath, check, daemons, failures, init, installLfs, isMount, killDaemons, lfsCli, loadState, manifest, mountTargets, open, overlayOf, records, reopen, same, sandboxRoot, saveState, sh, sha, sidecars, text, until, wsOf,
 } from "./harness.mjs";
 
 export const livePhases = {
@@ -112,8 +112,25 @@ export const livePhases = {
         try { return byPath(JSON.parse(r.out.trim().split("\n").pop()), ws2.path)?.reopened; } catch { return false; }
       }), `no reopen reopened ${ws2.path}: ${results.map((r) => r.out).join(" || ")}`);
       assert.ok(isMount(ws2.path), `${ws2.path} not mounted after the race`);
-      assert.equal(await sh(l, ws2, "cat race.txt"), "race\n");
+      const evidence = () => `daemons ${JSON.stringify(daemons())}; callers ${results.map((r) => r.out.trim()).join(" || ")}`;
+      try {
+        // From a separate process: this process's SDK still holds the daemon
+        // that was killed (reported apart; not an F35 fault).
+        const r = execInFreshProcess("rlive", ws2, "cat race.txt");
+        assert.equal(r.status, 0, r.stderr);
+        assert.equal(r.stdout, "race\n");
+      } catch (error) {
+        throw new Error(`${error.message}; ${evidence()}`);
+      }
     });
+    // Outside F1-F40, so it does not gate: does a client that lived through the
+    // restart reach the daemon another process started?
+    try {
+      await sh(l, ws2, "cat race.txt");
+      console.log("NOTE outside-list: a long-lived SDK client reaches the daemon another process restarted");
+    } catch (error) {
+      console.log(`NOTE outside-list: a long-lived SDK client still dials the killed daemon: ${error.message.split("\n")[0]}`);
+    }
     for (const p of probes) spawnSync("umount", [p]);
     console.log(`LIVE done ${Date.now() - killedAt} ms after the first kill`);
   }

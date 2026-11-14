@@ -78,7 +78,7 @@ phase live "$repo/sdk/js" "$bundle"
 {
   cat "$report/run.txt"
   echo
-  grep -h -E '^(PASS|FAIL|SKIP|PHASE) ' "$report"/*.log
+  grep -h -E '^(PASS|FAIL|SKIP|NOTE|PHASE) ' "$report"/*.log
 } > "$report/summary.txt"
 # Diff the failures against the baseline (sdk/js/test/reopen/baseline.tsv):
 # a failure whose check and reason match an entry becomes BASELINE.

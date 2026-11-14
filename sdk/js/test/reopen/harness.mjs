@@ -139,6 +139,17 @@ export function manifest(dir) {
     "_", dir], { encoding: "utf8" });
   return out;
 }
+// One workspace.exec from a new node process, as an agent's next tool call
+// would run it: no connection state of this process carries over.
+export function execInFreshProcess(project, ws, command) {
+  const script = `
+    const { LayerFS } = await import(${JSON.stringify(SDK)});
+    const l = new LayerFS(${JSON.stringify(project)}, { runtime: "process", storePath: ${JSON.stringify(join(STORES, project, "global/store.sqlite"))} });
+    const r = await l.workspace.exec(${JSON.stringify({ sandbox: ws.sandbox, path: ws.path })}, ${JSON.stringify(command)});
+    process.stdout.write(r.stdout);
+    process.exit(r.exitCode);`;
+  return spawnSync("node", ["--input-type=module", "-e", script], { encoding: "utf8", timeout: 60000 });
+}
 // The answer of operator.sandbox.reopen() / lfs reopen (REOPEN.md Interfaces).
 export const answerWorkspaces = (answer) => (answer?.sandboxes ?? []).flatMap((s) => s.workspaces.map((w) => ({ ...w, sandbox: s })));
 export const byPath = (answer, path) => answerWorkspaces(answer).find((w) => w.path === path);

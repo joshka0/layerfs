@@ -16,6 +16,7 @@ export const bootPhases = {
   // F40: /var/lib/layerfs is not a mount: vm-boot must reopen nothing and
   // touch no record, and still finish its other steps.
   async "boot-unmounted"() {
+    installLfs();
     const before = Object.fromEntries(["rmain", "rmixed"].map((p) => [p, records(p).length]));
     const r = bootApply();
     await check("F40", "vm-boot apply without the Sandbox volume reopens nothing and says why", () => {

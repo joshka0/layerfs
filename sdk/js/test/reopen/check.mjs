@@ -40,10 +40,12 @@ export const checkPhases = {
       kept("rdisc3");
     });
     for (const project of ["rdisc", "rdisc2", "rdisc3"]) {
-      await check("F27 F9", `${project}: after the discovery call, reopen restores the saved Workspace`, async () => {
+      // A mount may revive the dead Sandbox itself; then reopen finds the
+      // Workspace `already mounted`. Either way it must be mounted now.
+      await check("F27 F9", `${project}: after the discovery call, reopen leaves the saved Workspace mounted`, async () => {
         const l = open(project);
         const w = byPath(await reopen(l), s.disc[project].path);
-        assert.equal(w?.reopened, true, JSON.stringify(w));
+        assert.equal(w?.mounted, true, JSON.stringify(w));
         assert.equal(await sh(l, wsOf(s.disc[project]), "cat d.txt"), `${project}\n`);
       });
     }
