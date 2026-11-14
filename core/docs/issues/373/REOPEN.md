@@ -93,7 +93,7 @@ change refuses that shape (parked decision P1).
 { kind: "ok",
   sandboxes: [
     { id: "1", name: "layerfs-memoryd-1",
-      state: "running" | "restarted" | "failed",
+      state: "running" | "restarted" | "failed" | "ended",
       reason: null | "<why the restart failed>",
       workspaces: [
         { path: "/var/lib/layerfs/sandboxes/layerfs-memoryd-1/workspaces/6",
@@ -104,10 +104,13 @@ change refuses that shape (parked decision P1).
 ```
 
 - It lists each process Sandbox of the project that has a saved Workspace
-  record with an overlay file. `restarted`: this call started its daemon.
-  `running`: its daemon ran already; nothing was started. `failed`: the
-  daemon could not be started or reached, and every Workspace shows
-  `mounted: false` with that reason.
+  record. `restarted`: this call started its daemon. `running`: its daemon
+  ran already; nothing was started. `failed`: the daemon could not be
+  started or reached, and every Workspace shows `mounted: false` with that
+  reason. `ended`: its daemon ended and no saved Workspace has an overlay
+  file; nothing was started.
+- A saved Workspace record whose overlay file is gone is listed with
+  `mounted: false`, `reopened: false` and reason `no saved overlay file`.
 - On a `restarted` or `running` Sandbox, each saved Workspace that the daemon
   does not serve is reopened (a reopen can stop after the restart). One it
   serves shows `mounted: true`, `reopened: false`, reason `already mounted`.

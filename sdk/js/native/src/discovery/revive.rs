@@ -6,9 +6,11 @@
 use super::revive_rules::{self, Base, Found, Next};
 use super::*;
 
-/// One saved Workspace record of a Sandbox whose overlay file exists.
+/// One saved Workspace record of a Sandbox.
 #[cfg(target_os = "linux")]
 pub(crate) struct SavedWorkspace {
+    /// Its overlay file `<root>/overlay/<namespace>.sqlite` exists.
+    overlay: bool,
     path: String,
     branch: String,
     workspace: layerfs_history::WorkspaceId,
@@ -16,8 +18,8 @@ pub(crate) struct SavedWorkspace {
     root: Option<[u8; 32]>,
 }
 
-/// The saved Workspaces of Sandbox folder `directory` whose overlay file
-/// `<root>/overlay/<namespace>.sqlite` exists, by namespace.
+/// The saved Workspace records of Sandbox folder `directory`, by namespace,
+/// each with whether its overlay file in the Sandbox folder `root` exists.
 #[cfg(target_os = "linux")]
 fn saved(directory: &Path, root: &Path) -> Result<Vec<SavedWorkspace>> {
     let mut found = Vec::new();
@@ -31,14 +33,12 @@ fn saved(directory: &Path, root: &Path) -> Result<Vec<SavedWorkspace>> {
         let namespace = value
             .get_int("namespace")
             .ok_or_else(|| refused("InvalidInput", "namespace"))?;
-        if !root
+        let overlay = root
             .join("overlay")
             .join(format!("{namespace}.sqlite"))
-            .is_file()
-        {
-            continue;
-        }
+            .is_file();
         found.push(SavedWorkspace {
+            overlay,
             path: registry::text(&value, "path")?.to_owned(),
             branch: registry::text(&value, "branch")?.to_owned(),
             workspace: layerfs_history::WorkspaceId::from_slice(&bytes::<32>(&value, "workspace")?)
@@ -55,7 +55,7 @@ fn saved(directory: &Path, root: &Path) -> Result<Vec<SavedWorkspace>> {
 }
 
 /// A process Sandbox's folder, saved pid and start time, and its saved
-/// Workspaces with an overlay file.
+/// Workspace records.
 #[cfg(target_os = "linux")]
 type SavedProcess = (
     layerfs_sandbox::backend::process::Layout,
@@ -63,8 +63,8 @@ type SavedProcess = (
     u64,
     Vec<SavedWorkspace>,
 );
-/// The process Sandbox a record names and its saved Workspaces with an
-/// overlay file; `None` for another runtime.
+/// The process Sandbox a record names and its saved Workspace records;
+/// `None` for another runtime.
 #[cfg(target_os = "linux")]
 fn process(directory: &Path, value: &SdkValue) -> Result<Option<SavedProcess>> {
     match runtime(value)? {
@@ -87,7 +87,8 @@ pub(crate) fn holds_overlays(args: &SdkValue, id: &str) -> Result<bool> {
             return Ok(false);
         }
         let value = load(&record)?;
-        Ok(process(&directory, &value)?.is_some_and(|(.., saved)| !saved.is_empty()))
+        Ok(process(&directory, &value)?
+            .is_some_and(|(.., saved)| saved.iter().any(|saved| saved.overlay)))
     }
     #[cfg(not(target_os = "linux"))]
     {
@@ -97,8 +98,9 @@ pub(crate) fn holds_overlays(args: &SdkValue, id: &str) -> Result<bool> {
 }
 
 /// `operator.sandbox.reopen({ legacyHead? })`: for each process Sandbox of
-/// the project that holds a saved Workspace overlay, start its daemon again
-/// if it ended and reopen each saved Workspace. The answer shape is in
+/// the project with a saved Workspace record, start its daemon again if it
+/// ended and holds a saved overlay, and reopen each saved Workspace; a record
+/// whose overlay file is gone is listed as not mounted. The answer shape is in
 /// REOPEN.md, Interfaces.
 pub(crate) fn reopen_all(args: &SdkValue) -> crate::job::Outcome {
     let legacy_head = args.get_bool("legacyHead");
@@ -117,7 +119,7 @@ pub(crate) fn reopen_all(args: &SdkValue) -> crate::job::Outcome {
 
 /// Revives Sandbox `id` under the caller's project guard: its answer item and,
 /// when its daemon serves, its state. `None` when it is no process Sandbox
-/// with a saved Workspace overlay.
+/// with a saved Workspace record.
 pub(crate) fn revive(
     args: &SdkValue,
     id: &str,
@@ -148,14 +150,22 @@ fn revive_process(
         return Ok(None);
     }
     let value = load(&record)?;
-    let Some((layout, pid, start, saved)) = process(&directory, &value)? else {
+    let Some((layout, pid, start, records)) = process(&directory, &value)? else {
         return Ok(None);
     };
-    if saved.is_empty() {
+    if records.is_empty() {
         return Ok(None);
     }
+    // A record whose overlay file is gone cannot reopen: it is listed so the
+    // operator sees the loss (REOPEN.md F1, F37).
+    let (saved, lost): (Vec<_>, Vec<_>) = records.into_iter().partition(|saved| saved.overlay);
+    let lost: Vec<SdkValue> = lost
+        .iter()
+        .map(|saved| outcome(saved, Err("no saved overlay file".to_owned())))
+        .collect();
     let name = value.get_text("name").unwrap_or_default().to_owned();
-    let item = |state: &str, reason: Option<String>, workspaces: Vec<SdkValue>| {
+    let item = |state: &str, reason: Option<String>, mut workspaces: Vec<SdkValue>| {
+        workspaces.extend(lost.iter().cloned());
         SdkValue::map([
             ("id", SdkValue::text(id)),
             ("name", SdkValue::text(&name)),
@@ -183,7 +193,13 @@ fn revive_process(
     };
     let restart = match revive_rules::next(found, saved.len()) {
         Next::Use => false,
-        Next::Reclaim => return Ok(None),
+        Next::Reclaim => {
+            let reason = "its daemon ended and no saved Workspace has an overlay file";
+            return Ok(Some((
+                item("ended", Some(reason.to_owned()), Vec::new()),
+                None,
+            )));
+        }
         Next::Restart => true,
     };
     // A running daemon may lack saved Workspaces: a reopen that stopped after
