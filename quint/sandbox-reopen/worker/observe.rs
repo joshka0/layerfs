@@ -25,7 +25,7 @@ fn identity(root: &Path) -> String {
         .expect("identity")
         .to_owned()
 }
-fn live_selected(root: &Path, all: bool) -> Vec<String> {
+pub(crate) fn live_selected(root: &Path, all: bool) -> Vec<String> {
     let config = crate::fixture::layout(root).config();
     let mut out = Vec::new();
     for entry in fs::read_dir("/proc").expect("proc") {
@@ -98,19 +98,33 @@ pub(crate) fn snapshot(root: &Path, event: &str, actor: Option<&Actor>) {
     // its uncommitted payload. ENOTCONN is not a reopened Workspace.
     let mounted=mounts.lines().filter_map(|l| l.split(' ').nth(4)).filter(|p|p.starts_with(&prefix))
         .filter(|p| matches!(fs::read(Path::new(p).join("uncommitted.txt")), Ok(bytes) if bytes == b"overlay survives\n")).count();
+    let raw = live_selected(root, false);
+    let admitted: Vec<_> = raw
+        .iter()
+        .filter(|id| crate::admission::admitted(root, id))
+        .cloned()
+        .collect();
+    let pending: Vec<_> = raw
+        .iter()
+        .filter(|id| !crate::admission::admitted(root, id))
+        .cloned()
+        .collect();
     println!(
-        "OK|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
+        "OK|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}|{}",
         u8::from(folder),
         mounted,
         identity(root),
-        live_selected(root, false).join(","),
+        admitted.join(","),
         u8::from(lock_held(root)),
         event,
         actor.map_or("", |a| a.seen.as_str()),
         actor.map_or("", |a| a.result.as_str()),
         actor.map_or("", |a| a.target.as_str()),
         actor.is_some_and(|a| a.reported),
-        actor.map_or("", |a| a.reason.as_str())
+        actor.map_or("", |a| a.reason.as_str()),
+        raw.join(","),
+        pending.join(","),
+        actor.map_or("", |a| a.unusable.as_str())
     );
     std::io::stdout().flush().expect("snapshot flush");
 }

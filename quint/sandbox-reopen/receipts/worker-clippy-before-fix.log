@@ -1,0 +1,24 @@
+info: downloading component 'clippy'
+info: installing component 'clippy'
+    Checking layerfs-content v1.0.0 (/work/core/crates/layerfs-content)
+    Checking layerfs-sandbox v1.0.0 (/work/core/crates/layerfs-sandbox)
+    Checking layerfs-history v1.0.0 (/work/core/crates/layerfs-history)
+    Checking layerfs-storage v1.0.0 (/work/core/crates/layerfs-storage)
+    Checking layerfs-bridge v1.0.0 (/work/core/crates/layerfs-bridge)
+    Checking layerfs-workspace v1.0.0 (/work/core/crates/layerfs-workspace)
+    Checking layerfs-persistence v1.0.0 (/work/core/crates/layerfs-persistence)
+    Checking layerfs-project v1.0.0 (/work/core/crates/layerfs-project)
+    Checking layerfs-store-service v1.0.0 (/work/core/crates/layerfs-store-service)
+    Checking layerfs-api v1.0.0 (/work/core/crates/layerfs-api)
+    Checking layerfs-reopen-worker v0.1.0 (/work/quint/sandbox-reopen/worker)
+error: in a `match` scrutinee, avoid complex blocks or closures with blocks; instead, move the block or closure higher and bind it with a `let`
+  --> ../generated/src/workspace.rs:59:29
+   |
+59 | ...) => match { if refusal.code == "StaleSandbox" { crate::replay::checked("stale"); } crate::discovery::gone_container(&refusal) } {
+   |         ^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^^ help: try: `let res = { if refusal.code == "StaleSandbox" { crate::replay::checked("stale"); } crate::discovery::gone_container(&refusal) }; match res`
+   |
+   = help: for further information visit https://rust-lang.github.io/rust-clippy/master/index.html#blocks_in_conditions
+   = note: `-D clippy::blocks-in-conditions` implied by `-D warnings`
+   = help: to override `-D warnings` add `#[allow(clippy::blocks_in_conditions)]`
+
+error: could not compile `layerfs-reopen-worker` (bin "reopen-worker") due to 1 previous error

@@ -107,6 +107,16 @@ pub(crate) fn witness(driver: &mut Replay, property: &str) -> Result<()> {
             );
             fields
         }
+        "stale" => {
+            call_target_outcome(driver, "boot", "stop_failed")?;
+            let fields = driver.request("observe status")?;
+            ensure!(
+                fields[6] == "done" && fields[8].starts_with("refusal:StaleSandbox:"),
+                "StatusRefusesUnusable violated: {}",
+                fields[8]
+            );
+            fields
+        }
         "kill-deadline" => {
             let started = std::time::Instant::now();
             let fields = call_target_outcome(driver, "boot", "kill_delayed")?;
@@ -124,6 +134,16 @@ pub(crate) fn witness(driver: &mut Replay, property: &str) -> Result<()> {
                 !fields[4].is_empty(),
                 "swallowed signals must leave the daemon live"
             );
+            let pid = fields[4]
+                .split('@')
+                .next()
+                .context("holder")?
+                .trim_start_matches("pid:");
+            ensure!(
+                fields[11].contains(&format!("daemon pid {pid} still runs 60 s after SIGKILL")),
+                "bounded stop must name the live holder: {}",
+                fields[11]
+            );
             eprintln!(
                 "LIVENESS post-KILL real-deadline=60s stop-returned=true holder-named={} elapsed={elapsed:?}",
                 fields[11].contains(
@@ -136,7 +156,7 @@ pub(crate) fn witness(driver: &mut Replay, property: &str) -> Result<()> {
             );
             fields
         }
-        "folder-lock" => {
+        "folder-lock" | "folder-lock-release" | "fast-holder" => {
             let first = call_target_outcome(driver, "boot", "recovery_save_failed")?;
             let holder = first[4].clone();
             ensure!(
@@ -157,10 +177,23 @@ pub(crate) fn witness(driver: &mut Replay, property: &str) -> Result<()> {
                 .strip_prefix("pid:")
                 .context("holder identity")?;
             ensure!(
-                fields[11].contains(pid),
-                "refusal must name holder pid {pid}: {}",
+                fields[11].contains(&format!("held by daemon pid {pid}")),
+                "refusal must name folder holder pid {pid}: {}",
                 fields[11]
             );
+            if property == "folder-lock-release" {
+                let ended = driver.request("crash-target")?;
+                ensure!(ended[6] == "target-ended", "holder exit");
+                let recovered = driver.request("probe boot")?;
+                ensure!(
+                    recovered[2] == "1" && recovered[9] == "ok" && recovered[5] == "0",
+                    "saved target did not reopen after holder exit"
+                );
+                eprintln!(
+                    "LIVENESS orphan-holder exited=true later-distinct-call completed=true saved-overlay-served=true"
+                );
+                return Ok(());
+            }
             fields
         }
         "fallback-failure" => {
@@ -170,9 +203,13 @@ pub(crate) fn witness(driver: &mut Replay, property: &str) -> Result<()> {
                 "target must fail and release its guard"
             );
             ensure!(
-                fields[8] == "ok",
-                "MountFallsBack has an unmodeled replacement failure: {}",
+                fields[8].starts_with("refusal:Failed:"),
+                "replacement must fail: {}",
                 fields[8]
+            );
+            ensure!(
+                fields[10] == "true",
+                "failed outer mount must carry the failed revive report"
             );
             fields
         }

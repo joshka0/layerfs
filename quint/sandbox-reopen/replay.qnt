@@ -4,7 +4,7 @@ module replay {
   import sandbox_reopen(PLANT = "none") as M from "./sandbox_reopen"
   action step = {
     nondet c = Set("boot", "mount", "list", "status").oneOf()
-    any { M::observe(c), M::acquire(c), M::check(c), M::effect(c), M::finish(c) }
+    any { M::observe(c), M::acquire(c), M::check(c), M::effect(c), M::admit(c), M::finish(c) }
   }
   action stepOrDone = any { step, M::stutter }
 }

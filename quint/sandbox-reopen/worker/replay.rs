@@ -1,6 +1,6 @@
 pub use crate::hooks::{
-    checked, held, is_target, kept, observed, placed, processes, status_observed, target_failed,
-    target_ok, transport_fault,
+    after_published, checked, held, is_target, kept, observed, placed, processes, status_observed,
+    target_failed, target_ok, transport_fault,
 };
 use crate::{
     actor::Actor,
@@ -101,6 +101,24 @@ pub fn serve() {
                 }
             }
             snapshot(root, "liveness-ok", None);
+        } else if words.first() == Some(&"crash-target") {
+            let root = root.as_ref().expect("fixture");
+            for identity in crate::observe::live_selected(root, false) {
+                assert!(std::process::Command::new("kill")
+                    .args(["-KILL", crate::admission::pid(&identity)])
+                    .status()
+                    .expect("target holder exit")
+                    .success());
+            }
+            let until = std::time::Instant::now() + Duration::from_secs(2);
+            while !crate::observe::live_selected(root, false).is_empty() {
+                assert!(
+                    std::time::Instant::now() < until,
+                    "target holder stayed alive"
+                );
+                std::thread::sleep(Duration::from_millis(2));
+            }
+            snapshot(root, "target-ended", None);
         } else if words.first() == Some(&"stop") {
             break;
         } else {
@@ -108,9 +126,27 @@ pub fn serve() {
             let action = words[0];
             let caller = words[1];
             if let Some(actor) = actors.get_mut(caller) {
-                if action == "finish" {
-                    writeln!(actor.input, "go {}", words[2]).expect("finish choice");
+                if action == "admit" {
+                    crate::admission::advance(root, actor, words.get(2).copied().unwrap_or("true"));
+                } else if action == "finish" {
+                    writeln!(
+                        actor.input,
+                        "go {} {} {} {}",
+                        words[2],
+                        words.get(3).copied().unwrap_or("true"),
+                        words.get(4).copied().unwrap_or("true"),
+                        words.get(5).copied().unwrap_or("true")
+                    )
+                    .expect("finish choice");
                     actor.input.flush().expect("finish flush");
+                    actor.receive();
+                } else if action == "effect" && words.len() > 2 {
+                    if actor.event == "checked restart" && words[2] == "false" {
+                        crate::admission::prepare_refusal(root);
+                    }
+                    writeln!(actor.input, "go effect {} {}", words[2], words[3])
+                        .expect("effect picks");
+                    actor.input.flush().expect("effect flush");
                     actor.receive();
                 } else {
                     actor.advance();
@@ -122,6 +158,7 @@ pub fn serve() {
             // Synthetic 'none' check: Kept/Busy was checked by real reclaim;
             // for a running placement there is no mutation decision to pause.
             if action == "check" && actor.event == "done" { /* returned during check */ }
+            crate::admission::spawned_ready(root, &actor.event);
             let event = actor.event.clone();
             snapshot(root, &event, Some(actor));
         }

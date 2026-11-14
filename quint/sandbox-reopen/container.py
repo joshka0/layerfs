@@ -18,6 +18,10 @@ command = ['docker', 'run', '--rm', '--name', identity, '--cidfile', str(out / (
            '--mount', 'type=volume,src=' + resources['linux_target_volume'] + ',dst=/artifacts,readonly',
            '--mount', 'type=volume,src=' + identity + ',dst=/tmp',
            '-e', 'REOPEN_DAEMON=/artifacts/debug/layerfs-daemon', '-i', resources['images']['build'], '/artifacts/debug/reopen-worker']
+if os.environ.get('REOPEN_SCHEDULE_ADMISSION'):
+    command[command.index('-i'):command.index('-i')] = ['-e','REOPEN_SCHEDULE_ADMISSION=1']
+if os.environ.get('REOPEN_FAST_REJECT'):
+    command[command.index('-i'):command.index('-i')] = ['-e','REOPEN_FAST_REJECT=1']
 if os.environ.get('REOPEN_FIXTURE'):
     command[command.index('-i'):command.index('-i')] = ['-e', 'REOPEN_FIXTURE=' + os.environ['REOPEN_FIXTURE']]
 (out / (identity + '.json')).write_text(json.dumps({'command': command, 'resources': resources}, indent=2) + '\n')

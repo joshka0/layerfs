@@ -1,0 +1,162 @@
+[
+  {
+    "plant": "no_kept",
+    "property": "NoOverlayLoss",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_kept",
+    "worker_sha256": "b9557ced7bbebff410658bd2d4c3f5dbff0f7d1c81bb70f15f1ed023b21ca967",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=7"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_guard",
+    "property": "StatusWaitsOutRestart",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_guard",
+    "worker_sha256": "8baca3892a1b7eb808a2fb859d35d29b7f393903196e54d913046e995d52362d",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=4"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "leak_guard",
+    "property": "GuardReleased",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-leak_guard",
+    "worker_sha256": "712637eddb2d03b38dd94c92c0644608e57ebc80b84c7cc211832bc66e7f358d",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=10"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "boot_reclaims",
+    "property": "BootNeverDeletes",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-boot_reclaims",
+    "worker_sha256": "0fa53d47698f6f8cf9726e3dd4c183c83285244b6d146096dc116e12fd35a251",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=10 steps=267"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_lock",
+    "property": "OneDaemon",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_lock",
+    "worker_sha256": "5fcc7bd6907796b8a0a0b4d1043830233881299f7e926c76741b18f5af5f60f7",
+    "daemon_sha256": "e87aa7870da0fcc3ef9067692324f900154fd79c5659ab0ecccbac6304f7ff6e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_holder_name",
+    "property": "OrphanNamed",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_holder_name",
+    "worker_sha256": "5fcc7bd6907796b8a0a0b4d1043830233881299f7e926c76741b18f5af5f60f7",
+    "daemon_sha256": "24839fceb5ace75bec848fe9f26c50b3ec9687988dc723249b836dd804398818",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_revived_report",
+    "property": "RevivedReported",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_revived_report",
+    "worker_sha256": "fff92f4da1fae3632b6fb0be91fd08b773f1e397e829878956b842d70408c680",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=10"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "status_no_wait",
+    "property": "StatusWaitsOutRestart",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-status_no_wait",
+    "worker_sha256": "f026745ea762d571a5e6d6724786827884ccd57df027a2c971b4e53b9d5f2261",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=2"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_stale_check",
+    "property": "StatusRefusesUnusable",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-no_stale_check",
+    "worker_sha256": "283c14f1f26cdfa0b8d3a2a00e66d0290dbb08773d4957ae11424f9b04a9cf29",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=4 steps=97"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "count_unattached",
+    "property": "ReopenedWhenDone",
+    "result": "RED",
+    "exit_code": 1,
+    "result_path": "followup-matrix-count_unattached",
+    "worker_sha256": "70a0ef1f4a20c0848daaea89986a852e0228a2cdcd23544f2b1c32947a54af79",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "counts": [
+      "REPLAY_COUNTS traces=2 steps=37"
+    ],
+    "failure": "State invariant failed"
+  },
+  {
+    "plant": "no_running_check",
+    "property": "OneDaemon",
+    "result": "GREEN positive control",
+    "exit_code": 0,
+    "result_path": "followup-probe-no-running",
+    "worker_sha256": "e066878b131bf077826bc10b910db5952d1a76b45fb58bd1c2aa93d22c961cb8",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "scope": "physical OneDaemon only"
+  },
+  {
+    "plant": "no_revive_check",
+    "property": "OneDaemon",
+    "result": "GREEN positive control",
+    "exit_code": 0,
+    "result_path": "followup-probe-revive-only",
+    "worker_sha256": "5d138d60e7c6fb1ab22007b85943dbf171a2d5d6a5ec6cb97f7a816aee8c72b8",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "scope": "32 full model traces"
+  },
+  {
+    "plant": "keep_failed_daemon",
+    "property": "OneDaemon",
+    "result": "GREEN positive control",
+    "exit_code": 0,
+    "result_path": "followup-probe-keep-failed",
+    "worker_sha256": "fe9e120333099dad7c79ac7c1e9d13c745ce1cb73d50bcc59466cf73b236d8a1",
+    "daemon_sha256": "0346823ce5cdee883ab6caa144afb5c5ea8bff8b0a2f710a765a98709e4a424f",
+    "scope": "physical OneDaemon only"
+  }
+]

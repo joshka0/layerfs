@@ -18,6 +18,14 @@ pub(crate) struct Observed {
     eligible: u64,
     #[serde(rename = "live")]
     live: BTreeSet<u64>,
+    children: BTreeSet<u64>,
+    unusable: BTreeSet<u64>,
+    #[serde(rename = "heldRefused")]
+    held_refused: BTreeSet<String>,
+    #[serde(rename = "namedHolder")]
+    named_holder: BTreeSet<String>,
+    #[serde(rename = "answeredUnusable")]
+    answered_unusable: bool,
     #[serde(rename = "recorded")]
     recorded: u64,
     #[serde(rename = "nextId")]
@@ -49,6 +57,11 @@ impl Observed {
             overlays: o,
             eligible,
             live: BTreeSet::new(),
+            children: BTreeSet::new(),
+            unusable: BTreeSet::new(),
+            held_refused: BTreeSet::new(),
+            named_holder: BTreeSet::new(),
+            answered_unusable: false,
             recorded: 0,
             next_id: 1,
             guard: String::new(),
@@ -103,7 +116,7 @@ impl Replay {
         );
         let fields: Vec<String> = line.trim().split('|').map(str::to_owned).collect();
         ensure!(
-            fields.len() == 12 && fields[0] == "OK",
+            fields.len() == 15 && fields[0] == "OK",
             "worker protocol: {line}"
         );
         eprintln!("WORKER {command}: {line}");
@@ -130,6 +143,16 @@ impl Replay {
             .map(|id| self.id(id))
             .collect();
         self.observed.live = live?;
+        self.observed.children = fields[13]
+            .split(',')
+            .filter(|s| !s.is_empty())
+            .map(|id| self.id(id))
+            .collect::<Result<_>>()?;
+        for id in fields[14].split(',').filter(|s| !s.is_empty()) {
+            let id = self.id(id)?;
+            self.observed.unusable.insert(id);
+        }
+
         self.observed.next_id = self.identities.len() as u64;
         if fields[5] == "0" {
             self.observed.guard.clear();
@@ -183,14 +206,36 @@ impl Driver for Replay {
         }
         let c = String::deserialize(step.nondet_picks.get("c").context("step c")?.clone())?;
         let action = step.action_taken.as_str();
-        let command = if action == "finish" {
+        let pick_bool = |name: &str| -> Result<bool> {
+            bool::deserialize(
+                step.nondet_picks
+                    .get(name)
+                    .context("model bool pick")?
+                    .clone(),
+            )
+            .map_err(Into::into)
+        };
+        let command = if action == "effect" {
+            format!(
+                "effect {c} {} {}",
+                pick_bool("prepared")?,
+                pick_bool("placed")?
+            )
+        } else if action == "admit" {
+            format!("admit {c} {}", pick_bool("placed")?)
+        } else if action == "finish" {
             let outcome = String::deserialize(
                 step.nondet_picks
-                    .get("outcome")
+                    .get("failure")
                     .context("finish outcome")?
                     .clone(),
             )?;
-            format!("finish {c} {outcome}")
+            format!(
+                "finish {c} {outcome} {} {} {}",
+                pick_bool("placed")?,
+                pick_bool("saved")?,
+                pick_bool("stopped")?
+            )
         } else {
             format!("{action} {c}")
         };
@@ -237,6 +282,15 @@ impl Driver for Replay {
                     self.observed.phase.insert(c.clone(), "done".into());
                 }
             }
+            "admit" => {
+                if event.starts_with("admitted ") {
+                    self.observed.phase.insert(c.clone(), "admitted".into());
+                } else {
+                    ensure!(event == "done", "admit checkpoint: {event}");
+                    self.observed.phase.insert(c.clone(), "done".into());
+                    self.observed.spawned.insert(c.clone(), 0);
+                }
+            }
             "finish" => {
                 ensure!(event == "done", "finish checkpoint: {event}");
                 self.observed.spawned.insert(c.clone(), 0);
@@ -252,6 +306,8 @@ impl Driver for Replay {
                     || fields[8].starts_with("refusal:NoSuchWorkspace:"))
             {
                 "gone"
+            } else if fields[8].starts_with("refusal:StaleSandbox:") {
+                "stale"
             } else if fields[8].starts_with("refusal:")
                 || fields[8].starts_with("ok:failed")
                 || fields[8] == "target-failed"
@@ -264,11 +320,29 @@ impl Driver for Replay {
                 && result == "gone"
                 && self.observed.phase.iter().any(|(caller, phase)| {
                     caller != &c
-                        && (phase == "checked" || phase == "spawned")
+                        && (phase == "checked" || phase == "spawned" || phase == "admitted")
                         && self.observed.plan.get(caller).map(String::as_str) == Some("restart")
                 })
             {
                 self.observed.gone_mid_restart = true;
+            }
+            if c == "status"
+                && result == "ok"
+                && self.observed.unusable.contains(&self.observed.recorded)
+            {
+                self.observed.answered_unusable = true;
+            }
+            if fields[11].contains("Sandbox folder is held") {
+                self.observed.held_refused.insert(c.clone());
+                if fields[4].split(',').filter(|s| !s.is_empty()).any(|id| {
+                    id.strip_prefix("pid:")
+                        .and_then(|v| v.split('@').next())
+                        .is_some_and(|pid| {
+                            fields[11].contains(&format!("held by daemon pid {pid}"))
+                        })
+                }) {
+                    self.observed.named_holder.insert(c.clone());
+                }
             }
             self.observed.result.insert(c.clone(), result.into());
             self.observed.target.insert(c.clone(), fields[9].clone());

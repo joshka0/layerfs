@@ -1,0 +1,182 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_kept",
+      "--plant",
+      "no_kept",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_kept",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_guard",
+      "--plant",
+      "no_guard",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_guard",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-leak_guard",
+      "--plant",
+      "leak_guard",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "leak_guard",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-boot_reclaims",
+      "--plant",
+      "boot_reclaims",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "boot_reclaims",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_lock",
+      "--plant",
+      "no_lock",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_lock",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_holder_name",
+      "--plant",
+      "no_holder_name",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_holder_name",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_revived_report",
+      "--plant",
+      "no_revived_report",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_revived_report",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-status_no_wait",
+      "--plant",
+      "status_no_wait",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "status_no_wait",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-no_stale_check",
+      "--plant",
+      "no_stale_check",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "no_stale_check",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-matrix-count_unattached",
+      "--plant",
+      "count_unattached",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "plant": "count_unattached",
+    "exit_code": 1
+  }
+]

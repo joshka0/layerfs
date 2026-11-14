@@ -2,6 +2,7 @@
 //! changes; instrument.py records every checkpoint insertion as a byte diff.
 #![allow(dead_code)]
 mod actor;
+mod admission;
 #[path = "../generated/src/convert.rs"]
 mod convert;
 #[path = "../generated/src/direct.rs"]
@@ -10,6 +11,7 @@ mod direct;
 mod discovery;
 #[path = "../generated/src/exec.rs"]
 mod exec;
+mod fault_files;
 mod fixture;
 mod hooks;
 #[path = "../generated/src/job.rs"]

@@ -1,0 +1,155 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-stale-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "stale"
+    ],
+    "plant": "none",
+    "witness": "stale",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-no_stale_check-stale-1e066",
+      "--plant",
+      "no_stale_check",
+      "--witness",
+      "stale"
+    ],
+    "plant": "no_stale_check",
+    "witness": "stale",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-no_running_check-running-1e066",
+      "--plant",
+      "no_running_check",
+      "--witness",
+      "running"
+    ],
+    "plant": "no_running_check",
+    "witness": "running",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-keep_failed_daemon-folder-lock-1e066",
+      "--plant",
+      "keep_failed_daemon",
+      "--witness",
+      "folder-lock"
+    ],
+    "plant": "keep_failed_daemon",
+    "witness": "folder-lock",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-folder-lock-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "folder-lock"
+    ],
+    "plant": "none",
+    "witness": "folder-lock",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-fallback-failure-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "fallback-failure"
+    ],
+    "plant": "none",
+    "witness": "fallback-failure",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-listener-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "listener"
+    ],
+    "plant": "none",
+    "witness": "listener",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-after-record-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "after-record"
+    ],
+    "plant": "none",
+    "witness": "after-record",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-physical-none-unattached-1e066",
+      "--plant",
+      "none",
+      "--witness",
+      "unattached"
+    ],
+    "plant": "none",
+    "witness": "unattached",
+    "exit_code": 0
+  }
+]

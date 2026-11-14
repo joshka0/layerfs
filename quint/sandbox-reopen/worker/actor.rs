@@ -55,7 +55,12 @@ pub fn actor(root: &str, caller: &str) {
     if !CHECKED.load(Ordering::SeqCst) && HELD.load(Ordering::SeqCst) {
         println!("returned");
     }
-    let reported = matches!(&outcome,Ok(value) if matches!(value.get("revived"),Some(SdkValue::List(items)) if !items.is_empty()));
+    let report_value = match &outcome {
+        Ok(value) => value,
+        Err(refusal) => &refusal.detail,
+    };
+    let reported =
+        matches!(report_value.get("revived"), Some(SdkValue::List(items)) if !items.is_empty());
     println!(
         "target {}",
         if TARGET_FAILED.load(Ordering::SeqCst) {
@@ -67,6 +72,10 @@ pub fn actor(root: &str, caller: &str) {
         }
     );
     println!("reported {reported}");
+    println!(
+        "unusable {}",
+        crate::hooks::UNUSABLE.lock().expect("unusable")
+    );
     println!(
         "target-reason {}",
         TARGET_REASON
@@ -122,6 +131,7 @@ pub(crate) struct Actor {
     pub(crate) target: String,
     pub(crate) reported: bool,
     pub(crate) reason: String,
+    pub(crate) unusable: String,
 }
 impl Actor {
     pub(crate) fn spawn(root: &Path, caller: &str) -> Self {
@@ -143,6 +153,7 @@ impl Actor {
             target: String::new(),
             reported: false,
             reason: String::new(),
+            unusable: String::new(),
         }
     }
     pub(crate) fn start(root: &Path, caller: &str) -> Self {
@@ -174,6 +185,10 @@ impl Actor {
                 self.target = target.to_owned();
             } else if let Some(reported) = line.strip_prefix("reported ") {
                 self.reported = reported == "true";
+            } else if line == "unusable" {
+                self.unusable.clear();
+            } else if let Some(value) = line.strip_prefix("unusable ") {
+                self.unusable = value.to_owned();
             } else if line == "target-reason" {
                 self.reason.clear();
             } else if let Some(reason) = line.strip_prefix("target-reason ") {

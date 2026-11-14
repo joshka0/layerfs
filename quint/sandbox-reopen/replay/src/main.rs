@@ -72,7 +72,7 @@ fn main() -> Result<()> {
                 init: Some("M::init".into()),
                 step: Some("stepOrDone".into()),
                 max_samples: Some(max_samples),
-                max_steps: Some(24),
+                max_steps: Some(28),
                 seed,
             },
         },

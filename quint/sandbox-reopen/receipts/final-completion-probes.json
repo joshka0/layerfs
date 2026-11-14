@@ -1,0 +1,75 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-completion-revive-control",
+      "--plant",
+      "no_revive_check",
+      "--seed",
+      "42",
+      "--samples",
+      "32"
+    ],
+    "case": "revive-control",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-completion-holder-release",
+      "--witness",
+      "folder-lock-release"
+    ],
+    "case": "holder-release",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-completion-rootless",
+      "--fixture",
+      "rootless"
+    ],
+    "case": "rootless",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-completion-locks-release",
+      "--liveness"
+    ],
+    "case": "locks-release",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-completion-post-kill",
+      "--witness",
+      "kill-deadline"
+    ],
+    "case": "post-kill",
+    "exit_code": 0
+  }
+]

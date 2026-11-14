@@ -1,0 +1,20 @@
+core/crates/layerfs-sandbox/src/backend/mod.rs:14: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:21: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:25: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:27: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:33: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:36: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:43: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:49: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:52: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:60: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:68: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:76: implementation construct in declaration/delegation entry file
+core/crates/layerfs-sandbox/src/backend/mod.rs:86: implementation construct in declaration/delegation entry file
+sdk/js/native/src/discovery/lock.rs:97: test-only attribute in product source
+sdk/js/native/src/discovery/lock.rs:125: test-only attribute in product source
+sdk/js/native/src/discovery/revive.rs:455: test-only attribute in product source
+sdk/js/native/src/pool.rs:278: test-only attribute in product source
+sdk/js/native/src/sandbox/reclaim.rs:62: test-only attribute in product source
+sdk/js/native/src/workspace.rs:278: test-only attribute in product source
+FAIL: 19 product-source boundary violations

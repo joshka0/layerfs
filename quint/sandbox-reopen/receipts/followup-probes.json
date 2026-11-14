@@ -1,0 +1,165 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-fast",
+      "--witness",
+      "fast-holder"
+    ],
+    "case": "fast",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-fast-diagnostic-mutant",
+      "--plant",
+      "lost_exit_diagnostic",
+      "--witness",
+      "fast-holder"
+    ],
+    "case": "fast-diagnostic-mutant",
+    "exit_code": 1
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-no-running",
+      "--plant",
+      "no_running_check",
+      "--witness",
+      "running"
+    ],
+    "case": "no-running",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-keep-failed",
+      "--plant",
+      "keep_failed_daemon",
+      "--witness",
+      "folder-lock"
+    ],
+    "case": "keep-failed",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-revive-only",
+      "--plant",
+      "no_revive_check",
+      "--seed",
+      "42",
+      "--samples",
+      "32"
+    ],
+    "case": "revive-only",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-orphan-release",
+      "--witness",
+      "folder-lock-release"
+    ],
+    "case": "orphan-release",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-mount-refusal",
+      "--witness",
+      "fallback-failure"
+    ],
+    "case": "mount-refusal",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-stale",
+      "--witness",
+      "stale"
+    ],
+    "case": "stale",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-rootless",
+      "--fixture",
+      "rootless"
+    ],
+    "case": "rootless",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-lock-release",
+      "--liveness"
+    ],
+    "case": "lock-release",
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/followup-probe-post-kill",
+      "--witness",
+      "kill-deadline"
+    ],
+    "case": "post-kill",
+    "exit_code": 0
+  }
+]

@@ -1,6 +1,5 @@
 use layerfs_bridge::control::{SdkRefusal, SdkValue};
 use std::{
-    fs,
     io::Write,
     path::{Path, PathBuf},
     sync::{
@@ -12,7 +11,8 @@ pub(crate) static TARGET_REASON: Mutex<String> = Mutex::new(String::new());
 pub(crate) static TARGET_OK: AtomicBool = AtomicBool::new(false);
 pub(crate) static TARGET_FAILED: AtomicBool = AtomicBool::new(false);
 pub(crate) static CHECKED: AtomicBool = AtomicBool::new(false);
-static FINISH_OK: AtomicBool = AtomicBool::new(true);
+static CANDIDATE: Mutex<Option<[u8; 32]>> = Mutex::new(None);
+pub(crate) static UNUSABLE: Mutex<String> = Mutex::new(String::new());
 pub(crate) static HELD: AtomicBool = AtomicBool::new(false);
 
 fn is_actor() -> bool {
@@ -31,14 +31,39 @@ pub(crate) fn point(text: &str) {
     );
     let words: Vec<_> = go.split_whitespace().collect();
     assert_eq!(words[0], "go", "checkpoint command");
-    if let Some(ok) = words.get(1) {
-        FINISH_OK.store(*ok == "true", Ordering::SeqCst);
+    if words.get(1) == Some(&"effect") {
+        if let Some(placed) = words.get(3) {
+            std::env::set_var("REOPEN_PLACED", placed);
+        }
+        if text == "checked restart" && words.get(2) == Some(&"false") {
+            deny_syscalls(false, false, false, true);
+        }
     }
 }
 pub fn target_failed(reason: &str) {
     if is_actor() {
         TARGET_FAILED.store(true, Ordering::SeqCst);
         *TARGET_REASON.lock().expect("target reason") = reason.to_owned();
+        crate::fault_files::release();
+        if reason.contains("stopping the restarted daemon") && reason.contains("failed:") {
+            if let (Some(candidate), Ok(identity)) = (
+                *CANDIDATE.lock().expect("candidate"),
+                std::env::var("REOPEN_CHILD_ID"),
+            ) {
+                let root = PathBuf::from(std::env::var("REOPEN_ROOT").expect("root"));
+                let saved = crate::fixture::unwrap(crate::discovery::load(
+                    &crate::fixture::directory(&root).join("sandbox.record"),
+                ));
+                if saved.get_text("container") == Some(identity.as_str())
+                    && !matches!(saved.get("instance"),Some(SdkValue::Bytes(bytes)) if bytes.as_slice()==candidate)
+                {
+                    *UNUSABLE.lock().expect("unusable") = identity;
+                }
+            }
+        }
+        if std::env::var("REOPEN_PLACED").as_deref() == Ok("false") {
+            deny_syscalls(false, true, false, false);
+        }
     }
 }
 pub fn target_ok() {
@@ -72,9 +97,31 @@ pub fn status_observed(args: &SdkValue, ends: bool) {
         }
     }
 }
-pub fn transport_fault(secret: &mut [u8; 32]) {
+pub fn transport_fault(dial: &mut crate::pool::Dial) {
     if !is_actor() {
         return;
+    }
+    let outcome = std::env::var("REOPEN_FINISH_OUTCOME").unwrap_or_default();
+    if outcome == "before_record" {
+        if std::env::var("REOPEN_STOPPED").as_deref() == Ok("false") {
+            let (_, instance) = crate::fixture::unwrap(dial.clone().first());
+            *CANDIDATE.lock().expect("candidate") = Some(instance);
+            deny_syscalls(false, false, false, false);
+            if std::env::var("REOPEN_SAVED").as_deref() == Ok("false") {
+                crate::fault_files::refuse(
+                    crate::fixture::directory(Path::new(
+                        &std::env::var("REOPEN_ROOT").expect("root"),
+                    ))
+                    .join("sandbox.record"),
+                );
+            }
+        }
+        dial.secret = [9; 32];
+        return;
+    }
+    if outcome == "after_record" && std::env::var("REOPEN_STOPPED").as_deref() == Ok("false") {
+        let (_, instance) = crate::fixture::unwrap(dial.clone().first());
+        *CANDIDATE.lock().expect("candidate") = Some(instance);
     }
     match std::env::var("REOPEN_FINISH_OUTCOME").as_deref() {
         Ok("false")
@@ -83,12 +130,30 @@ pub fn transport_fault(secret: &mut [u8; 32]) {
         | Ok("recovery_save_failed")
         | Ok("fallback_failed")
         | Ok("kill_delayed") => {
-            *secret = [9; 32];
+            if matches!(
+                std::env::var("REOPEN_FINISH_OUTCOME").as_deref(),
+                Ok("stop_failed") | Ok("recovery_save_failed") | Ok("kill_delayed")
+            ) {
+                let (_, instance) = crate::fixture::unwrap(dial.clone().first());
+                *CANDIDATE.lock().expect("candidate") = Some(instance);
+            }
+            dial.secret = [9; 32];
+            if std::env::var("REOPEN_FINISH_OUTCOME").as_deref() == Ok("recovery_save_failed")
+                || (std::env::var("REOPEN_FINISH_OUTCOME").as_deref() == Ok("stop_failed")
+                    && std::env::var("REOPEN_SAVED").as_deref() == Ok("false"))
+            {
+                crate::fault_files::refuse(
+                    crate::fixture::directory(Path::new(
+                        &std::env::var("REOPEN_ROOT").expect("root"),
+                    ))
+                    .join("sandbox.record"),
+                );
+            }
             match std::env::var("REOPEN_FINISH_OUTCOME").as_deref() {
-                Ok("stop_failed") => deny_syscalls(false, false, false),
-                Ok("recovery_save_failed") => deny_syscalls(true, false, false),
-                Ok("fallback_failed") => deny_syscalls(false, true, false),
-                Ok("kill_delayed") => deny_syscalls(false, false, true),
+                Ok("stop_failed") => deny_syscalls(false, false, false, false),
+                Ok("recovery_save_failed") => deny_syscalls(false, false, false, false),
+                Ok("fallback_failed") => deny_syscalls(false, true, false, false),
+                Ok("kill_delayed") => deny_syscalls(false, false, true, false),
                 _ => {}
             }
         }
@@ -96,15 +161,19 @@ pub fn transport_fault(secret: &mut [u8; 32]) {
             let path =
                 crate::fixture::directory(Path::new(&std::env::var("REOPEN_ROOT").expect("root")))
                     .join("container");
-            fs::remove_file(&path).expect("container text fault");
-            fs::create_dir(path).expect("container directory fault");
+            crate::fault_files::refuse(path);
         }
         _ => {}
     }
 }
 // These process-local syscall refusals exercise real failure handling.
 // The supervisor is not filtered and can clean up the exact fixture.
-fn deny_syscalls(deny_rename: bool, deny_exec: bool, kill_returns_success: bool) {
+fn deny_syscalls(
+    deny_rename: bool,
+    deny_exec: bool,
+    kill_returns_success: bool,
+    deny_umount: bool,
+) {
     #[repr(C)]
     struct Filter {
         code: u16,
@@ -137,6 +206,13 @@ fn deny_syscalls(deny_rename: bool, deny_exec: bool, kill_returns_success: bool)
     } else {
         vec![KILL]
     };
+    if deny_umount {
+        #[cfg(target_arch = "aarch64")]
+        let syscall = 39;
+        #[cfg(target_arch = "x86_64")]
+        let syscall = 166;
+        refused = vec![syscall];
+    }
     if deny_rename {
         refused.extend(renames);
     }
@@ -192,6 +268,10 @@ pub fn held(directory: &Path) {
 }
 pub fn observed(value: &SdkValue, running: bool) {
     if is_actor() {
+        let root = PathBuf::from(std::env::var("REOPEN_ROOT").expect("root")).join("runtime");
+        if value.get_text("root") != root.to_str() {
+            return;
+        }
         println!("seen {}", value.get_text("container").unwrap_or("missing"));
         if !running {
             point("observed");
@@ -223,4 +303,20 @@ pub fn placed() -> Result<(), SdkRefusal> {
         ));
     }
     Ok(())
+}
+
+pub fn after_published() {
+    if !is_actor()
+        || std::env::var("REOPEN_FINISH_OUTCOME").as_deref() != Ok("after_record")
+        || std::env::var("REOPEN_STOPPED").as_deref() != Ok("false")
+    {
+        return;
+    }
+    deny_syscalls(false, false, false, false);
+    if std::env::var("REOPEN_SAVED").as_deref() == Ok("false") {
+        crate::fault_files::refuse(
+            crate::fixture::directory(Path::new(&std::env::var("REOPEN_ROOT").expect("root")))
+                .join("sandbox.record"),
+        );
+    }
 }
