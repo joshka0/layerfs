@@ -1,9 +1,9 @@
 # Sandbox reopen race model
 
 > **Status:** Model checked with TLC on 2026-11-14 against
-> `fix-reopen-races` 779d0447e: the daemon folder lock (6bfbbe507) and the
-> mount refusal that carries `revived`. The third review's R3-B2 and R3-B3
-> and the binder's replay findings up to model 73 are addressed here.
+> `fix-reopen-followup` 095194ae6 (main 0f285d9d3 plus R4-B1 and the removal
+> of `legacyHead`). The fourth review's R4-B1 and R4-B2 are addressed here;
+> a fifth review is due.
 
 `sandbox_reopen.qnt` models one process Sandbox folder after a restart: the
 daemon its record names has ended, and the folder may hold saved Workspace
@@ -34,13 +34,19 @@ nothing starts, the overlays stay, and the guard is released. `admit` is the
 child's flock check (`application/folder.rs`): with the folder's lock free
 it becomes an admitted daemon (`live`) that serves the folder; with the
 lock held it exits at once, naming the holder's pid, and the restart fails
-with that reason. `finish` then ends an admitted restart in one of four
-outcomes: `ok` (the record names the new daemon; the Workspaces reattach),
-`stopped` (the handshake fails; the daemon is stopped, the record
-unchanged), `after_record` (a step after the record save fails; the daemon
-is stopped, the record names it), `stop_failed` (a failure whose stop
-fails; the daemon runs unusable; the recovery save makes the record name
-it, or fails too, and then the daemon is an unrecorded orphan).
+with that reason. `finish` ends an admitted restart with three separate
+choices: when it fails (not at all, before the record save, or after it),
+whether the stop of the daemon succeeds, and whether the recovery save
+after a failed stop succeeds. The record then:
+
+| failure | stop | recovery save | record names | daemon |
+| --- | --- | --- | --- | --- |
+| none | - | - | the new daemon, its instance | serves, usable |
+| before the record save | ok | - | the ended daemon | stopped |
+| after the record save | ok | - | the new daemon, its instance | stopped |
+| any | fails | ok | the new daemon, the old instance | runs, unusable (StaleSandbox) |
+| before the record save | fails | fails | the ended daemon | runs, an unrecorded orphan |
+| after the record save | fails | fails | the new daemon, its instance | runs, usable |
 
 A mount's call result and its target revive outcome are separate
 variables (`result`, `target`): when the revive fails, the mount places its
@@ -120,6 +126,14 @@ Each plant is one deliberate change, set by the constant `PLANT`.
   holds a flock on its folder; a second one exits naming the holder.
 - R3-B3: a mount whose target revive failed could fail too and then hid the
   revive. Fixed in the code (779d0447e): its refusal carries `revived`.
+- R4-B1 (fourth review): a daemon refused by the lock that exited before
+  the spawner read its identity lost its holder line, so `OrphanNamed`
+  overstated the code. Fixed in the code (49e570991): the failure carries
+  the daemon's first output line (8 of 200 restarts lost it before).
+- R4-B2 (fourth review): the model lost a published identity when the
+  stop and the recovery save both failed after the record save. `finish`
+  now separates the failure timing, the stop outcome, the recovery-save
+  outcome and the record's instance (table above).
 
 ## Run
 
