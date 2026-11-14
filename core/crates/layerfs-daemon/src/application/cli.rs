@@ -36,6 +36,8 @@ fn run() -> Result<(), ApplicationError> {
             "unexpected argument",
         )));
     }
+    // held until the daemon exits: one daemon per Sandbox folder
+    let _folder = super::folder::hold(Path::new(&path))?;
     let setup = config::read(Path::new(&path)).map_err(ApplicationError::Io)?;
     let listener = TcpListener::bind(&setup.listen).map_err(ApplicationError::Io)?;
     let application = Application::start(setup)?;

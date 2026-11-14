@@ -6,6 +6,7 @@ mod connection;
 mod diagnostics;
 mod failure;
 mod filesystem;
+mod folder;
 mod idle;
 mod owner;
 mod serve;
