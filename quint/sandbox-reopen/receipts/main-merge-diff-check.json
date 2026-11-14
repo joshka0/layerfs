@@ -1,0 +1,33 @@
+{
+  "first_parent_check": {
+    "command": [
+      "git",
+      "diff",
+      "--cached",
+      "--check"
+    ],
+    "exit_code": 2,
+    "log": "main-merge-diff-check.log",
+    "inherited_main_files": [
+      "sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run1.txt",
+      "sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run2.txt",
+      "sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run3.txt",
+      "sdk/js/test/reopen/receipts/2026-11-14-779d0447e.txt",
+      "sdk/js/test/reopen/receipts/2026-11-14-d94e4986a.txt",
+      "sdk/js/test/reopen/receipts/2026-11-14-names-prefix-5f106ea97.txt"
+    ]
+  },
+  "binding_diff_check": {
+    "command": [
+      "git",
+      "diff",
+      "--check",
+      "origin/main",
+      "--",
+      "quint/sandbox-reopen",
+      "core/docs/references/quint-connect.md",
+      ".gitattributes"
+    ],
+    "exit_code": 0
+  }
+}

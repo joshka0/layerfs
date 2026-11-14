@@ -1,0 +1,14 @@
+command: REOPEN_E2E_PHASES='holder' tools/orbstack/reopen-e2e.sh /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/run-hold /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-0951/bundle
+repo: /Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-tests 59861937aa0d5e7928a85f59eeb7e2115de66383 dirty=4
+11eec211d75700c1f79eac84a5e84a4843df3f7d8f80ea3d7529ec2c13120c93  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-0951/bundle/layerfs-daemon
+95ac0944cddef6e7632a47742e9f0693a1554369ec28f69b1d81c642a297feee  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-0951/bundle/layerfs.node
+2026-11-14T15:54:10Z
+phase holder exit 0
+
+NOTE R4-B1 0 of 1000 rounds missed, 21077 ms
+PASS R4-B1 F45 rholder: 1000 revives whose daemon is refused at once each answer failed naming the holder pid
+PASS setup holder the phase ran to its end
+PHASE holder ok
+BASELINE-UNUSED F20 rmain a: unmount without discard succeeds after the commit [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F20 rmain b: unmount with discard deletes the reopened overlay file [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F35 setup: a new saved Workspace, then SIGKILL [core/docs/issues/unmount-join/README.md]

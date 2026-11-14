@@ -1,0 +1,22 @@
+sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run1.txt:25: trailing whitespace.
++FAIL F43 F26 rrace6: after the failed restart a normal reopen mounts the saved Workspace: {"kind":"ok","sandboxes":[{"id":"1","name":"lfs-rrace6-1","state":"failed","reason":"saved daemon could not be observed: no daemon listen line","workspaces":[{"path":"/var/lib/layerfs/sandboxes/lfs-rrace6-1/workspaces/1","workspace":"67bcd766ddc607c2bfafe06b10b489153185b0b1ff130ec732ad31ca6da6b523","namespace":1,"branch":"w","mounted":false,"reopened":false,"reason":"saved daemon could not be observed: no daemon listen line"}]}]} |  |  | 1 !== 0 | 
+sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run2.txt:25: trailing whitespace.
++FAIL F43 F26 rrace6: after the failed restart a normal reopen mounts the saved Workspace: {"kind":"ok","sandboxes":[{"id":"1","name":"lfs-rrace6-1","state":"failed","reason":"saved daemon could not be observed: no daemon listen line","workspaces":[{"path":"/var/lib/layerfs/sandboxes/lfs-rrace6-1/workspaces/1","workspace":"0fc2c1731abf1274136c29311b8b8d934b0a295a254d47e8e4e1d82659c4e263","namespace":1,"branch":"w","mounted":false,"reopened":false,"reason":"saved daemon could not be observed: no daemon listen line"}]}]} |  |  | 1 !== 0 | 
+sdk/js/test/reopen/receipts/2026-11-14-71a031e0b-f41-run3.txt:25: trailing whitespace.
++FAIL F43 F26 rrace6: after the failed restart a normal reopen mounts the saved Workspace: {"kind":"ok","sandboxes":[{"id":"1","name":"lfs-rrace6-1","state":"failed","reason":"saved daemon could not be observed: no daemon listen line","workspaces":[{"path":"/var/lib/layerfs/sandboxes/lfs-rrace6-1/workspaces/1","workspace":"6b2de2d02362dcb6ac3b1c1f3bd1d99361880f0c78d47d1d52bca22b7836be77","namespace":1,"branch":"w","mounted":false,"reopened":false,"reason":"saved daemon could not be observed: no daemon listen line"}]}]} |  |  | 1 !== 0 | 
+sdk/js/test/reopen/receipts/2026-11-14-779d0447e.txt:107: trailing whitespace.
++FAIL N1 stat and open of a missing a\b answer ENOENT: Expected values to be strictly equal: |  | 'EINVAL' !== 'ENOENT' | 
+sdk/js/test/reopen/receipts/2026-11-14-779d0447e.txt:108: trailing whitespace.
++FAIL N1 the agent's shell: stat of a missing a\b says No such file: stat: cannot statx 'a\b': Invalid argument | rc=1 | 
+sdk/js/test/reopen/receipts/2026-11-14-779d0447e.txt:110: trailing whitespace.
++FAIL N2 the agent's shell creates and lists a name with a backslash: exec "mkdir 'sh\\dir' && printf agent > 'sh\\dir/a\\b' && ls 'sh\\dir'" exit 1: mkdir: cannot create directory 'sh\\dir': Invalid argument |  |  | 1 !== 0 | 
+sdk/js/test/reopen/receipts/2026-11-14-d94e4986a.txt:123: trailing whitespace.
++FAIL F43 F26 rrace6: after the failed restart a normal reopen mounts the saved Workspace: {"kind":"ok","sandboxes":[{"id":"1","name":"lfs-rrace6-1","state":"failed","reason":"saved daemon could not be observed: no daemon listen line","workspaces":[{"path":"/var/lib/layerfs/sandboxes/lfs-rrace6-1/workspaces/1","workspace":"528991fcf282a2d175031107efd0680b826c4acb76682cc9d6852c3482acbb4c","namespace":1,"branch":"w","mounted":false,"reopened":false,"reason":"saved daemon could not be observed: no daemon listen line"}]}]} |  |  | 1 !== 0 | 
+sdk/js/test/reopen/receipts/2026-11-14-d94e4986a.txt:124: trailing whitespace.
++FAIL F44 rrace7: a mount with no failed revive answers an empty `revived`: {"sandbox":"1","path":"/var/lib/layerfs/sandboxes/lfs-rrace7-1/workspaces/1","image":null} |  | undefined !== [] | 
+sdk/js/test/reopen/receipts/2026-11-14-names-prefix-5f106ea97.txt:9: trailing whitespace.
++FAIL N1 stat and open of a missing a\b answer ENOENT: Expected values to be strictly equal: |  | 'EINVAL' !== 'ENOENT' | 
+sdk/js/test/reopen/receipts/2026-11-14-names-prefix-5f106ea97.txt:10: trailing whitespace.
++FAIL N1 the agent's shell: stat of a missing a\b says No such file: stat: cannot statx 'a\b': Invalid argument | rc=1 | 
+sdk/js/test/reopen/receipts/2026-11-14-names-prefix-5f106ea97.txt:12: trailing whitespace.
++FAIL N2 the agent's shell creates and lists a name with a backslash: exec "mkdir 'sh\\dir' && printf agent > 'sh\\dir/a\\b' && ls 'sh\\dir'" exit 1: mkdir: cannot create directory 'sh\\dir': Invalid argument |  |  | 1 !== 0 | 

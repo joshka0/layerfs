@@ -12,8 +12,8 @@ module sandbox_state {
   var folder: bool
   // Saved Workspace overlay files in it.
   var overlays: int
-  // How many of them can reattach: each record holds its base root, or the
-  // caller passed legacyHead, and the daemon accepts its overlay. Fixed.
+  // How many of them can reattach: each record holds its base root and the
+  // daemon accepts its overlay. Fixed.
   var eligible: int
   // Admitted daemons: running incarnations that hold the folder's flock
   // (application/folder.rs) and serve it.

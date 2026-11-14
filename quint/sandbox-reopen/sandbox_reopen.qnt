@@ -59,6 +59,9 @@
 //   "count_unattached" a Workspace that cannot reattach counts as mounted
 //   "no_stale_check"   status answers from an unusable daemon
 //   "no_lock"          a daemon serves the folder without its flock
+//   "stuck_stop"       a stop waits without bound for a daemon that
+//                      survives SIGKILL (stop_rules.rs without its deadline):
+//                      the restart never finishes
 //   "no_holder_name"   a revive refused by the folder lock does not name
 //                      the holder
 module sandbox_reopen {
@@ -249,6 +252,7 @@ module sandbox_reopen {
   //   orphan), or naming the daemon with its own instance after it (usable).
   action finish(c: str): bool = all {
     phase.get(c) == "admitted",
+    PLANT != "stuck_stop",
     val id = spawned.get(c)
     nondet failure = Set("none", "before_record", "after_record").oneOf()
     nondet stopped = Set(true, false).oneOf()

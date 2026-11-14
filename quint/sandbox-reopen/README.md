@@ -2,8 +2,8 @@
 
 > **Status:** Model checked with TLC on 2026-11-14 against
 > `fix-reopen-followup` 095194ae6 (main 0f285d9d3 plus R4-B1 and the removal
-> of `legacyHead`). The fourth review's R4-B1 and R4-B2 are addressed here;
-> a fifth review is due.
+> of `legacyHead`). The fifth review accepted it (fb7611789) with no
+> blocking finding; R5-N1 and the `stuck_stop` plant are added since.
 
 `sandbox_reopen.qnt` models one process Sandbox folder after a restart: the
 daemon its record names has ended, and the folder may hold saved Workspace
@@ -96,6 +96,7 @@ Each plant is one deliberate change, set by the constant `PLANT`.
 | `keep_failed_daemon` | a failed restart leaves its daemon running (the code before 2f254db3c) | holds: the folder lock blocks a second daemon |
 | `no_lock` | a daemon serves the folder without the flock (the code before 6bfbbe507) | breaks `OneDaemon` |
 | `no_holder_name` | a revive refused by the lock does not name the holder | breaks `OrphanNamed` |
+| `stuck_stop` | a stop waits without bound for a daemon that survives SIGKILL (removing the deadline in `stop_rules.rs` `wait_gone`) | breaks `AllEnd` |
 | `no_revived_report` | a mount drops its failed target revive (the code before d08e3b656) | breaks `RevivedReported` |
 | `status_no_wait` | a Workspace call calls an ended daemon gone without the guard (the code before d08e3b656) | breaks `StatusWaitsOutRestart` |
 | `no_stale_check` | a Workspace call answers from an unusable daemon | breaks `StatusRefusesUnusable` |
@@ -147,8 +148,17 @@ sfw npm ci --no-audit --no-fund
 `check.sh` exits 0 only when every expectation holds. A result counts only
 when the tool answers clearly: exit 0 with "No violation found", or exit 1
 with "found a counterexample" and TLC's own violation line for the kind
-checked. Any other result is an error and fails the check. Logs go to
-`results/`. `QUINT` overrides the quint binary, to test this handling.
+checked. Any other result is an error and fails the check. Each run writes
+its logs to its own folder, `results/<time>-<pid>/`, and prints it.
+`QUINT` overrides the quint binary, to test this handling.
+
+Runs can overlap. Each verify starts its own Apalache server on a free port
+(`--server-endpoint localhost:<port>`): on Quint's shared default port 8822,
+a second server failed to bind ("Address already in use") and the run ended
+with no verdict. Measured on 2026-11-14: two old `check.sh` runs at once
+gave 13 and 5 such errors; two new runs at once gave 24 of 24 each.
+Apalache's `server` takes only `--port` and binds every interface, so the
+server is not limited to localhost; Quint's client connects on localhost.
 Quint 0.33.1 is pinned in `package.json`; TLC needs Java (25 tested).
 
 ## Not modelled
