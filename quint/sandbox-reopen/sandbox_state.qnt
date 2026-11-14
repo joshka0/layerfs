@@ -1,7 +1,11 @@
-// The state of the Sandbox reopen model (sandbox_reopen.qnt): its variables,
-// the pure revive decision, the initial state, and the frame helpers that
-// keep groups of variables unchanged. No behavior depends on PLANT here.
+// The state of the Sandbox reopen model (sandbox_reopen.qnt): the plant
+// selector, its variables, the pure revive decision, the initial state, the
+// frame helpers that keep groups of variables unchanged, and the derived
+// decisions the actions share.
 module sandbox_state {
+  // The deliberate bug of a plant instance (sandbox_reopen.qnt lists them).
+  const PLANT: str
+
   val CALLERS = Set("boot", "mount", "list", "status")
 
   // The Sandbox folder and its record exist.
@@ -99,4 +103,34 @@ module sandbox_state {
     answeredUnusable' = answeredUnusable,
     heldRefused' = heldRefused, namedHolder' = namedHolder,
   }
+
+  def released(c: str): str = if (guard == c and PLANT != "leak_guard") "" else guard
+
+  // A restart of this folder is between its check and its finish.
+  def restarting: bool = CALLERS.exists(c =>
+    plan.get(c) == "restart" and Set("checked", "spawned", "admitted").contains(phase.get(c)))
+
+  def waiting(c: str): bool =
+    if (Set("list", "status").contains(c)) phase.get(c) == "observed" else phase.get(c) == "idle"
+
+  // What a revive does with the Sandbox as it is now.
+  def revived: str = {
+    val running = live.contains(recorded)
+      and PLANT != "no_running_check" and PLANT != "no_revive_check"
+    val decided = decide(running, overlays)
+    // "ended": a revive never deletes (revive.rs Next::Reclaim, after F1)
+    if (decided == "reclaim" and PLANT != "boot_reclaims") "none" else decided
+  }
+
+  // Each saved Workspace that can reattach is mounted on a daemon that
+  // serves the folder; the others stay unmounted, each with its reason.
+  def reattached: int = if (PLANT == "count_unattached") overlays else eligible
+
+  // The end of a revive that failed: boot answers the Sandbox "failed";
+  // mount places its Workspace elsewhere, which succeeds (`placed`) or not;
+  // its answer or its refusal carries `revived` (779d0447e).
+  def failedResult(c: str, placed: bool): str =
+    if (c == "mount" and placed) "ok" else "failed"
+  def reportedAfter(c: str): bool =
+    reported or (c == "mount" and PLANT != "no_revived_report")
 }

@@ -62,16 +62,9 @@
 //   "no_holder_name"   a revive refused by the folder lock does not name
 //                      the holder
 module sandbox_reopen {
-  const PLANT: str
-
+  // PLANT is declared in sandbox_state.qnt, with the derived decisions.
   import sandbox_state.* from "./sandbox_state"
   export sandbox_state.*
-
-  def released(c: str): str = if (guard == c and PLANT != "leak_guard") "" else guard
-
-  // A restart of this folder is between its check and its finish.
-  def restarting: bool = CALLERS.exists(c =>
-    plan.get(c) == "restart" and Set("checked", "spawned", "admitted").contains(phase.get(c)))
 
   // list and status, with no guard: read the record and whether its daemon
   // runs. list ends on a running daemon or an absent record; status ends on
@@ -102,9 +95,6 @@ module sandbox_reopen {
     unchanged_shell,
   }
 
-  def waiting(c: str): bool =
-    if (Set("list", "status").contains(c)) phase.get(c) == "observed" else phase.get(c) == "idle"
-
   // boot and mount take the guard first; list and status only after they
   // saw an ended daemon.
   action acquire(c: str): bool = all {
@@ -130,15 +120,6 @@ module sandbox_reopen {
     unchanged_callers,
     unchanged_reports,
     unchanged_shell,
-  }
-
-  // What a revive does with the Sandbox as it is now.
-  def revived: str = {
-    val running = live.contains(recorded)
-      and PLANT != "no_running_check" and PLANT != "no_revive_check"
-    val decided = decide(running, overlays)
-    // "ended": a revive never deletes (revive.rs Next::Reclaim, after F1)
-    if (decided == "reclaim" and PLANT != "boot_reclaims") "none" else decided
   }
 
   // Under the guard: read the Sandbox again and choose. A caller that finds
@@ -189,18 +170,6 @@ module sandbox_reopen {
     heldRefused' = heldRefused, namedHolder' = namedHolder,
     unchanged_shell,
   }
-
-  // Each saved Workspace that can reattach is mounted on a daemon that
-  // serves the folder; the others stay unmounted, each with its reason.
-  def reattached: int = if (PLANT == "count_unattached") overlays else eligible
-
-  // The end of a revive that failed: boot answers the Sandbox "failed";
-  // mount places its Workspace elsewhere, which succeeds (`placed`) or not;
-  // its answer or its refusal carries `revived` (779d0447e).
-  def failedResult(c: str, placed: bool): str =
-    if (c == "mount" and placed) "ok" else "failed"
-  def reportedAfter(c: str): bool =
-    reported or (c == "mount" and PLANT != "no_revived_report")
 
   action effect(c: str): bool = all {
     phase.get(c) == "checked",
@@ -265,27 +234,27 @@ module sandbox_reopen {
     heldRefused' = heldRefused, namedHolder' = namedHolder,
   }
 
-  // After the spawn, revive.rs restart_daemon ends in one of four outcomes.
-  // Every failure stops the spawned daemon (stop_spawned); where the record
-  // stands depends on when the failure came:
-  // - "ok": handshake and record save succeed; the record names the new
-  //   daemon and the Workspaces reattach;
-  // - "stopped": the handshake fails or never sees the listen line; the
-  //   daemon is stopped and the record is unchanged;
-  // - "after_record": the record save succeeded and a later step (the
-  //   container file rename, the registry) fails; the daemon is stopped
-  //   and the record names it (replay of d08e3b656, binder seed 42);
-  // - "stop_failed": a failure whose stop fails; the record is made to name
-  //   the still-running daemon (3dd211bd3).
+  // After the spawn, revive.rs restart_daemon ends with three separate
+  // choices (fourth model review, R4-B2):
+  // - when it fails: not at all ("none": Hello and record save succeed, the
+  //   record names the new daemon, the Workspaces reattach), before the
+  //   record save (the handshake), or after it (the container file, the
+  //   registry; the saved record names the daemon with its own instance);
+  // - after a failure, whether stop_spawned stops the daemon;
+  // - after a failed stop, whether its recovery save succeeds. That save
+  //   writes the record read before the restart with the new pid: the record
+  //   names the running daemon but keeps the old instance, so its Hello does
+  //   not match (unusable, StaleSandbox). A failed recovery save leaves the
+  //   record as it was: unchanged before the record save (an unrecorded
+  //   orphan), or naming the daemon with its own instance after it (usable).
   action finish(c: str): bool = all {
     phase.get(c) == "admitted",
     val id = spawned.get(c)
-    nondet outcome = Set("ok", "stopped", "stop_failed", "after_record").oneOf()
-    nondet placed = Set(true, false).oneOf()
-    // stop_failed: the recovery save that makes the record name the daemon
-    // can fail too (R3-B2); the daemon then runs unrecorded, an orphan
+    nondet failure = Set("none", "before_record", "after_record").oneOf()
+    nondet stopped = Set(true, false).oneOf()
     nondet saved = Set(true, false).oneOf()
-    if (outcome == "ok") all {
+    nondet placed = Set(true, false).oneOf()
+    if (failure == "none") all {
       recorded' = id,
       mounted' = reattached,
       result' = result.set(c, "ok"),
@@ -293,19 +262,19 @@ module sandbox_reopen {
       reported' = reported,
       live' = live,
       unusable' = unusable,
-    } else all {
-      recorded' =
-        if (outcome == "stopped" or (outcome == "stop_failed" and not(saved))) recorded
-        else id,
-      mounted' = mounted,
-      result' = result.set(c, failedResult(c, placed)),
-      target' = target.set(c, "failed"),
-      reported' = reportedAfter(c),
-      live' =
-        if (outcome == "stop_failed" or PLANT == "keep_failed_daemon") live
-        else live.exclude(Set(id)),
-      // a daemon left running after a failed restart answers no usable Hello
-      unusable' = if (outcome == "stop_failed") unusable.union(Set(id)) else unusable,
+    } else {
+      val recovered = not(stopped) and saved
+      all {
+        recorded' = if (failure == "after_record" or recovered) id else recorded,
+        mounted' = mounted,
+        result' = result.set(c, failedResult(c, placed)),
+        target' = target.set(c, "failed"),
+        reported' = reportedAfter(c),
+        live' =
+          if (not(stopped) or PLANT == "keep_failed_daemon") live
+          else live.exclude(Set(id)),
+        unusable' = if (recovered) unusable.union(Set(id)) else unusable,
+      }
     },
     folder' = folder, overlays' = overlays, eligible' = eligible,
     nextId' = nextId, deleter' = deleter, children' = children,
