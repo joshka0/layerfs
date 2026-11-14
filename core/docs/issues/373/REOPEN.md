@@ -81,7 +81,12 @@ change refuses that shape (parked decision P1).
 4. SDK discovery (`workspace.mount` placement, `operator.sandbox.list`) does
    not reclaim a dead process Sandbox that has a saved Workspace with an
    overlay file. `operator.sandbox.reopen` restarts every such Sandbox of the
-   project and reopens its Workspaces.
+   project and reopens its Workspaces. When `workspace.mount` placement finds
+   such a Sandbox, it revives it, and uses it if it has a free slot. If that
+   revive fails or ends the Sandbox, the mount places the new Workspace in
+   another Sandbox or starts a new one. The old Sandbox, its records and its
+   overlay files are kept. The mount answer does not report the failed
+   revive: only `operator.sandbox.reopen` and `lfs reopen` show it.
 5. `lfs reopen <project>` calls it. `vm-boot.sh apply` runs it for each
    project at boot.
 

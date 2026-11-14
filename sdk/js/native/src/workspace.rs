@@ -118,8 +118,9 @@ pub(crate) fn mount(args: &SdkValue) -> Outcome {
 /// number first: `{ id, name, image }`. Each recorded container is inspected once
 /// (no daemon is dialed); one found gone or stopped, an idle-closed
 /// Sandbox's, is reclaimed under the project's guard and left out, unless it
-/// holds saved Workspace overlays: then it is only left out. It starts
-/// nothing.
+/// holds saved Workspace overlays: then it is only left out. One found so
+/// while another call holds the guard past its wait is listed: that call may
+/// be restarting it. It starts nothing.
 pub(crate) fn list(args: &SdkValue) -> Outcome {
     let mut items = Vec::new();
     for id in crate::discovery::sandbox_ids(args)? {
@@ -148,7 +149,17 @@ pub(crate) fn list(args: &SdkValue) -> Outcome {
         match observed {
             Ok(()) => items.push(item),
             Err(failure) if failure.gone() || failure.stopped() => {
-                let _placing = crate::discovery::guard(&crate::discovery::project_dir(args)?)?;
+                let _placing = match crate::discovery::guard(&crate::discovery::project_dir(args)?)
+                {
+                    Ok(placing) => placing,
+                    // another call (a reopen) holds the project: it may be
+                    // restarting this Sandbox, so it is listed
+                    Err(refusal) if refusal.code == "Busy" => {
+                        items.push(item);
+                        continue;
+                    }
+                    Err(refusal) => return Err(refusal),
+                };
                 let container = text(&value, "container")?;
                 match crate::sandbox::reclaim(args, &id, container, failure.stopped()) {
                     Ok(_) => {}
@@ -236,3 +247,7 @@ pub(crate) fn unmount(args: &SdkValue) -> Outcome {
     lock(&state.mounts)?.remove(path);
     Ok(value)
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "../tests/unit/list.rs"]
+mod list_tests;
