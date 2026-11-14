@@ -10,6 +10,10 @@
 //   lfs log <project> <branch>
 //   lfs write <project> <branch> <file> <message>   content from stdin
 //   lfs merge <project> <a> <b> <name> [message]
+//   lfs reopen <project> [--legacy-head]   after a restart: start each Sandbox
+//                                           that holds saved Workspaces again and
+//                                           reopen them at their saved paths;
+//                                           exit 1 if one did not reopen
 //
 // Environment: LAYERFS_RUNTIME=process, LAYERFS_HOME, LAYERFS_DAEMON,
 // LAYERFS_STORE_ROOT (each project's Store is <root>/<project>/global/store.sqlite).
@@ -17,7 +21,7 @@ import { mkdirSync } from "node:fs";
 import { join } from "node:path";
 
 const [command, project, ...rest] = process.argv.slice(2);
-const COMMANDS = ["init", "fork", "mount", "commit", "unmount", "read", "log", "write", "merge"];
+const COMMANDS = ["init", "fork", "mount", "commit", "unmount", "read", "log", "write", "merge", "reopen"];
 if (!COMMANDS.includes(command) || !project) {
   console.error(`usage: lfs <${COMMANDS.join("|")}> <project> ...`);
   process.exit(2);
@@ -28,6 +32,8 @@ const { LayerFS } = await import(process.env.LAYERFS_SDK ?? "/opt/layerfs/sdk/sr
 const layerfs = new LayerFS(project, { runtime: "process", storePath: join(volume, "global/store.sqlite") });
 mkdirSync(volume, { recursive: true });
 const print = (value) => console.log(JSON.stringify(value));
+// Every listed Workspace is mounted after the call.
+const reopened = (answer) => answer.sandboxes.every((s) => s.workspaces.every((w) => w.mounted));
 try {
   switch (command) {
     case "init":
@@ -59,6 +65,16 @@ try {
     case "merge":
       print(await layerfs.branch.merge(rest[0], rest[1], rest[2], rest[3]));
       break;
+    case "reopen": {
+      // --legacy-head: a record saved before roots were recorded reopens on its
+      // Branch head. Stopgap (operator, 2026-11-14): remove it once the overlays
+      // of 2026-11-14 are reopened. vm-boot.sh never passes it.
+      const { LayerFSOperator } = await import(process.env.LAYERFS_SDK_OPERATOR ?? "/opt/layerfs/sdk/operator/index.js");
+      const answer = await new LayerFSOperator(layerfs).sandbox.reopen({ legacyHead: rest.includes("--legacy-head") });
+      print(answer);
+      if (!reopened(answer)) process.exitCode = 1;
+      break;
+    }
     case "log":
       print(await layerfs.branch.list_commits(rest[0], 20, 0));
       break;

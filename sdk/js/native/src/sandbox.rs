@@ -452,6 +452,9 @@ fn abandon(directory: &Path, id: &str, mut failure: Box<SandboxFailure>) -> SdkR
 /// under them: a Sandbox started again under the number meanwhile has
 /// another container and is left alone (`Busy`). A Delete the Engine refuses
 /// (the container runs again) removes nothing.
+/// The refusal code of a reclaim that found saved Workspace overlays.
+pub(crate) const KEPT: &str = "Kept";
+
 pub(crate) fn reclaim(args: &SdkValue, id: &str, container: &str, stopped: bool) -> Outcome {
     let directory = crate::discovery::sandbox_dir(args, id)?;
     let _guard = crate::discovery::guard(&directory)?;
@@ -467,6 +470,14 @@ pub(crate) fn reclaim(args: &SdkValue, id: &str, container: &str, stopped: bool)
         return Err(refused(
             "Busy",
             format!("Sandbox {id} was started again while it was reclaimed; nothing was removed"),
+        ));
+    }
+    // Saved Workspace overlays hold uncommitted work: such a Sandbox is
+    // reopened (operator.sandbox.reopen), never reclaimed.
+    if crate::discovery::holds_overlays(args, id)? {
+        return Err(refused(
+            KEPT,
+            format!("Sandbox {id} holds saved Workspace overlays; reopen it, nothing was removed"),
         ));
     }
     if stopped {

@@ -21,7 +21,21 @@ impl Store {
         owner: OwnerClient,
         request: BindRequest,
     ) -> Result<BindSuccess, BindRefusal> {
-        self.bind_with(owner, request, false)
+        self.bind_with(owner, request, false, None)
+    }
+    /// Binds the saved Workspace in overlay file `<namespace>.sqlite` of an
+    /// ended daemon, under its own number, on its saved base `root`. Refused
+    /// with [`BindError::BaseMoved`] when the Branch's effective root is no
+    /// longer `root`: a reopen never rebases. A refusal leaves the file.
+    #[allow(clippy::result_large_err)]
+    pub fn reopen(
+        self: &Arc<Self>,
+        owner: OwnerClient,
+        request: BindRequest,
+        namespace: i64,
+        root: [u8; 32],
+    ) -> Result<BindSuccess, BindRefusal> {
+        self.bind_with(owner, request, false, Some((namespace, root)))
     }
     /// [`Self::bind`] for an SDK call's private Workspace: its reader comes
     /// from, and returns to, the Store's idle readers (#352 F-025 fix 4).
@@ -31,7 +45,7 @@ impl Store {
         owner: OwnerClient,
         request: BindRequest,
     ) -> Result<BindSuccess, BindRefusal> {
-        self.bind_with(owner, request, true)
+        self.bind_with(owner, request, true, None)
     }
     #[allow(clippy::result_large_err)]
     fn bind_with(
@@ -39,6 +53,7 @@ impl Store {
         owner: OwnerClient,
         request: BindRequest,
         pooled: bool,
+        saved: Option<(i64, [u8; 32])>,
     ) -> Result<BindSuccess, BindRefusal> {
         let mut phase = BindPhase::Snapshot;
         let mut snapshot = None;
@@ -62,6 +77,15 @@ impl Store {
                     .ok_or(BindError::MissingBranch(request.branch))
             })?;
             snapshot = Some(captured.clone());
+            if let Some((_, root)) = saved {
+                let actual = captured.effective_root.to_bytes();
+                if actual != root {
+                    return Err(BindError::BaseMoved {
+                        expected: root,
+                        actual,
+                    });
+                }
+            }
             phase = BindPhase::Root;
             let ports = self.ports_for(captured.scope, request.workspace);
             let client = ports.client();
@@ -74,11 +98,16 @@ impl Store {
                 })?;
             phase = BindPhase::Open;
             let (route, owner) = crate::telemetry::timed("bind.overlay", |_| {
-                let route = owner.open(
-                    None,
-                    request.workspace.to_bytes(),
-                    captured.effective_root.to_bytes(),
-                )?;
+                let route = match saved {
+                    Some((namespace, root)) => {
+                        owner.reopen(namespace, request.workspace.to_bytes(), root)?
+                    }
+                    None => owner.open(
+                        None,
+                        request.workspace.to_bytes(),
+                        captured.effective_root.to_bytes(),
+                    )?,
+                };
                 Ok((route, owner.workspace_client(route)?))
             })
             .map_err(BindError::Owner)?;

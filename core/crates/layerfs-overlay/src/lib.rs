@@ -49,6 +49,7 @@ pub use database::startup::{Creation, CreationWork};
 pub use db::Overlay;
 pub use diagnostics::payload::PayloadWork;
 pub use error::{CloseFailure, OverlayError, OverlayResult};
+pub use lifetime::resume_rules;
 pub use lifetime::tickets::{ReplyTickets, Settled};
 pub use maintenance::{MaintenanceCursor, MaintenanceStep};
 pub use metrics::{DatabaseWork, StatementKind, StatementWork};

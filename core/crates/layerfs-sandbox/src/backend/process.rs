@@ -51,6 +51,10 @@ impl Layout {
     fn log(&self) -> PathBuf {
         self.directory.join("daemon.log")
     }
+    /// The log of the daemon before the last restart.
+    fn previous_log(&self) -> PathBuf {
+        self.directory.join("daemon.previous.log")
+    }
 }
 
 /// The step a start reached.
@@ -100,6 +104,74 @@ impl Sandbox {
             })
         };
         let log = prepare(&layout, config).map_err(|e| fail(StartPhase::Prepare, None, e))?;
+        Self::spawn(executable, layout, log, wait)
+    }
+
+    /// Starts a daemon again on the existing folder of a saved Sandbox
+    /// whose daemon (`pid` with `start`) ended, on its saved config. Refused
+    /// while that daemon runs, or when the folder or config is missing. It
+    /// detaches any dead mount left in the folder's own mount home, removes
+    /// its empty mount directories, and keeps
+    /// the ended daemon's log as `daemon.previous.log`. No overlay file is
+    /// touched: the daemon finds them.
+    pub fn restart(
+        executable: &Path,
+        layout: Layout,
+        pid: u32,
+        start: u64,
+        wait: Duration,
+    ) -> Result<Self, Box<StartFailure>> {
+        let prepare = |cause| {
+            Box::new(StartFailure {
+                phase: StartPhase::Prepare,
+                sandbox: None,
+                cause,
+            })
+        };
+        if !layout.directory.is_dir() || !layout.config().is_file() {
+            return Err(prepare(io::Error::new(
+                io::ErrorKind::NotFound,
+                "no saved Sandbox folder with a daemon config",
+            )));
+        }
+        if start_time(pid).map_err(prepare)? == Some(start) {
+            return Err(prepare(io::Error::new(
+                io::ErrorKind::AlreadyExists,
+                "the saved daemon still runs",
+            )));
+        }
+        detach_mounts(&layout.mounts()).map_err(prepare)?;
+        remove_empty_homes(&layout.mounts()).map_err(prepare)?;
+        fs::rename(layout.log(), layout.previous_log())
+            .or_else(|e| match e.kind() {
+                io::ErrorKind::NotFound => Ok(()),
+                _ => Err(e),
+            })
+            .map_err(prepare)?;
+        let log = OpenOptions::new()
+            .append(true)
+            .create_new(true)
+            .mode(0o600)
+            .open(layout.log())
+            .map_err(prepare)?;
+        Self::spawn(executable, layout, log, wait)
+    }
+
+    /// Spawns `executable` on the folder's config with output to `log`, and
+    /// waits up to `wait` for its listen line.
+    fn spawn(
+        executable: &Path,
+        layout: Layout,
+        log: File,
+        wait: Duration,
+    ) -> Result<Self, Box<StartFailure>> {
+        let fail = |phase, sandbox, cause| {
+            Box::new(StartFailure {
+                phase,
+                sandbox,
+                cause,
+            })
+        };
         let mut child = Command::new(executable)
             .arg("--config")
             .arg(layout.config())
@@ -253,17 +325,7 @@ impl Sandbox {
                 "delete before a known stop",
             ));
         }
-        let mounts = self.layout.mounts();
-        if let Ok(entries) = fs::read_dir(&mounts) {
-            for entry in entries {
-                let path = entry?.path();
-                // a dead FUSE mount answers ENOTCONN; detaching it is the cleanup
-                match umount2(&path, MntFlags::MNT_DETACH) {
-                    Ok(()) | Err(nix::errno::Errno::EINVAL) => {}
-                    Err(errno) => return Err(errno.into()),
-                }
-            }
-        }
+        detach_mounts(&self.layout.mounts())?;
         match fs::remove_dir_all(&self.layout.directory) {
             Err(error) if error.kind() != io::ErrorKind::NotFound => Err(error),
             _ => Ok(()),
@@ -356,6 +418,46 @@ impl Sandbox {
             .map(Some)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "daemon listen address"))
     }
+}
+
+/// Detaches every mount in the mount home `mounts` (its direct entries
+/// only). A dead FUSE mount answers ENOTCONN; detaching it is the cleanup.
+/// An entry that is not a mount point is left as it is.
+fn detach_mounts(mounts: &Path) -> io::Result<()> {
+    if let Ok(entries) = fs::read_dir(mounts) {
+        for entry in entries {
+            let path = entry?.path();
+            match umount2(&path, MntFlags::MNT_DETACH) {
+                Ok(()) | Err(nix::errno::Errno::EINVAL) => {}
+                Err(errno) => return Err(errno.into()),
+            }
+        }
+    }
+    Ok(())
+}
+
+/// Removes each empty directory in the mount home `mounts`: the mount
+/// directories the ended daemon made. An attach never adopts an existing
+/// directory (layerfs-fuse `create_directory`), so the reopened Workspace
+/// makes its own again. A directory that is not empty is left as it is.
+fn remove_empty_homes(mounts: &Path) -> io::Result<()> {
+    if let Ok(entries) = fs::read_dir(mounts) {
+        for entry in entries {
+            let path = entry?.path();
+            match fs::remove_dir(&path) {
+                Err(error)
+                    if !matches!(
+                        error.raw_os_error(),
+                        Some(nix::libc::ENOTEMPTY) | Some(nix::libc::ENOTDIR)
+                    ) && error.kind() != io::ErrorKind::NotFound =>
+                {
+                    return Err(error)
+                }
+                _ => {}
+            }
+        }
+    }
+    Ok(())
 }
 
 /// The Sandbox directory (0755, new), its private config and Overlay

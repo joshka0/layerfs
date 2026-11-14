@@ -139,36 +139,6 @@ impl Owner {
     ) -> crate::OwnerStart {
         super::workspaces::start(path, profile, config)
     }
-    pub(super) fn start_copy(
-        path: &Path,
-        template: &Path,
-        profile: ProfileConfig,
-        shared: Arc<Shared>,
-    ) -> crate::OwnerStart {
-        let started = Instant::now();
-        let created = Overlay::copy_template_observed(path, profile, template);
-        let startup = Arc::new(created.work);
-        let result = created.result.map_err(OwnerError::Overlay).map(|db| {
-            let profile = db.profile().clone();
-            {
-                let mut state = shared.state.lock().unwrap_or_else(|e| e.into_inner());
-                state.db = Some(Box::new(db));
-                state.initial = Some(startup.clone());
-            }
-            Self {
-                client: OwnerClient {
-                    context: Context::Workspace(shared),
-                },
-                profile,
-            }
-        });
-        crate::OwnerStart {
-            result,
-            startup,
-            creation_reported: true,
-            elapsed_ns: elapsed(started),
-        }
-    }
     pub fn configuration(&self) -> OwnerConfig {
         self.client
             .roster()

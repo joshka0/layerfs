@@ -37,6 +37,36 @@ impl OwnerClient {
         })
         .map(|(route, _)| route)
     }
+    /// Binds the saved Workspace in overlay file `<namespace>.sqlite` of an
+    /// ended daemon on `base_root`, under its own number. A refusal leaves
+    /// the file as it was.
+    pub fn reopen(
+        &self,
+        namespace: i64,
+        incarnation: [u8; 32],
+        base_root: [u8; 32],
+    ) -> Result<Route, OwnerError> {
+        let pool = self.roster().ok_or(OwnerError::InvalidAdmission)?;
+        pool.reopen(namespace, incarnation, base_root)
+    }
+    /// The Workspace-connection half of [`Self::reopen`].
+    pub(super) fn resume(
+        &self,
+        incarnation: [u8; 32],
+        base_root: [u8; 32],
+    ) -> Result<Route, OwnerError> {
+        let shared = self.connection()?.clone();
+        let namespace = shared.namespace;
+        self.call_observed(None, ServiceClass::General, None, move |db, _| {
+            let route =
+                Route::new(namespace, db.engine(), incarnation).map_err(OwnerError::Overlay)?;
+            db.resume_workspace(base_root)
+                .map_err(OwnerError::Overlay)?;
+            let _ = shared.route.set(route);
+            Ok(route)
+        })
+        .map(|(route, _)| route)
+    }
     pub fn resources(&self) -> Result<Resources, OwnerError> {
         self.resources_observed().map(|(value, _)| value)
     }
