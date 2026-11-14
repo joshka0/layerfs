@@ -12,6 +12,14 @@
 //        later reopen needs.
 //   F43. A restart whose daemon listener never becomes ready leaves the
 //        daemon it spawned running (added 2026-11-14 from a model review).
+//   F44. A mount that meets a dead Sandbox whose revive fails does not
+//        succeed elsewhere, or its answer has no `revived` entry naming that
+//        Sandbox and each saved Workspace with its reason, or the old
+//        Sandbox's records or overlays are lost (operator decision relayed by
+//        rowan-joshka-main, 2026-11-14).
+// F41 status (same decision): a status that meets a Sandbox mid-restart
+// waits, bounded by 60 s, and answers the restarted daemon's real status;
+// only after the bound may it refuse Busy. NoSuchSandbox and Failed are wrong.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { existsSync, readdirSync, writeFileSync } from "node:fs";
@@ -45,9 +53,8 @@ function callInChild(project, call, env = {}) {
 }
 // Refusal codes a racing call may give. A listing that meets a gone
 // Sandbox may refuse NoSuchSandbox; one that meets a Sandbox mid-restart may
-// not refuse at all, and neither may a Workspace status call: both report
-// the Sandbox present in its busy/starting state (decision of
-// rowan-joshka-main, 2026-11-14). `Failed` is never right.
+// not refuse at all, and neither may a Workspace status inside the 60 s
+// bound: it answers the restarted daemon's status. `Failed` is never right.
 const GONE = { list: ["NoSuchSandbox"] };
 const RESTARTING = { list: [], status: [], reopen: [] };
 const wrongCodes = (allowed, results) => results.filter((r) => !r.ok && !allowed[r.call].includes(r.code));
@@ -103,12 +110,14 @@ export const racesPhases = {
         ...Array.from({ length: 4 }, () => labelled("list", callInChild(project, "(l, op) => op.sandbox.list()"))),
         ...Array.from({ length: 2 }, () => labelled("status", callInChild(project, `(l) => l.workspace.status(${wsArg})`))),
       ]);
-      await check("F41 F35", `${project}: listings and status racing a restart succeed and show the Sandbox present`, () => {
+      await check("F41 F35", `${project}: listings racing a restart list the Sandbox; status waits and answers the real status`, () => {
         const folder = sandboxRoot(ws.path).split("/").pop();
         const bad = wrongCodes(RESTARTING, results);
         const missing = results.filter((r) => r.call === "list" && r.ok && !lists(r.value, ws.sandbox, folder));
-        const found = { wrongCodes: bad, listingsWithoutTheSandbox: missing };
-        assert.deepEqual(found, { wrongCodes: [], listingsWithoutTheSandbox: [] }, JSON.stringify(found));
+        const notReal = results.filter((r) => r.call === "status" && r.ok && (r.value?.kind !== "ok" || r.value?.branch !== "w"));
+        const found = { wrongCodes: bad, listingsWithoutTheSandbox: missing, statusNotFromTheRestartedDaemon: notReal };
+        const none = { wrongCodes: [], listingsWithoutTheSandbox: [], statusNotFromTheRestartedDaemon: [] };
+        assert.deepEqual(found, none, JSON.stringify(found));
       });
       await check("F41", `${project}: precondition: the slow restart itself succeeded`, () => {
         assert.equal(results[0].ok, true, JSON.stringify(results[0]));
@@ -199,6 +208,44 @@ export const racesPhases = {
         const again = lfsCli("reopen", project);
         assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
         assert.equal(spawnSync("cat", [join(ws.path, "q.txt")], { encoding: "utf8" }).stdout, "quiet\n");
+      });
+    }
+
+    // F44: the dead Sandbox's config is gone, so its revive fails; a mount
+    // from a new process must still succeed in another Sandbox and name the
+    // failed revive in `revived`.
+    {
+      const project = "rrace7";
+      const l = open(project);
+      await init(l, BASE);
+      await l.branch.fork("w");
+      await l.branch.fork("w2");
+      const ws = await l.workspace.mount("w");
+      await sh(l, ws, "echo old > o.txt");
+      const root = sandboxRoot(ws.path);
+      const folder = root.split("/").pop();
+      killDaemons();
+      await until("the daemons to die", () => daemons().length === 0);
+      spawnSync("rm", ["-rf", join(root, "config")]);
+      const before = sha(overlayOf(ws.path));
+      const recordsBefore = readdirSync(join(HOME, project, "sandboxes", ws.sandbox)).sort();
+      const mounted = await callInChild(project, `(l) => l.workspace.mount("w2")`);
+      await check("F44", "rrace7: a mount after a failed revive succeeds in another Sandbox", () => {
+        assert.equal(mounted.ok, true, JSON.stringify(mounted));
+        assert.ok(!mounted.value.path.startsWith(`${root}/`), `mounted in the Sandbox whose revive failed: ${mounted.value.path}`);
+        assert.equal(spawnSync("cat", [join(mounted.value.path, "README.md")], { encoding: "utf8" }).stdout, "hello\n");
+      });
+      await check("F44", "rrace7: the mount answer's `revived` names the failed Sandbox and its Workspace with a reason", () => {
+        const revived = mounted.value?.revived;
+        assert.ok(Array.isArray(revived), `no revived list: ${JSON.stringify(mounted.value)}`);
+        const box = revived.find((b) => b.id === ws.sandbox || b.name === folder);
+        assert.ok(box, `revived does not name Sandbox ${ws.sandbox}: ${JSON.stringify(revived)}`);
+        const item = (box.workspaces ?? []).find((w) => w.path === ws.path);
+        assert.ok(typeof item?.reason === "string" && item.reason.length > 0, `no reason for ${ws.path}: ${JSON.stringify(box)}`);
+      });
+      await check("F44 F26 F33", "rrace7: the old Sandbox's records and overlay stay", () => {
+        assert.equal(sha(overlayOf(ws.path)), before, "overlay changed");
+        assert.deepEqual(readdirSync(join(HOME, project, "sandboxes", ws.sandbox)).sort(), recordsBefore, "records changed");
       });
     }
   },
