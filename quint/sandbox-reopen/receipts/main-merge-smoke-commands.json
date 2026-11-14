@@ -1,0 +1,36 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/main-merge-smoke-base",
+      "--seed",
+      "42",
+      "--samples",
+      "1"
+    ],
+    "exit_code": 0,
+    "expected_exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/main-merge-smoke-no-guard",
+      "--seed",
+      "42",
+      "--samples",
+      "1",
+      "--plant",
+      "no_guard"
+    ],
+    "exit_code": 1,
+    "expected_exit_code": 1
+  }
+]

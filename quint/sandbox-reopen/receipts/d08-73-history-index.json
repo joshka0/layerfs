@@ -1,0 +1,4767 @@
+[
+  {
+    "path": "baseline-16",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=2 steps=24"
+    ]
+  },
+  {
+    "path": "baseline-seed-1",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=1"
+    ]
+  },
+  {
+    "path": "baseline-seed-1-v2",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "baseline-smoke-1",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=1"
+    ]
+  },
+  {
+    "path": "baseline-smoke-2",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "deadline-project",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08102458300072612,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 4.296453999999358,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4474971250001545,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 61.62329150000005,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "1dca585aff6a7a6fa409e218e5b1f1e2dab2775f105ad908de1dd31ac6ebfb10",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "deadline-sandbox",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07415691699952731,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8755440830000225,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.42068379200009076,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 61.561975457999324,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": "1dca585aff6a7a6fa409e218e5b1f1e2dab2775f105ad908de1dd31ac6ebfb10",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "deadline-sandbox-clean",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.10309200000028795,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 24.78546874999938,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 101,
+        "seconds": 0.16817654200076504,
+        "log": "driver-build.log"
+      }
+    ],
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": []
+  },
+  {
+    "path": "deadline-sandbox-clean-v2",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06146337499922083,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6291934170003515,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 2.327558625000165,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 62.0442578330003,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "4aad6a5137baba6c23199d54560d5f2a6d22d20f132cf51454c03aa9ef0adc65",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-fae-baseline-42",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.19109720900087268,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 1.348774541000239,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 10.342742415999965,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 10.927603666999858,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "0aa756721e05a6a23a3a07f2192c0ecea9700210fedd046ace6182add31b9b9e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "final-fae-baseline-42-v2",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3029186670009949,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 6.04273854100029,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.3351244169989513,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 3.0971840000001976,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=3 steps=57"
+    ]
+  },
+  {
+    "path": "final-failure-after-record",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08988266699998348,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.613139291999687,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6839587499998743,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6058568329990521,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "4699c4f79eb151237a45deeee66bd1c032db57bc69c7764db5ad127d7e849eb6",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-failure-fallback",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3128767920006794,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.03981633299918,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 5.1081682089989044,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.666412250000576,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "58948afc87f8068602f7a22c7a975190d2470c10cdc12ae5a1645eb26ae8fa99",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-failure-listener",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09739041700049711,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.7918442919999507,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 5.456248209000478,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6891722910004319,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "4699c4f79eb151237a45deeee66bd1c032db57bc69c7764db5ad127d7e849eb6",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-failure-recovery-save",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07444116700025916,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5852769579996675,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2788104999999632,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.403500708998763,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "4699c4f79eb151237a45deeee66bd1c032db57bc69c7764db5ad127d7e849eb6",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-failure-stop-failed",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09669116599980043,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.7731761249997362,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.24319091699908313,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4914063749984052,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "4699c4f79eb151237a45deeee66bd1c032db57bc69c7764db5ad127d7e849eb6",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-liveness-d08",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07571037500019884,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.7196701670000039,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6297928749991115,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 2.0185943330016016,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "58948afc87f8068602f7a22c7a975190d2470c10cdc12ae5a1645eb26ae8fa99",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-boot_reclaims-boot",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "boot_reclaims"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1803064590003487,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.774408041001152,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3686414160001732,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.524162666999473,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "d7532625c588c7b82db4664b81107ed436fafe8825bb9908dc3fc7331948437a",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-count_unattached-unattached",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "count_unattached"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0781568749989674,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.2569329159996414,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.30015137499867706,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4908843329994852,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "2be5a05f94ebc115b454fa6ea42a5c43c0d9be2ee0f4da58c970b40b20d0526e",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-keep_failed_daemon-failed-duplicate",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "keep_failed_daemon"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07953433300099277,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5565710840000975,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.31991829199978383,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.3792970409995178,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "a355f0bf63d3ee84961c20cf132a12e369d5a4edead5555ceac36f676e488609",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-keep_failed_daemon-orphan",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "keep_failed_daemon"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0824523749997752,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.323968083999716,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.29939504100002523,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.448013750001337,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "a355f0bf63d3ee84961c20cf132a12e369d5a4edead5555ceac36f676e488609",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-leak_guard-release",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "leak_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0957333340011246,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.956372583999837,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2913195410001208,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.6458070420012518,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "6f1bc42f3fc92760228ac9014d3bf40a5b7dcb5b047f97817a41337dc1879de6",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_fallback-fallback",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_fallback"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08161137500064797,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.4115525420002086,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.27910616699955426,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4540687909993721,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "7a644f14c001431d440a0c5d12de372dad8aa49b512ff7c60f4f5c211d619422",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_guard-guard",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1098747909982194,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.00933329200052,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.38284174999898823,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.5638353750000533,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "96a0972cedf5e3bbc5d0c6fff73fd60fb0d9a2de8d080a9ffc307c89bb3ac22c",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_kept-overlay",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_kept"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0815874169984454,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.239330792001056,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3648692909991951,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.5237534169991704,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "c136b1d81f2e5dbb6e0a9f71e93a5cbd30ea30ef44a237fac2fae1b26e7a489e",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_revive_check-running",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revive_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.10629404199971759,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.4742470839992166,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3105200829995738,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4790304170001036,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "78f1204d3b53ae815dc2682e6cd7f003d3ae3268dc2b65ef3a1a0f2530a7d1cc",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_revived_report-report",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revived_report"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08057824999923469,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.7609132079996925,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.30935499999941385,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4570602500007226,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "a57e6b744cfe2bb7c266d91fc0af54eb73900e4764a6e29fb8e0b632f7d52191",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-no_running_check-running",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_running_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08454650000021502,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.513120416000675,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3829516659989167,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4902694169995812,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "664758226bc34e5c2225d3bc475682f272e84e0c72668da637bc740698d30328",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-none-fallback",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08865516599871626,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8548446659988258,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.31058991700047045,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5776352919983765,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-none-status",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0848771669989219,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.9829272079987277,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.7441884590007248,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5196323330001178,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-none-unattached",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08147166699927766,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6140999580002244,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2625694170001225,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5187054579982942,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-report",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08452895799928228,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8616701250011829,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6020962919992598,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.7589220840000053,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "final-physical-status_no_wait-status",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "status_no_wait"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08326312499957567,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.583268667000084,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.34065908400043554,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4586750409998785,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "217908d5a65401498b14dd6b7fed8cc2978f8b8761cbececfcaaea40012c542e",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "folder-lock-before-fix",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.12650258299981942,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.260202666999248,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 2.0140687499988417,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.8314643329995306,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": true,
+    "worker_sha256": "cb37bf6508a8ca8ea7368176adc63a7598e2edc1a7c58735d7407b318c1b7acd",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "green-seed6",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09458354199978203,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.9758184590000383,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.4447738329999993,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.2837548340003195,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "liveness-1",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "liveness-final",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.15456512499986275,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.2127189579996411,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.1222993329993187,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 2.800326667000263,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "876338f7d79a8cd4575a188abc617a5c0385603b0b77f689a516c7845ceabd80",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "model-73-absent-status-9",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1137383340010274,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 8.227031917000204,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8442821669996192,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 2.060423584000091,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=10"
+    ]
+  },
+  {
+    "path": "model-73-baseline-42",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08576108300076157,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.198310083000251,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.47160758300015,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 3.106830374999845,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=2 steps=37"
+    ]
+  },
+  {
+    "path": "model-73-matrix-boot_reclaims-2",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "boot_reclaims"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07202912499997183,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.676558750001277,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.33167670799957705,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.5098772090004786,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "d7532625c588c7b82db4664b81107ed436fafe8825bb9908dc3fc7331948437a",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=5"
+    ]
+  },
+  {
+    "path": "model-73-matrix-count_unattached-14",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "count_unattached"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07537874999979977,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.7709361249999347,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2576717079991795,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4921816660007607,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "2be5a05f94ebc115b454fa6ea42a5c43c0d9be2ee0f4da58c970b40b20d0526e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "model-73-matrix-keep_failed_daemon-11",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "keep_failed_daemon"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07802170899958583,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.6859792499999458,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5199583339999663,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.6132167500018113,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "a355f0bf63d3ee84961c20cf132a12e369d5a4edead5555ceac36f676e488609",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "model-73-matrix-leak_guard-3",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "leak_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.080845833001149,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.593551915999342,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3619562499989115,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 3.176793999999063,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "6f1bc42f3fc92760228ac9014d3bf40a5b7dcb5b047f97817a41337dc1879de6",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=7"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_fallback-11",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_fallback"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0870928330004972,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.566392917000485,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3507633330009412,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.8828093330012052,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "7a644f14c001431d440a0c5d12de372dad8aa49b512ff7c60f4f5c211d619422",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_guard-3",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07579358300063177,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.105121208000128,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.27210899999954563,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.3546930830016208,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "96a0972cedf5e3bbc5d0c6fff73fd60fb0d9a2de8d080a9ffc307c89bb3ac22c",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=3"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_kept-7",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_kept"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07900108300054853,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.2529465410007106,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2874092920010298,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.924195999999938,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "c136b1d81f2e5dbb6e0a9f71e93a5cbd30ea30ef44a237fac2fae1b26e7a489e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=5"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_revive_check-3",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revive_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07471870800145552,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.41265249999924,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3970783330005361,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.489153291000548,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "78f1204d3b53ae815dc2682e6cd7f003d3ae3268dc2b65ef3a1a0f2530a7d1cc",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_revived_report-11",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revived_report"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07936125000014727,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.552086417001192,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3699759589999303,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 2.4598605829996814,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "a57e6b744cfe2bb7c266d91fc0af54eb73900e4764a6e29fb8e0b632f7d52191",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "model-73-matrix-no_running_check-3",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_running_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07986616599919216,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.9665586669998447,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.3136358329993527,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.4667284170009225,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "664758226bc34e5c2225d3bc475682f272e84e0c72668da637bc740698d30328",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=14"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-11",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0863110840000445,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5573563340003602,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.29522212499978195,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5113639580013114,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-14",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0756834580006398,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5106750840004679,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2861501250008587,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4387483339996834,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-2",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07877495899992937,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8038756249989092,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.4636497910014441,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.964590916000816,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-3",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08373887500056298,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5137089590007236,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.31653012500100886,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4511661669985187,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-6",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07975908300068113,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.565017834000173,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.23620891599966853,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4502270000011777,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-none-7",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07941679199939244,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5232669160013756,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.25589270799900987,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6391995840003801,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-73-matrix-status_no_wait-6",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "status_no_wait"
+        ],
+        "exit_code": 0,
+        "seconds": 0.12224308299846598,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.464292791999469,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.4058004999988043,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.562417707998975,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "217908d5a65401498b14dd6b7fed8cc2978f8b8761cbececfcaaea40012c542e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "model-73-seed42-first-trace",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.11137604099894816,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6798469590012246,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5040085000000545,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.8268950000001496,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8b945eb33479bba30d6cec3e1259661bf69ab9a30574d026f0c1f2e2b49be1bd",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=25"
+    ]
+  },
+  {
+    "path": "model-seed-catalog",
+    "commands": null,
+    "identity_present": false,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": []
+  },
+  {
+    "path": "physical-failed-duplicate-mutant",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "keep_failed_daemon"
+        ],
+        "exit_code": 0,
+        "seconds": 0.11323475000062899,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4957660000000033,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4962473750001664,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.7342680419988028,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "1028279a911011cf6846e4b6880d2dc63df97cd7e5f599da9fce03a88085d390",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-orphan-baseline",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08259333299974969,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6591520420006418,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6927271660006227,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6162358750007115,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-orphan-mutant",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "keep_failed_daemon"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09054916700006288,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.6379966250005964,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6133286669992231,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.6685992080001597,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "1028279a911011cf6846e4b6880d2dc63df97cd7e5f599da9fce03a88085d390",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-overlay-baseline",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.19400762500117708,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4794594169998163,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.088319666998359,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.9846092080006201,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-overlay-mutant",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_kept"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1397274170012679,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 6.617091583000729,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.8614322079993144,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.738784625000335,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "0a81773285b82828ceecbfb9a33532a33278d23e9065420368cd217eb0318498",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-release-baseline",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.10523358300088148,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.233137042001545,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.1535849170013535,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.973791333999543,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-release-mutant",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "leak_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1119185829993512,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.015348332999565,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 7.715866624999762,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 2.179490500000611,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "6d2a2f12a3142bdee68e1a23346863fef141604131ad10cef13502331058a59d",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-running-baseline",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07390987500002666,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.7154902499987656,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5393665419996978,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.8592799580001156,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "physical-running-mutant",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_running_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06727520800086495,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.572011083000689,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.48918691700055206,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.524098915999275,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8ac814fa430232cc6cb67e4e116d62e8455e350dbfcc67a3b30f68dcb35958fb",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "plant-boot-reclaims",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "boot_reclaims"
+        ],
+        "exit_code": 0,
+        "seconds": 0.08445608400052151,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 5.30935829200007,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 2.3285256670005765,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.9172102080001423,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "e5388b07c41642560141d415d6053db555378e00aa5cfbea005c364649850d7d",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=5"
+    ]
+  },
+  {
+    "path": "plant-no-guard",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_guard"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06258283399984066,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 3.6971407500004716,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.9344293330004803,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 2.157241584000076,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "cbf5f435f7a201abc63e24dd0c053a41389e7c93781121fd398ec01f63e6da4e",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=2"
+    ]
+  },
+  {
+    "path": "plant-no-kept",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_kept"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06466266700044798,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 4.351760999999897,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.41740337500050373,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.3901425410003867,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": null,
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=3"
+    ]
+  },
+  {
+    "path": "positive-no-revive-control",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revive_check"
+        ],
+        "exit_code": 0,
+        "seconds": 0.1100008749999688,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.944323792000432,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5344780839986925,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 4.5562184169994,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "bae8b1771ac7885969c706fc2c9fcb2238606cf6714357ecc6bf7e6ba223a745",
+    "counts": [
+      "REPLAY_COUNTS traces=16 steps=336"
+    ]
+  },
+  {
+    "path": "positive-no-revive-physical",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "no_revive_check"
+        ],
+        "exit_code": 0,
+        "seconds": 1.4668810829989525,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 1.256097541001509,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 8.32034987500083,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6801820829987264,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "bae8b1771ac7885969c706fc2c9fcb2238606cf6714357ecc6bf7e6ba223a745",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "post-kill-d08-red",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09666016700066393,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.37782850000076,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 2.1869561669991526,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 124,
+        "seconds": 95.01126733300043,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": true,
+    "worker_sha256": "1ae09609adfd38593a14161de2bc8f25f1300fbd0bbdb71a0247282bdf749e30",
+    "counts": []
+  },
+  {
+    "path": "restore-after-boot-reclaims",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06220149999990099,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 3.895028375000038,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.46459895799944206,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.46064962499986,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "876338f7d79a8cd4575a188abc617a5c0385603b0b77f689a516c7845ceabd80",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "restore-after-failed-daemon",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.09034633400005987,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.74194874999921,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5164232080005604,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.7647427920001064,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "restore-after-no-guard",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.05467429100008303,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 3.26684374999968,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.24153220900007,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.46854708400042,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "705fda3ec7f9258f7d7b2fc95386a21fda2447a834e10dc0b9e5a92d5ff50cce",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "restore-after-no-kept",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07460404199991899,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "tools/worktree.py",
+          "cargo",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+          "--platform",
+          "linux",
+          "--",
+          "build",
+          "-p",
+          "layerfs-node",
+          "--example",
+          "reopen-worker",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 4.465326166000523,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.4875101249999716,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 2.040805249999721,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "705fda3ec7f9258f7d7b2fc95386a21fda2447a834e10dc0b9e5a92d5ff50cce",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=17"
+    ]
+  },
+  {
+    "path": "restore-physical-overlay",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.5785125000002154,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.34431216700068,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5869307079992723,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.7317021660001046,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "restore-physical-release",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.0954457910011115,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.907377333000113,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.8308553339993523,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6309987500007992,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "restore-physical-running",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07393112499994459,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.561672165998971,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.0286864589998004,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.9211434169992572,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "reviewed-corpus-365",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.06363724999937403,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 0.6876001670007099,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 0.4539204590000736,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 3.393351167000219,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=16 steps=336"
+    ]
+  },
+  {
+    "path": "reviewed-smoke-365",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.18641650000063237,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.198914999999033,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 2.653440332998798,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 3.7393738749997283,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "92f0f4149542fb617a54b9cb80c009cac3b56ea59a1816295fc718d0cff22d1c",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=6"
+    ]
+  },
+  {
+    "path": "reviewed-smoke-365-v2",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.07768916600070952,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 4.118474958999286,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.5102326249998441,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.7924984999990556,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": false,
+    "worker_sha256": "8e0ac4afb5a1f4214c06bbbb1aa1854b06bd7d31cce5c2e39c34c8fef625b574",
+    "counts": [
+      "REPLAY_COUNTS traces=1 steps=21"
+    ]
+  },
+  {
+    "path": "rootless-d08",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.10276333299952967,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 5.088715500000035,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.7328771669999696,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 1,
+        "seconds": 1.9566730420010572,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": true,
+    "worker_sha256": "6c2b2f5eef2d9964d7a01668418d441d20d97be88b74052c5b5304fa48de3875",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  },
+  {
+    "path": "rootless-d08-owner-observer",
+    "commands": [
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+          "--plant",
+          "none"
+        ],
+        "exit_code": 0,
+        "seconds": 0.2192845000008674,
+        "log": "instrument.log"
+      },
+      {
+        "command": [
+          "python3",
+          "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+          "--resources",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+        ],
+        "exit_code": 0,
+        "seconds": 3.6697763749998558,
+        "log": "worker-build.log"
+      },
+      {
+        "command": [
+          "cargo",
+          "+1.99.1",
+          "build",
+          "--manifest-path",
+          "quint/sandbox-reopen/replay/Cargo.toml",
+          "--locked",
+          "-j",
+          "2"
+        ],
+        "exit_code": 0,
+        "seconds": 1.6571276659997238,
+        "log": "driver-build.log"
+      },
+      {
+        "command": [
+          "timeout",
+          "--kill-after=5s",
+          "95",
+          "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+        ],
+        "exit_code": 0,
+        "seconds": 1.475291083999764,
+        "log": "replay.log"
+      }
+    ],
+    "identity_present": true,
+    "binding_input_snapshot": true,
+    "worker_sha256": "f649179531cb5f0c190d7f7ce49c6983ac5148ac06be48ed1e2c67f57492836e",
+    "counts": [
+      "REPLAY_COUNTS traces=0 steps=0"
+    ]
+  }
+]

@@ -1,0 +1,4 @@
+info: downloading component 'clippy'
+info: installing component 'clippy'
+    Checking layerfs-reopen-worker v0.1.0 (/work/quint/sandbox-reopen/worker)
+    Finished `dev` profile [unoptimized + debuginfo] target(s) in 0.91s

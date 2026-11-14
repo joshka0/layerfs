@@ -1,0 +1,6 @@
+# Coordinator-approved test-only pin. quint-connect 0.1.2 uses let chains
+# in value/display.rs:85 despite its README. Product remains on 1.85.1.
+# Remove this separate pin when the product toolchain reaches >=1.88.
+[toolchain]
+channel = "1.99.1"
+profile = "minimal"

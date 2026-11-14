@@ -1,0 +1,101 @@
+[
+  {
+    "command": [
+      "cargo",
+      "+stable",
+      "clippy",
+      "--manifest-path",
+      "quint/sandbox-reopen/replay/Cargo.toml",
+      "--locked",
+      "-j2",
+      "--",
+      "-D",
+      "warnings"
+    ],
+    "exit_code": 0,
+    "log": "driver-clippy-final.log"
+  },
+  {
+    "command": [
+      "rustup",
+      "run",
+      "stable",
+      "rustfmt",
+      "--check",
+      "--config",
+      "skip_children=true",
+      "--edition",
+      "2021",
+      "quint/sandbox-reopen/worker/fixture.rs",
+      "quint/sandbox-reopen/worker/hooks.rs",
+      "quint/sandbox-reopen/worker/actor.rs",
+      "quint/sandbox-reopen/worker/admission.rs",
+      "quint/sandbox-reopen/worker/main.rs",
+      "quint/sandbox-reopen/worker/fault_files.rs",
+      "quint/sandbox-reopen/worker/replay.rs",
+      "quint/sandbox-reopen/worker/observe.rs"
+    ],
+    "exit_code": 0,
+    "log": "worker-format-final.log"
+  },
+  {
+    "command": [
+      "rustup",
+      "run",
+      "stable",
+      "rustfmt",
+      "--check",
+      "--edition",
+      "2024",
+      "quint/sandbox-reopen/replay/src/main.rs"
+    ],
+    "exit_code": 0,
+    "log": "driver-format-final.log"
+  },
+  {
+    "command": [
+      "python3",
+      "-m",
+      "py_compile",
+      "quint/sandbox-reopen/run-replay.py",
+      "quint/sandbox-reopen/container.py",
+      "quint/sandbox-reopen/build-worker.py",
+      "quint/sandbox-reopen/instrument.py"
+    ],
+    "exit_code": 0,
+    "log": "python-final.log"
+  },
+  {
+    "command": [
+      "python3",
+      "core/tools/check_fuser_integrity.py"
+    ],
+    "exit_code": 0,
+    "log": "fuser-integrity-final.log"
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/build-worker.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--clippy"
+    ],
+    "exit_code": 0,
+    "log": "worker-clippy-final.log",
+    "previous_exit_code": 1,
+    "previous_cargo_exit_code": 101,
+    "previous_log": "worker-clippy-before-fix.log"
+  },
+  {
+    "command": [
+      "rustup",
+      "run",
+      "stable",
+      "rustc",
+      "--version"
+    ],
+    "output": "rustc 1.93.0 (254b59607 2026-01-19)",
+    "exit_code": 0
+  }
+]

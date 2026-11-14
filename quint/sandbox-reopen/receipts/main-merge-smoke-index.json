@@ -1,0 +1,151 @@
+{
+  "archive": "main-merge-smoke.tar.gz",
+  "bytes": 220053,
+  "sha256": "b30ae99331f3a79d96c4e2e1e9ac6bf01962ca21c765840a63dd90740acde990",
+  "results": [
+    {
+      "path": "main-merge-smoke-base",
+      "commands": [
+        {
+          "command": [
+            "python3",
+            "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+            "--plant",
+            "none"
+          ],
+          "exit_code": 0,
+          "seconds": 0.1328211250001914,
+          "log": "instrument.log"
+        },
+        {
+          "command": [
+            "python3",
+            "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+            "--resources",
+            "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+          ],
+          "exit_code": 0,
+          "seconds": 81.02322508300131,
+          "log": "worker-build.log"
+        },
+        {
+          "command": [
+            "cargo",
+            "+1.99.1",
+            "build",
+            "--manifest-path",
+            "quint/sandbox-reopen/replay/Cargo.toml",
+            "--locked",
+            "-j",
+            "2"
+          ],
+          "exit_code": 0,
+          "seconds": 31.309494916000403,
+          "log": "driver-build.log"
+        },
+        {
+          "command": [
+            "timeout",
+            "--kill-after=5s",
+            "95",
+            "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+          ],
+          "exit_code": 0,
+          "seconds": 5.818650584002171,
+          "log": "replay.log"
+        }
+      ],
+      "counts": [
+        "REPLAY_COUNTS traces=1 steps=29"
+      ],
+      "files": {
+        "instrument.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "driver-build.log": "88cb5b0b10605d6ae470b49dbc0b0ce3bb86ef7cab8df0464158dae0dbb80d6c",
+        "worker-build.log": "ca0bf6f6cb95f471b67e3e3444582b7e92d6450bcd5bdad0bfe49a5ba24b9eed",
+        "compiled-daemon.log": "e6f81b52022fb7793082229ab19c628a6cf05eb5f555f816f2c2c9a0ff453384",
+        "lfs-quint-replay-b865d430d2ce44a896fcca89fdca902a.json": "1844798ae8608f9d7b9ff26202b7e6a1f0d937fe1ad8fb3ae2536c6a107d08c4",
+        "instrumentation.diff": "29e75790f36ee3a3ef66ad71ef1522846e607acfbe1fde0bb8fce500ca9db5d5",
+        "commands.json": "96c895b0eae5d42272562f0d14c8808d13d3b48e080bb0667fcd1bc2a1dc569f",
+        "compiled-output.log": "421ce7342aafe3686b6a54619d6f092478fe67ba0d05d81671b8691b1bc0e61d",
+        "lfs-quint-replay-b865d430d2ce44a896fcca89fdca902a.cid": "a4f0b27a9a6d8b0bb765c94fd5005d7b847e30b2ef6c4b501fd95149a3a9c4eb",
+        "identity.json": "974c2a6a80b1ade52307a21b042e70911545f38a427cf9e8d34aacfbdf6c6d1a",
+        "manifest.json": "04d2493bc1f02697d3e7949d730736b9d5962d52a560521ae3aaa120d330c2d5",
+        "replay.log": "b3525c1f5bdcb394a0e454cee92bc91fd56315678444eb2af5696c3ae0283ec8",
+        "binding-inputs.zip": "da73db758f817c96a03f745dde75fb77e0536b27e4928b53b57745c0f4d5f51c",
+        "traces/run_0.itf.json": "91e0626e3d20eaaf437705858a0b290edd340c0e4c7bf1692587fee081ac1260"
+      }
+    },
+    {
+      "path": "main-merge-smoke-no-guard",
+      "commands": [
+        {
+          "command": [
+            "python3",
+            "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/instrument.py",
+            "--plant",
+            "no_guard"
+          ],
+          "exit_code": 0,
+          "seconds": 0.07647754100253223,
+          "log": "instrument.log"
+        },
+        {
+          "command": [
+            "python3",
+            "/Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-quint-bind/quint/sandbox-reopen/build-worker.py",
+            "--resources",
+            "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json"
+          ],
+          "exit_code": 0,
+          "seconds": 3.7567934580001747,
+          "log": "worker-build.log"
+        },
+        {
+          "command": [
+            "cargo",
+            "+1.99.1",
+            "build",
+            "--manifest-path",
+            "quint/sandbox-reopen/replay/Cargo.toml",
+            "--locked",
+            "-j",
+            "2"
+          ],
+          "exit_code": 0,
+          "seconds": 0.2896197919981205,
+          "log": "driver-build.log"
+        },
+        {
+          "command": [
+            "timeout",
+            "--kill-after=5s",
+            "95",
+            "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/replay-target/debug/layerfs-reopen-replay"
+          ],
+          "exit_code": 1,
+          "seconds": 1.3796712919975107,
+          "log": "replay.log"
+        }
+      ],
+      "counts": [
+        "REPLAY_COUNTS traces=1 steps=3"
+      ],
+      "files": {
+        "lfs-quint-replay-82aae138e3194d6f8a93fa67d30a4e71.json": "649d9d220f8a65c290f00f00e4d219aea3e5786184ac6daf4d5f7e928deac402",
+        "instrument.log": "e3b0c44298fc1c149afbf4c8996fb92427ae41e4649b934ca495991b7852b855",
+        "driver-build.log": "f2066ca264b9a8598ecd436c70919e1efe1acea4098ad2a13b5d82d67bc049ec",
+        "worker-build.log": "a6445db6997cd3591189e2e1787a4db350ccf2130ec3351beaf6d64421eab338",
+        "compiled-daemon.log": "a5f4c585ee974ca44916ac30a98bbc189e067a7e0a6bc6d2e8d6bc525be724af",
+        "instrumentation.diff": "20b20a82b672d81623c3213fcb88072a3f9334d273b77036d4ed6e7fb4171ec8",
+        "commands.json": "2a07d74dfb4f48b05c14be0148a18923e165f4516ef4705e4c7fbdee31b4b1a1",
+        "compiled-output.log": "9e47667866a6300b616789cbf5322ec0055f2ee47fc76589982d82b36571b5e8",
+        "identity.json": "10300a236b4ada91a9356ec04eede5ad2cd346c0fe4626fe34faf4abef55caa2",
+        "manifest.json": "8dfcb1c61694019600e2427d6c4d7069fc77907c7b0636e120ac67a1ab5f5f62",
+        "replay.log": "3f1928a65a9747bbce6983ee0d7156526648913081ff444e82fa59cb3ddf423c",
+        "lfs-quint-replay-82aae138e3194d6f8a93fa67d30a4e71.cid": "091faa146c82c82d8104db20e6b479a40e9101fea4a2113f09abd9cc6508f110",
+        "binding-inputs.zip": "da73db758f817c96a03f745dde75fb77e0536b27e4928b53b57745c0f4d5f51c",
+        "traces/run_0.itf.json": "a325208a92dd68c163c1726b2605f72b20ef8bdd780ee3f4c2549b16522423d6"
+      }
+    }
+  ]
+}

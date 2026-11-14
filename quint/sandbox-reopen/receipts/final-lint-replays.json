@@ -1,0 +1,34 @@
+[
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-fb-lint-base",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "exit_code": 0
+  },
+  {
+    "command": [
+      "python3",
+      "quint/sandbox-reopen/run-replay.py",
+      "--resources",
+      "/Users/joshka/.cache/layerfs-worktrees/feat-sandbox-reopen-quin-d657490264ce/resources.json",
+      "--out",
+      "quint/sandbox-reopen/results/final-fb-lint-stale",
+      "--plant",
+      "no_stale_check",
+      "--seed",
+      "42",
+      "--samples",
+      "128"
+    ],
+    "exit_code": 1
+  }
+]

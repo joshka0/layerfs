@@ -1,0 +1,32 @@
+{
+  "main": "13df7f874775bafccecf7e49864588e6e9646f45",
+  "parent": "bff50fdc5df406ca77a803d8e8d6893271584858",
+  "model_files": [
+    {
+      "file": "quint/sandbox-reopen/README.md",
+      "sha256": "21413fc54ed0578cf927fa4a4854c9ca355216d8a1d4a605f4ebba98e7b01fba",
+      "matches": "origin/main"
+    },
+    {
+      "file": "quint/sandbox-reopen/sandbox_reopen.qnt",
+      "sha256": "fc1d5e2abba2440b088ab1359ce378d0144992c92c19794802054bef4da00179",
+      "matches": "origin/main"
+    },
+    {
+      "file": "quint/sandbox-reopen/sandbox_state.qnt",
+      "sha256": "57c33ffaed5a9d347abae47adea49a662fc4f9a2d381251737bea4d9f01ca6dc",
+      "matches": "origin/main"
+    },
+    {
+      "file": "quint/sandbox-reopen/check.sh",
+      "sha256": "3ea09097d6c1ca5b8e691a4a0b13816069231725a285ae92313ee3c41f5058d7",
+      "matches": "origin/main"
+    },
+    {
+      "file": "quint/sandbox-reopen/plant_stuck_stop.qnt",
+      "sha256": "11b71b59f8896269a8a48c382580c271c41338a9a79c9e6c46dd82c566c35b73",
+      "matches": "origin/main"
+    }
+  ],
+  "binding_files": "unchanged from first parent"
+}

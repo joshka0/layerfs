@@ -1,0 +1,77 @@
+[
+  {
+    "plant": "none",
+    "witness": "status",
+    "exit_code": 0
+  },
+  {
+    "plant": "none",
+    "witness": "unattached",
+    "exit_code": 0
+  },
+  {
+    "plant": "none",
+    "witness": "fallback",
+    "exit_code": 0
+  },
+  {
+    "plant": "no_kept",
+    "witness": "overlay",
+    "exit_code": 1
+  },
+  {
+    "plant": "no_guard",
+    "witness": "guard",
+    "exit_code": 1
+  },
+  {
+    "plant": "leak_guard",
+    "witness": "release",
+    "exit_code": 1
+  },
+  {
+    "plant": "boot_reclaims",
+    "witness": "boot",
+    "exit_code": 1
+  },
+  {
+    "plant": "no_running_check",
+    "witness": "running",
+    "exit_code": 1
+  },
+  {
+    "plant": "keep_failed_daemon",
+    "witness": "orphan",
+    "exit_code": 1
+  },
+  {
+    "plant": "keep_failed_daemon",
+    "witness": "failed-duplicate",
+    "exit_code": 1
+  },
+  {
+    "plant": "no_revived_report",
+    "witness": "report",
+    "exit_code": 1
+  },
+  {
+    "plant": "status_no_wait",
+    "witness": "status",
+    "exit_code": 1
+  },
+  {
+    "plant": "no_fallback",
+    "witness": "fallback",
+    "exit_code": 1
+  },
+  {
+    "plant": "count_unattached",
+    "witness": "unattached",
+    "exit_code": 1
+  },
+  {
+    "plant": "no_revive_check",
+    "witness": "running",
+    "exit_code": 0
+  }
+]

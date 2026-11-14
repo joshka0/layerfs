@@ -1,0 +1,24 @@
+{
+  "command": [
+    "docker",
+    "run",
+    "--rm",
+    "--network",
+    "none",
+    "--pull",
+    "never",
+    "--mount",
+    "type=bind,src=/tmp/quint-connect-0.1.2,dst=/published,readonly",
+    "--tmpfs",
+    "/tmp",
+    "sha256:0333b045ecc01d2f401777415e8e37ba6b7ba4d189cfbd71e73baca43a37cfcc",
+    "rustc",
+    "--edition=2024",
+    "--crate-type=lib",
+    "/published/src/value/display.rs",
+    "-o",
+    "/tmp/value-display.rlib"
+  ],
+  "exit_code": 1,
+  "scope": "Unmodified published display.rs, standalone rustc parse/type check; missing crate imports are expected, separate from E0658."
+}
