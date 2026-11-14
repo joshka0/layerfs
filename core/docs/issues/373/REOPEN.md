@@ -37,14 +37,11 @@ A reopen gets the base from the record and the engine state from the rows.
 
 - A new `workspace-<id>.record` holds `root`: the effective root of the
   binding at mount.
-- A record from before this change has no `root`. It reopens on the current
-  root of its branch only when the caller passes `legacyHead`
-  (`lfs reopen <project> --legacy-head`): the operator accepts that the
-  branch did not move after the mount. The operator chose this on 2026-11-14,
-  on the measured fact that no saved branch had a commit after its mount.
-  Without `legacyHead` such a record does not reopen. `vm-boot.sh` never
-  passes it. The flag is removed once the overlays of 2026-11-14 are
-  reopened.
+- A record from before this change has no `root`, and does not reopen: its
+  Workspace shows `mounted: false` with the reason `its record has no saved
+  base root (written before reopen existed)`. (The `legacyHead` option that
+  reopened such records on the branch head served the overlays of
+  2026-11-14; it was removed once they were reopened.)
 - The daemon binds the reopened Workspace only when the branch's current
   effective root equals the base the SDK sends. It never rebases.
 
@@ -253,8 +250,7 @@ the tests from it. Each item names a way the feature can fail.
   new pid, start time and daemon instance, so the next call dials a dead
   daemon or fails the instance check.
 - F31. A record with `root` reopens on a branch whose root moved.
-- F32. A record without `root` reopens when the caller did not pass
-  `legacyHead`, or `vm-boot.sh apply` passes `--legacy-head`.
+- F32. A record without `root` reopens.
 - F33. One Workspace that fails to reopen stops the reopen of the other
   Workspaces of the Sandbox, or deletes its record or overlay.
 - F34. `operator.sandbox.reopen` restarts a Sandbox whose daemon runs.
