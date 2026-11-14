@@ -3,7 +3,7 @@
 //! each Workspace at its saved path (core/docs/issues/373/REOPEN.md). Every
 //! check and action runs under the project's guard and the Sandbox's guard.
 #[cfg(target_os = "linux")]
-use super::revive_rules::{self, Base, Found, Next};
+use super::revive_rules::{self, Found, Next};
 use super::*;
 
 /// One saved Workspace record of a Sandbox.
@@ -97,17 +97,16 @@ pub(crate) fn holds_overlays(args: &SdkValue, id: &str) -> Result<bool> {
     }
 }
 
-/// `operator.sandbox.reopen({ legacyHead? })`: for each process Sandbox of
+/// `operator.sandbox.reopen()`: for each process Sandbox of
 /// the project with a saved Workspace record, start its daemon again if it
 /// ended and holds a saved overlay, and reopen each saved Workspace; a record
 /// whose overlay file is gone is listed as not mounted. The answer shape is in
 /// REOPEN.md, Interfaces.
 pub(crate) fn reopen_all(args: &SdkValue) -> crate::job::Outcome {
-    let legacy_head = args.get_bool("legacyHead");
     let _placing = guard(&project_dir(args)?)?;
     let mut sandboxes = Vec::new();
     for id in sandbox_ids(args)? {
-        if let Some(item) = revive(args, &id, legacy_head)? {
+        if let Some(item) = revive(args, &id)? {
             sandboxes.push(item.0);
         }
     }
@@ -123,15 +122,14 @@ pub(crate) fn reopen_all(args: &SdkValue) -> crate::job::Outcome {
 pub(crate) fn revive(
     args: &SdkValue,
     id: &str,
-    legacy_head: bool,
 ) -> Result<Option<(SdkValue, Option<Arc<SandboxState>>)>> {
     #[cfg(target_os = "linux")]
     {
-        revive_process(args, id, legacy_head)
+        revive_process(args, id)
     }
     #[cfg(not(target_os = "linux"))]
     {
-        let _ = (args, id, legacy_head);
+        let _ = (args, id);
         Ok(None)
     }
 }
@@ -140,7 +138,6 @@ pub(crate) fn revive(
 fn revive_process(
     args: &SdkValue,
     id: &str,
-    legacy_head: bool,
 ) -> Result<Option<(SdkValue, Option<Arc<SandboxState>>)>> {
     use layerfs_sandbox::backend::process;
     let directory = sandbox_dir(args, id)?;
@@ -229,7 +226,7 @@ fn revive_process(
             let result = if served.contains(&saved.path) {
                 Ok(false)
             } else {
-                reattach(args, &state, saved, legacy_head).map(|()| true)
+                reattach(args, &state, saved).map(|()| true)
             };
             outcome(saved, result)
         })
@@ -424,13 +421,9 @@ fn reattach(
     args: &SdkValue,
     state: &SandboxState,
     saved: &SavedWorkspace,
-    legacy_head: bool,
 ) -> std::result::Result<(), String> {
     let branch = crate::direct::branch_id(args, &saved.branch).map_err(|r| r.message)?;
-    let root = match revive_rules::base(saved.root, legacy_head)? {
-        Base::Saved(root) => root,
-        Base::BranchHead => crate::direct::branch_root(args, branch).map_err(|r| r.message)?,
-    };
+    let root = revive_rules::base(saved.root)?;
     let mounted = {
         let mut control = crate::trace::control(&state.controls).map_err(|r| r.message)?;
         workspace(&mut control).reopen(saved.workspace, branch, saved.namespace, root)

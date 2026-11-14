@@ -1,0 +1,21 @@
+# names phase on the pre-fix bundle 5f106ea97: N1 and N2 red (EINVAL), N3 green
+command: REOPEN_E2E_PHASES='names' tools/orbstack/reopen-e2e.sh /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/run-names-pre /Users/joshka/.local/share/lfs-vm/bundle-reopen-5f106ea97
+repo: /Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-tests 5cb9f5cc20d7235a536da149effe82bd0c2c68f3 dirty=0
+584c69c774fe7ae642be35cd2701ae25ce5994c059d23bfbd46eef327d11a8fa  /Users/joshka/.local/share/lfs-vm/bundle-reopen-5f106ea97/layerfs-daemon
+2c15bae84df85f25a537f6bedc2ab4119a6102f288d4d91739821602ed07bf7c  /Users/joshka/.local/share/lfs-vm/bundle-reopen-5f106ea97/layerfs.node
+2026-11-14T14:43:11Z
+phase names exit 1
+
+FAIL N1 stat and open of a missing a\b answer ENOENT: Expected values to be strictly equal: |  | 'EINVAL' !== 'ENOENT' | 
+FAIL N1 the agent's shell: stat of a missing a\b says No such file: stat: cannot statx 'a\b': Invalid argument | rc=1 | 
+FAIL N2 mkdir, create and rename to names with a backslash work through the mount: EINVAL: invalid argument, mkdir '/var/lib/layerfs/sandboxes/lfs-rnames-1/workspaces/1/d\1'
+FAIL N2 the agent's shell creates and lists a name with a backslash: exec "mkdir 'sh\\dir' && printf agent > 'sh\\dir/a\\b' && ls 'sh\\dir'" exit 1: mkdir: cannot create directory 'sh\\dir': Invalid argument |  |  | 1 !== 0 | 
+FAIL N2 readdir lists each backslash name byte-exact: "d\\1" missing from ["README.md","del.txt","keep.sh","src","trunc.bin"]
+PASS N3 a name that is not UTF-8 (a\xff) is refused EINVAL for mkdir, create and rename
+FAIL N2 commit publishes the backslash names: InvalidInput: `/new\name` is not valid
+FAIL N2 a new mount reads every backslash name back byte-exact: "d\\1" missing after remount: ["README.md","del.txt","keep.sh","src","src.txt","trunc.bin"]
+PASS setup names the phase ran to its end
+PHASE names FAILED 7
+BASELINE-UNUSED F20 rmain a: unmount without discard succeeds after the commit [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F20 rmain b: unmount with discard deletes the reopened overlay file [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F35 setup: a new saved Workspace, then SIGKILL [core/docs/issues/unmount-join/README.md]
