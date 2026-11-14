@@ -62,9 +62,12 @@ const refusedOnlyWith = (allowed, results) => {
   const bad = wrongCodes(allowed, results);
   assert.deepEqual(bad, [], `racing calls refused with a wrong code: ${JSON.stringify(bad)}`);
 };
-// A listing item names its Sandbox by number or by folder name.
-const lists = (value, id, folder) => (Array.isArray(value) ? value : []).some((item) =>
+// A listing item names its Sandbox by number or by folder name. While it
+// restarts, an item that carries a state carries `restarting` or a live one
+// (REOPEN.md Interfaces at d08e3b656).
+const listed = (value, id, folder) => (Array.isArray(value) ? value : []).find((item) =>
   item && (item.id === id || item.sandbox === id || item.name === folder));
+const lists = (value, id, folder) => Boolean(listed(value, id, folder));
 const labelled = (call, promise) => promise.then((r) => ({ call, ...r }));
 
 export const racesPhases = {
@@ -114,9 +117,11 @@ export const racesPhases = {
         const folder = sandboxRoot(ws.path).split("/").pop();
         const bad = wrongCodes(RESTARTING, results);
         const missing = results.filter((r) => r.call === "list" && r.ok && !lists(r.value, ws.sandbox, folder));
+        const badState = results.filter((r) => r.call === "list" && r.ok
+          && ["failed", "ended"].includes(listed(r.value, ws.sandbox, folder)?.state));
         const notReal = results.filter((r) => r.call === "status" && r.ok && (r.value?.kind !== "ok" || r.value?.branch !== "w"));
-        const found = { wrongCodes: bad, listingsWithoutTheSandbox: missing, statusNotFromTheRestartedDaemon: notReal };
-        const none = { wrongCodes: [], listingsWithoutTheSandbox: [], statusNotFromTheRestartedDaemon: [] };
+        const found = { wrongCodes: bad, listingsWithoutTheSandbox: missing, listedAsEnded: badState, statusNotFromTheRestartedDaemon: notReal };
+        const none = { wrongCodes: [], listingsWithoutTheSandbox: [], listedAsEnded: [], statusNotFromTheRestartedDaemon: [] };
         assert.deepEqual(found, none, JSON.stringify(found));
       });
       await check("F41", `${project}: precondition: the slow restart itself succeeded`, () => {
@@ -221,6 +226,9 @@ export const racesPhases = {
       await l.branch.fork("w");
       await l.branch.fork("w2");
       const ws = await l.workspace.mount("w");
+      await check("F44", "rrace7: a mount with no failed revive answers an empty `revived`", () => {
+        assert.deepEqual(ws.revived, [], JSON.stringify(ws));
+      });
       await sh(l, ws, "echo old > o.txt");
       const root = sandboxRoot(ws.path);
       const folder = root.split("/").pop();
@@ -240,7 +248,10 @@ export const racesPhases = {
         assert.ok(Array.isArray(revived), `no revived list: ${JSON.stringify(mounted.value)}`);
         const box = revived.find((b) => b.id === ws.sandbox || b.name === folder);
         assert.ok(box, `revived does not name Sandbox ${ws.sandbox}: ${JSON.stringify(revived)}`);
+        assert.equal(box.state, "failed", JSON.stringify(box));
+        assert.ok(typeof box.reason === "string" && box.reason.length > 0, `no Sandbox reason: ${JSON.stringify(box)}`);
         const item = (box.workspaces ?? []).find((w) => w.path === ws.path);
+        assert.equal(item?.mounted, false, JSON.stringify(box));
         assert.ok(typeof item?.reason === "string" && item.reason.length > 0, `no reason for ${ws.path}: ${JSON.stringify(box)}`);
       });
       await check("F44 F26 F33", "rrace7: the old Sandbox's records and overlay stay", () => {
