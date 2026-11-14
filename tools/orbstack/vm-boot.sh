@@ -25,7 +25,8 @@ apply() {
       $tool -A OUTPUT -m owner --uid-owner 501 -o lo -j ACCEPT
       $tool -A OUTPUT -m owner --uid-owner 501 -m conntrack --ctstate ESTABLISHED -j ACCEPT
     done
-    iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
+    # The Mac av-proxy, from lfs-proxy-apply.sh; a new workbench has none until that runs.
+    [ -z "${PROXY_IP:-}" ] || iptables -A OUTPUT -m owner --uid-owner 501 -d "$PROXY_IP" -p tcp --dport "$PROXY_PORT" -j ACCEPT
     iptables -A OUTPUT -m owner --uid-owner 501 -d "$GATEWAY" -p tcp --dport "$BRIDGE_PORT" -j ACCEPT
     if [ "${EGRESS:-}" = gateway ]; then
       gateway_egress

@@ -186,7 +186,7 @@ docker exec $name mkdir -p /opt/sfw/dist /opt/sfw/.sfw-cache
 docker exec -i $name sh -c 'cat > /opt/sfw/dist/sfw.mjs' < "$sfw_package/dist/sfw.mjs"
 docker exec -i $name sh -c 'cat > /opt/sfw/package.json' < "$sfw_package/package.json"
 
-docker exec -i -e PROXY_IP="$gateway" -e PROXY_PORT="$shim_port" \
+docker exec -i \
   -e GATEWAY="$gateway" -e BRIDGE_PORT="$bridge_port" -e GIT_SSH_HOSTS="$git_ssh_hosts" \
   -e SERVICE_FORWARDS="$service_forwards" -e TCP_EGRESS="$tcp_egress" -e SANDBOX_PREFIX="$sandbox_prefix" $name bash -s <<'SETUP'
 set -eu
@@ -196,8 +196,9 @@ data=/var/lib/layerfs-data
 mkdir -p "$data/home" "$data/stores" "$data/agent-home" "$data/ssh-host-keys" /etc/lfs-vm
 chmod 700 "$data/ssh-host-keys"
 # The sibling services, forwarded to loopback (<port>:<host>:<port>).
-printf 'PROXY_IP=%s\nPROXY_PORT=%s\nGATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\nTCP_EGRESS="%s"\n' \
-  "$PROXY_IP" "$PROXY_PORT" "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" "$TCP_EGRESS" > /etc/lfs-vm/boot.env
+# PROXY_IP and PROXY_PORT come later, from lfs-proxy-apply.sh, with the agents' proxy.env.
+printf 'GATEWAY=%s\nBRIDGE_PORT=%s\nGIT_SSH_HOSTS="%s"\nSERVICE_FORWARDS="%s"\nTCP_EGRESS="%s"\n' \
+  "$GATEWAY" "$BRIDGE_PORT" "$GIT_SSH_HOSTS" "$SERVICE_FORWARDS" "$TCP_EGRESS" > /etc/lfs-vm/boot.env
 chmod 700 "$data/home"
 ln -sfn "$data/agent-home" /home/agent
 # The Mac's ~/vaults/wiki/summaries is a link to the fleet-memory summaries.
@@ -280,10 +281,10 @@ SETUP
 [ -z "$service_forwards" ] || docker compose -f "$repo/tools/orbstack/services.compose.yml" \
   -f "$repo/tools/orbstack/services.orb.yml" up -d --quiet-pull
 
-# The proxy for every agent shell: ~/.lfs/profile.sh loads it (and the
-# bridge session the Herdr plugin writes). It holds no token.
-"$repo/tools/orbstack/lfs-proxy-env.sh" $name --vault "${AGENT_VAULT_VAULT:?run lfs-vm.sh through agent-vault-run <vault>}" --shim "$gateway:$shim_port" \
-  | docker exec -i -u 501:20 $name sh -c 'umask 077; mkdir -p /home/agent/.lfs; cat > /home/agent/.lfs/proxy.env'
+# The proxy for every agent shell (~/.lfs/profile.sh loads proxy.env, with the bridge session the
+# Herdr plugin writes) and the one proxy address the agent firewall allows, both from one shim
+# address. The cutover of an existing workbench runs the same script.
+"$repo/tools/orbstack/lfs-proxy-apply.sh" $name --vault "${AGENT_VAULT_VAULT:?run lfs-vm.sh through agent-vault-run <vault>}" --shim "$gateway:$shim_port"
 docker exec -i -u 501:20 $name sh -s <<'PROFILE'
 umask 022
 cat > /home/agent/.lfs/profile.sh <<'SH'
