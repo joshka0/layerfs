@@ -43,16 +43,21 @@ cleanup() {
 trap cleanup EXIT
 
 {
-  echo "command: $0 $*"
+  echo "command: REOPEN_E2E_PHASES='${REOPEN_E2E_PHASES:-}' $0 $*"
   echo "repo: $repo $(git -C "$repo" rev-parse HEAD) dirty=$(git -C "$repo" status --porcelain | wc -l | tr -d ' ')"
   shasum -a 256 "$bundle"/layerfs-daemon "$bundle"/layerfs.node
   [[ -n $legacy_bundle ]] && shasum -a 256 "$legacy_bundle"/layerfs-daemon "$legacy_bundle"/layerfs.node
   date -u +%Y-%m-%dT%H:%M:%SZ
 } > "$report/run.txt"
 
+# REOPEN_E2E_PHASES="races live" runs only those phases (each must stand
+# alone: races and live do); the default is every phase in order.
+selected=" ${REOPEN_E2E_PHASES:-seed-legacy seed tamper check boot-unmounted boot live races} "
+
 # phase <name> <sdk-dir> <bundle-dir> [sandbox volume: yes|no]
 phase() {
   local name=$1 sdk=$2 bun=$3 with_sbx=${4:-yes}
+  [[ $selected == *" $name "* ]] || return 0
   local vols=(-v $data:/var/lib/layerfs-data)
   [[ $with_sbx == yes ]] && vols+=(-v $sbx:/var/lib/layerfs)
   docker rm -f $run_id >/dev/null 2>&1

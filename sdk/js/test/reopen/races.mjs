@@ -22,7 +22,7 @@ import {
 } from "./harness.mjs";
 
 // One SDK or operator call in a new node process; prints {ok, code}.
-function callInChild(project, call) {
+function callInChild(project, call, env = {}) {
   const script = `
     const { LayerFS } = await import(${JSON.stringify(SDK)});
     const { LayerFSOperator } = await import(${JSON.stringify(OPERATOR)});
@@ -32,7 +32,7 @@ function callInChild(project, call) {
     catch (e) { console.log(JSON.stringify({ ok: false, code: e.code ?? null, message: String(e.message).split("\\n")[0] })); }
     process.exit(0);`;
   return new Promise((resolve) => {
-    const child = spawn("node", ["--input-type=module", "-e", script]);
+    const child = spawn("node", ["--input-type=module", "-e", script], { env: { ...process.env, ...env } });
     let out = "";
     child.stdout.on("data", (d) => { out += d; });
     child.stderr.on("data", (d) => { out += d; });
@@ -81,8 +81,12 @@ export const racesPhases = {
       });
     }
 
-    // F41b: listings and Workspace calls race a reopen of a dead Sandbox with
-    // a saved Workspace. The race is timing-dependent: three rounds per run.
+    // F41b: listings and Workspace calls meet a Sandbox mid-restart. The
+    // restart's daemon delays its listen line by 2 s (its output passes a
+    // pipe that opens after 2 s), so the restart window is open when the
+    // other calls start 0.5 s later: no timing luck needed.
+    const slow = "/usr/local/bin/slow-layerfs-daemon";
+    writeFileSync(slow, '#!/bin/sh\n/opt/layerfs/bundle/layerfs-daemon "$@" 2>&1 | { sleep 2; cat; }\n', { mode: 0o755 });
     for (const project of ["rrace4", "rrace4b", "rrace4c"]) {
       const l = open(project);
       await init(l, BASE);
@@ -92,8 +96,10 @@ export const racesPhases = {
       killDaemons();
       await until("the daemons to die", () => daemons().length === 0);
       const wsArg = JSON.stringify({ sandbox: ws.sandbox, path: ws.path });
+      const restarting = labelled("reopen", callInChild(project, "(l, op) => op.sandbox.reopen()", { LAYERFS_DAEMON: slow }));
+      await new Promise((r) => setTimeout(r, 500));
       const results = await Promise.all([
-        labelled("reopen", callInChild(project, "(l, op) => op.sandbox.reopen()")),
+        restarting,
         ...Array.from({ length: 4 }, () => labelled("list", callInChild(project, "(l, op) => op.sandbox.list()"))),
         ...Array.from({ length: 2 }, () => labelled("status", callInChild(project, `(l) => l.workspace.status(${wsArg})`))),
       ]);
@@ -101,7 +107,11 @@ export const racesPhases = {
         const folder = sandboxRoot(ws.path).split("/").pop();
         const bad = wrongCodes(RESTARTING, results);
         const missing = results.filter((r) => r.call === "list" && r.ok && !lists(r.value, ws.sandbox, folder));
-        assert.deepEqual({ wrongCodes: bad, listingsWithoutTheSandbox: missing }, { wrongCodes: [], listingsWithoutTheSandbox: [] });
+        const found = { wrongCodes: bad, listingsWithoutTheSandbox: missing };
+        assert.deepEqual(found, { wrongCodes: [], listingsWithoutTheSandbox: [] }, JSON.stringify(found));
+      });
+      await check("F41", `${project}: precondition: the slow restart itself succeeded`, () => {
+        assert.equal(results[0].ok, true, JSON.stringify(results[0]));
       });
       await check("F41 F35", `${project}: after the race the saved Workspace is mounted and intact`, async () => {
         const answer = lfsCli("reopen", project);
