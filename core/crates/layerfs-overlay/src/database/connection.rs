@@ -83,6 +83,13 @@ impl Overlay {
         crate::database::startup::copy_template(path, config, template)
     }
 
+    /// Opens a saved overlay file of an ended daemon as it is: no create, no
+    /// copy, no schema change. The caller binds its Workspace with
+    /// [`Self::resume_workspace`].
+    pub fn reopen_observed(path: &Path, config: ProfileConfig) -> crate::Creation {
+        crate::database::startup::reopen(path, config)
+    }
+
     /// Checked close of the sole disposable connection. It performs no sync.
     /// Callers establish all request/capture/handle fences before consuming it.
     /// The path is retained on failure; close never authorizes an implicit replay.

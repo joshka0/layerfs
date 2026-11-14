@@ -1,0 +1,368 @@
+//! Process Sandboxes found with their daemon ended while they hold saved
+//! Workspace overlays: start the daemon again on the saved folder and reopen
+//! each Workspace at its saved path (core/docs/issues/373/REOPEN.md). Every
+//! check and action runs under the project's guard and the Sandbox's guard.
+#[cfg(target_os = "linux")]
+use super::revive_rules::{self, Base, Found, Next};
+use super::*;
+
+/// One saved Workspace record of a Sandbox whose overlay file exists.
+#[cfg(target_os = "linux")]
+pub(crate) struct SavedWorkspace {
+    path: String,
+    branch: String,
+    workspace: layerfs_history::WorkspaceId,
+    namespace: i64,
+    root: Option<[u8; 32]>,
+}
+
+/// The saved Workspaces of Sandbox folder `directory` whose overlay file
+/// `<root>/overlay/<namespace>.sqlite` exists, by namespace.
+#[cfg(target_os = "linux")]
+fn saved(directory: &Path, root: &Path) -> Result<Vec<SavedWorkspace>> {
+    let mut found = Vec::new();
+    for item in fs::read_dir(directory).map_err(failed)? {
+        let item = item.map_err(failed)?;
+        let name = item.file_name().to_string_lossy().into_owned();
+        if !(name.starts_with("workspace-") && name.ends_with(".record")) {
+            continue;
+        }
+        let value = load(&item.path())?;
+        let namespace = value
+            .get_int("namespace")
+            .ok_or_else(|| refused("InvalidInput", "namespace"))?;
+        if !root
+            .join("overlay")
+            .join(format!("{namespace}.sqlite"))
+            .is_file()
+        {
+            continue;
+        }
+        found.push(SavedWorkspace {
+            path: registry::text(&value, "path")?.to_owned(),
+            branch: registry::text(&value, "branch")?.to_owned(),
+            workspace: layerfs_history::WorkspaceId::from_slice(&bytes::<32>(&value, "workspace")?)
+                .map_err(failed)?,
+            namespace,
+            root: match value.get("root") {
+                Some(SdkValue::Bytes(_)) => Some(bytes::<32>(&value, "root")?),
+                _ => None,
+            },
+        });
+    }
+    found.sort_by_key(|saved| saved.namespace);
+    Ok(found)
+}
+
+/// A process Sandbox's folder, saved pid and start time, and its saved
+/// Workspaces with an overlay file.
+#[cfg(target_os = "linux")]
+type SavedProcess = (
+    layerfs_sandbox::backend::process::Layout,
+    u32,
+    u64,
+    Vec<SavedWorkspace>,
+);
+/// The process Sandbox a record names and its saved Workspaces with an
+/// overlay file; `None` for another runtime.
+#[cfg(target_os = "linux")]
+fn process(directory: &Path, value: &SdkValue) -> Result<Option<SavedProcess>> {
+    match runtime(value)? {
+        Saved::Process(layout, pid, start) => {
+            let saved = saved(directory, &layout.directory)?;
+            Ok(Some((layout, pid, start, saved)))
+        }
+        Saved::Docker(..) => Ok(None),
+    }
+}
+
+/// True when Sandbox `id` is a process Sandbox holding a saved Workspace
+/// overlay: discovery must not reclaim it.
+pub(crate) fn holds_overlays(args: &SdkValue, id: &str) -> Result<bool> {
+    #[cfg(target_os = "linux")]
+    {
+        let directory = sandbox_dir(args, id)?;
+        let record = directory.join("sandbox.record");
+        if !record.exists() {
+            return Ok(false);
+        }
+        let value = load(&record)?;
+        Ok(process(&directory, &value)?.is_some_and(|(.., saved)| !saved.is_empty()))
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (args, id);
+        Ok(false)
+    }
+}
+
+/// `operator.sandbox.reopen({ legacyHead? })`: for each process Sandbox of
+/// the project that holds a saved Workspace overlay, start its daemon again
+/// if it ended and reopen each saved Workspace. The answer shape is in
+/// REOPEN.md, Interfaces.
+pub(crate) fn reopen_all(args: &SdkValue) -> crate::job::Outcome {
+    let legacy_head = args.get_bool("legacyHead");
+    let _placing = guard(&project_dir(args)?)?;
+    let mut sandboxes = Vec::new();
+    for id in sandbox_ids(args)? {
+        if let Some(item) = revive(args, &id, legacy_head)? {
+            sandboxes.push(item.0);
+        }
+    }
+    Ok(SdkValue::map([
+        ("kind", SdkValue::text("ok")),
+        ("sandboxes", SdkValue::List(sandboxes)),
+    ]))
+}
+
+/// Revives Sandbox `id` under the caller's project guard: its answer item and,
+/// when its daemon serves, its state. `None` when it is no process Sandbox
+/// with a saved Workspace overlay.
+pub(crate) fn revive(
+    args: &SdkValue,
+    id: &str,
+    legacy_head: bool,
+) -> Result<Option<(SdkValue, Option<Arc<SandboxState>>)>> {
+    #[cfg(target_os = "linux")]
+    {
+        revive_process(args, id, legacy_head)
+    }
+    #[cfg(not(target_os = "linux"))]
+    {
+        let _ = (args, id, legacy_head);
+        Ok(None)
+    }
+}
+
+#[cfg(target_os = "linux")]
+fn revive_process(
+    args: &SdkValue,
+    id: &str,
+    legacy_head: bool,
+) -> Result<Option<(SdkValue, Option<Arc<SandboxState>>)>> {
+    use layerfs_sandbox::backend::process;
+    let directory = sandbox_dir(args, id)?;
+    let _guard = guard(&directory)?;
+    let record = directory.join("sandbox.record");
+    if !record.exists() {
+        return Ok(None);
+    }
+    let value = load(&record)?;
+    let Some((layout, pid, start, saved)) = process(&directory, &value)? else {
+        return Ok(None);
+    };
+    if saved.is_empty() {
+        return Ok(None);
+    }
+    let name = value.get_text("name").unwrap_or_default().to_owned();
+    let item = |state: &str, reason: Option<String>, workspaces: Vec<SdkValue>| {
+        SdkValue::map([
+            ("id", SdkValue::text(id)),
+            ("name", SdkValue::text(&name)),
+            ("state", SdkValue::text(state)),
+            ("reason", SdkValue::opt_text(reason)),
+            ("workspaces", SdkValue::List(workspaces)),
+        ])
+    };
+    let not_reopened = |reason: &str| -> Vec<SdkValue> {
+        saved
+            .iter()
+            .map(|saved| outcome(saved, Err(reason.to_owned())))
+            .collect()
+    };
+    let found = match process::Sandbox::reopen(layout.clone(), pid, start) {
+        Ok(_) => Found::Running,
+        Err(error) if error.kind() == std::io::ErrorKind::NotFound => Found::Ended,
+        Err(error) => {
+            let reason = format!("saved daemon could not be observed: {error}");
+            return Ok(Some((
+                item("failed", Some(reason.clone()), not_reopened(&reason)),
+                None,
+            )));
+        }
+    };
+    let restart = match revive_rules::next(found, saved.len()) {
+        Next::Use => false,
+        Next::Reclaim => return Ok(None),
+        Next::Restart => true,
+    };
+    // A running daemon may lack saved Workspaces: a reopen that stopped after
+    // the restart. Those are reopened on it; the ones it serves are left.
+    let started = if restart {
+        restart_daemon(args, id, &directory, &value, &name, layout, pid, start)
+    } else {
+        reopen(&registry::naming(args, id))
+    };
+    let state = match started {
+        Ok(state) => state,
+        Err(refusal) => {
+            let reason = refusal.message;
+            return Ok(Some((
+                item("failed", Some(reason.clone()), not_reopened(&reason)),
+                None,
+            )));
+        }
+    };
+    let served = registry::lock(&state.mounts)?
+        .keys()
+        .cloned()
+        .collect::<std::collections::BTreeSet<_>>();
+    let workspaces = saved
+        .iter()
+        .map(|saved| {
+            let result = if served.contains(&saved.path) {
+                Ok(false)
+            } else {
+                reattach(args, &state, saved, legacy_head).map(|()| true)
+            };
+            outcome(saved, result)
+        })
+        .collect();
+    let label = if restart { "restarted" } else { "running" };
+    Ok(Some((item(label, None, workspaces), Some(state))))
+}
+
+/// Starts the daemon of a saved Sandbox again and saves its new identity.
+#[cfg(target_os = "linux")]
+#[allow(clippy::too_many_arguments)]
+fn restart_daemon(
+    args: &SdkValue,
+    id: &str,
+    directory: &Path,
+    value: &SdkValue,
+    name: &str,
+    layout: layerfs_sandbox::backend::process::Layout,
+    pid: u32,
+    start: u64,
+) -> Result<Arc<SandboxState>> {
+    use layerfs_sandbox::backend::process;
+    let executable = PathBuf::from(registry::text(
+        args.get("deploy")
+            .ok_or_else(|| refused("InvalidInput", "missing `deploy`"))?,
+        "daemon",
+    )?);
+    let sandbox = process::Sandbox::restart(&executable, layout.clone(), pid, start, STARTUP)
+        .map_err(|failure| {
+            let tail = failure
+                .sandbox
+                .as_ref()
+                .and_then(|s| s.log_tail(2048).ok())
+                .map(|b| String::from_utf8_lossy(&b).trim_end().to_owned())
+                .unwrap_or_default();
+            refused(
+                "Failed",
+                format!(
+                    "daemon restart stopped at {:?}: {}{}",
+                    failure.phase,
+                    failure.cause,
+                    if tail.is_empty() {
+                        String::new()
+                    } else {
+                        format!("; log: {tail}")
+                    }
+                ),
+            )
+        })?;
+    let runtime = Runtime::Process(sandbox);
+    let directory = directory.to_owned();
+    let name = name.to_owned();
+    let mut dial = crate::pool::Dial {
+        endpoint: runtime.endpoint().map_err(failed)?,
+        host: crate::pool::daemon_host(args),
+        secret: bytes(value, "secret")?,
+        peer: bytes(value, "peer")?,
+        instance: [0; 32],
+    };
+    let (control, instance) = dial.first()?;
+    dial.instance = instance;
+    let (secret, peer) = (dial.secret, dial.peer);
+    let state = Arc::new(SandboxState {
+        id: id.to_owned(),
+        project: registry::text(value, "project")?.to_owned(),
+        name: name.clone(),
+        directory: directory.clone(),
+        runtime,
+        identity: CommandIdentity { uid: 501, gid: 20 },
+        controls: crate::pool::Controls::new(control, dial),
+        mounts: Default::default(),
+        processes: Default::default(),
+    });
+    save_sandbox(&directory, &state, args, secret, peer, instance)?;
+    replace_text(&directory.join("container"), &state.runtime.identity())?;
+    registry::lock(&registry::SANDBOXES)?.insert(directory.clone(), state.clone());
+    Ok(state)
+}
+
+/// The plain `container` text beside the record, replaced in one rename.
+#[cfg(target_os = "linux")]
+fn replace_text(path: &Path, text: &str) -> Result<()> {
+    let temp = path.with_extension(format!("{}.new", std::process::id()));
+    save_text(&temp, text)?;
+    fs::rename(&temp, path).map_err(failed)
+}
+
+/// One Workspace of the answer: `Ok(true)` reopened by this call,
+/// `Ok(false)` already served by the running daemon, `Err` not mounted.
+/// `reason` is `None` exactly when `reopened` is true.
+#[cfg(target_os = "linux")]
+fn outcome(saved: &SavedWorkspace, result: std::result::Result<bool, String>) -> SdkValue {
+    let (mounted, reopened, reason) = match result {
+        Ok(true) => (true, true, None),
+        Ok(false) => (true, false, Some("already mounted".to_owned())),
+        Err(reason) => (false, false, Some(reason)),
+    };
+    SdkValue::map([
+        ("path", SdkValue::text(&saved.path)),
+        (
+            "workspace",
+            SdkValue::text(layerfs_bridge::sdk_values::hex(&saved.workspace.to_bytes())),
+        ),
+        ("namespace", SdkValue::Int(saved.namespace)),
+        ("branch", SdkValue::text(&saved.branch)),
+        ("mounted", SdkValue::Bool(mounted)),
+        ("reopened", SdkValue::Bool(reopened)),
+        ("reason", SdkValue::opt_text(reason)),
+    ])
+}
+
+/// Reopens one saved Workspace on the restarted daemon `state` and saves its
+/// record again, now with its root. Its record and overlay stay on failure.
+#[cfg(target_os = "linux")]
+fn reattach(
+    args: &SdkValue,
+    state: &SandboxState,
+    saved: &SavedWorkspace,
+    legacy_head: bool,
+) -> std::result::Result<(), String> {
+    let branch = crate::direct::branch_id(args, &saved.branch).map_err(|r| r.message)?;
+    let root = match revive_rules::base(saved.root, legacy_head)? {
+        Base::Saved(root) => root,
+        Base::BranchHead => crate::direct::branch_root(args, branch).map_err(|r| r.message)?,
+    };
+    let mounted = {
+        let mut control = crate::trace::control(&state.controls).map_err(|r| r.message)?;
+        workspace(&mut control).reopen(saved.workspace, branch, saved.namespace, root)
+    }
+    .map_err(|failure| format!("{failure:?}"))?;
+    if mounted.ready.directory != saved.path {
+        return Err(format!(
+            "reopened at {}, not its saved path",
+            mounted.ready.directory
+        ));
+    }
+    save_workspace(state, &mounted, &saved.branch).map_err(|r| r.message)?;
+    registry::lock(&state.mounts)
+        .map_err(|r| r.message)?
+        .insert(
+            mounted.ready.directory.clone(),
+            Mount {
+                workspace: mounted,
+                branch: saved.branch.clone(),
+            },
+        );
+    Ok(())
+}
+
+/// Wait for a restarted daemon's listener.
+#[cfg(target_os = "linux")]
+const STARTUP: Duration = Duration::from_secs(30);

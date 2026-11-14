@@ -52,15 +52,34 @@ pub struct CreationWork {
     pub elapsed_ns: u64,
 }
 
+/// Where the startup's file comes from.
+#[derive(Clone, Copy)]
+enum Source<'a> {
+    /// A new file with the schema.
+    Fresh,
+    /// A new file copied from a closed empty template.
+    Template(&'a Path),
+    /// A saved overlay file of an ended daemon, opened as it is.
+    Existing,
+}
+
 pub(crate) fn create(path: &Path, config: ProfileConfig) -> Creation {
-    initialize(path, config, None)
+    initialize(path, config, Source::Fresh)
 }
 
 pub(crate) fn copy_template(path: &Path, config: ProfileConfig, template: &Path) -> Creation {
-    initialize(path, config, Some(template))
+    initialize(path, config, Source::Template(template))
 }
 
-fn initialize(path: &Path, config: ProfileConfig, template: Option<&Path>) -> Creation {
+pub(crate) fn reopen(path: &Path, config: ProfileConfig) -> Creation {
+    initialize(path, config, Source::Existing)
+}
+
+fn initialize(path: &Path, config: ProfileConfig, source: Source<'_>) -> Creation {
+    let template = match source {
+        Source::Template(template) => Some(template),
+        Source::Fresh | Source::Existing => None,
+    };
     let start = Instant::now();
     let sql = RefCell::new(DatabaseWork::default());
     let mut work = CreationWork::default();
@@ -70,13 +89,18 @@ fn initialize(path: &Path, config: ProfileConfig, template: Option<&Path>) -> Cr
             return Err(crate::OverlayError::UnsupportedPlatform);
         }
         let mut options = OpenOptions::new();
-        options.write(true).create_new(true);
-        #[cfg(unix)]
-        {
-            use std::os::unix::fs::OpenOptionsExt;
-            options.mode(0o600);
+        if matches!(source, Source::Existing) {
+            // never created, truncated or copied over: its rows are the Workspace
+            options.read(true).write(true);
+        } else {
+            options.write(true).create_new(true);
+            #[cfg(unix)]
+            {
+                use std::os::unix::fs::OpenOptionsExt;
+                options.mode(0o600);
+            }
+            work.file_create_calls = 1;
         }
-        work.file_create_calls = 1;
         let mut file = options.open(path)?;
         if let Some(template) = template {
             let mut source = std::fs::File::open(template)?;
@@ -128,7 +152,7 @@ fn initialize(path: &Path, config: ProfileConfig, template: Option<&Path>) -> Cr
             &sql,
             &mut work.connection_configuration_calls,
         )?;
-        if template.is_none() {
+        if matches!(source, Source::Fresh) {
             crate::diagnostics::startup::batch(
                 &connection,
                 &sql,

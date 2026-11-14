@@ -6,6 +6,7 @@ use super::{
 };
 use crate::OwnerWork;
 use layerfs_overlay::{Overlay, ProfileConfig};
+use layerfs_workspace::Route;
 use std::{
     collections::BTreeMap,
     path::{Path, PathBuf},
@@ -26,6 +27,33 @@ enum Slot {
         cause: Arc<OwnerError>,
         incarnation: [u8; 32],
     },
+}
+impl Slot {
+    fn incarnation(&self) -> [u8; 32] {
+        match self {
+            Slot::Starting(incarnation)
+            | Slot::Live { incarnation, .. }
+            | Slot::Retiring { incarnation }
+            | Slot::Failed { incarnation, .. } => *incarnation,
+        }
+    }
+}
+/// The numbers of the Workspace files `<n>.sqlite` beside the template,
+/// ascending: saved Workspaces of an ended daemon of this folder.
+fn saved_namespaces(template: &Path) -> std::io::Result<Vec<i64>> {
+    let directory = template.parent().unwrap_or_else(|| Path::new("."));
+    let mut numbers = Vec::new();
+    for item in std::fs::read_dir(directory)? {
+        let name = item?.file_name();
+        let number = name
+            .to_str()
+            .and_then(|name| name.strip_suffix(".sqlite"))
+            .and_then(|stem| stem.parse::<i64>().ok())
+            .filter(|number| *number > 0);
+        numbers.extend(number);
+    }
+    numbers.sort_unstable();
+    Ok(numbers)
 }
 pub(super) enum CleanupTarget {
     Client(OwnerClient),
@@ -57,6 +85,20 @@ pub(super) fn start(path: &Path, profile: ProfileConfig, config: OwnerConfig) ->
         if config.namespaces == 0 || profile.pager_kib == 0 {
             return Err(OwnerError::InvalidAdmission);
         }
+        // A daemon started again on its Sandbox folder finds the closed
+        // template of the ended one; it holds no Workspace and is made again.
+        // Saved Workspace files keep their numbers: new ones go above them.
+        match std::fs::remove_file(path) {
+            Err(error) if error.kind() != std::io::ErrorKind::NotFound => {
+                return Err(OwnerError::Io(error))
+            }
+            _ => {}
+        }
+        let next = saved_namespaces(path)
+            .map_err(OwnerError::Io)?
+            .last()
+            .map_or(Some(1), |last| last.checked_add(1))
+            .ok_or(OwnerError::IdentityExhausted)?;
         let created = Overlay::create_observed(path, profile);
         startup = Arc::new(created.work);
         reported = true;
@@ -78,7 +120,7 @@ pub(super) fn start(path: &Path, profile: ProfileConfig, config: OwnerConfig) ->
             template_origin,
             state: Mutex::new(State {
                 slots: BTreeMap::new(),
-                next: 1,
+                next,
                 stopping: false,
                 retired: OwnerWork::default(),
             }),
@@ -160,21 +202,11 @@ impl Workspaces {
             if state.stopping {
                 return Err(OwnerError::Stopped);
             }
-            if state.slots.values().any(|slot| match slot {
-                Slot::Starting(stored)
-                | Slot::Live {
-                    incarnation: stored,
-                    ..
-                }
-                | Slot::Retiring {
-                    incarnation: stored,
-                    ..
-                }
-                | Slot::Failed {
-                    incarnation: stored,
-                    ..
-                } => *stored == incarnation,
-            }) {
+            if state
+                .slots
+                .values()
+                .any(|slot| slot.incarnation() == incarnation)
+            {
                 return Err(OwnerError::Overlay(layerfs_overlay::OverlayError::Invalid(
                     "duplicate incarnation",
                 )));
@@ -189,11 +221,7 @@ impl Workspaces {
             state.slots.insert(namespace, Slot::Starting(incarnation));
             namespace
         };
-        let path = self
-            .template
-            .parent()
-            .unwrap_or_else(|| Path::new("."))
-            .join(format!("{namespace}.sqlite"));
+        let path = self.file(namespace);
         let shared = Arc::new(Shared::new(namespace));
         let owner =
             match Owner::start_copy(&path, &self.template, self.profile, shared.clone()).result {
@@ -222,6 +250,100 @@ impl Workspaces {
                 },
             );
         Ok(client)
+    }
+    /// Binds the saved Workspace file `<namespace>.sqlite` of an ended
+    /// daemon of this folder under its own number, on `base_root`. The file
+    /// is never created, copied over or deleted here: any refusal leaves it
+    /// as it was and frees the number for a later attempt.
+    pub(super) fn reopen(
+        self: &Arc<Self>,
+        namespace: i64,
+        incarnation: [u8; 32],
+        base_root: [u8; 32],
+    ) -> Result<Route, OwnerError> {
+        let invalid = |what| OwnerError::Overlay(layerfs_overlay::OverlayError::Invalid(what));
+        if incarnation == [0; 32] {
+            return Err(invalid("zero incarnation"));
+        }
+        if namespace <= 0 {
+            return Err(invalid("reopened namespace"));
+        }
+        {
+            let mut state = self.state.lock().map_err(|_| OwnerError::Stopped)?;
+            if state.stopping {
+                return Err(OwnerError::Stopped);
+            }
+            if state.slots.contains_key(&namespace) {
+                return Err(invalid("reopened namespace is held"));
+            }
+            if state
+                .slots
+                .values()
+                .any(|slot| slot.incarnation() == incarnation)
+            {
+                return Err(invalid("duplicate incarnation"));
+            }
+            if state.slots.len() >= self.config.namespaces {
+                return Err(OwnerError::AdmissionFull);
+            }
+            let above = namespace
+                .checked_add(1)
+                .ok_or(OwnerError::IdentityExhausted)?;
+            state.next = state.next.max(above);
+            state.slots.insert(namespace, Slot::Starting(incarnation));
+        }
+        let release = |cause: OwnerError| {
+            if let Ok(mut state) = self.state.lock() {
+                state.slots.remove(&namespace);
+            }
+            cause
+        };
+        let path = self.file(namespace);
+        if !path.is_file() {
+            return Err(release(invalid("no saved overlay file")));
+        }
+        let shared = Arc::new(Shared::new(namespace));
+        let owner = Owner::start_existing(&path, self.profile, shared.clone())
+            .result
+            .map_err(release)?;
+        let route = match owner.client().resume(incarnation, base_root) {
+            Ok(route) => route,
+            Err(cause) => {
+                // not terminal: the stopped owner never deletes the file
+                let _ = owner.stop();
+                return Err(release(cause));
+            }
+        };
+        let backing = match Backing::new(path, namespace, incarnation, Arc::downgrade(self)) {
+            Ok(backing) => Arc::new(backing),
+            Err(cause) => {
+                let _ = owner.stop();
+                return Err(release(OwnerError::Io(cause)));
+            }
+        };
+        shared
+            .state
+            .lock()
+            .map_err(|_| OwnerError::Stopped)?
+            .backing = Some(backing);
+        self.state
+            .lock()
+            .map_err(|_| OwnerError::Stopped)?
+            .slots
+            .insert(
+                namespace,
+                Slot::Live {
+                    owner: Arc::new(Mutex::new(Some(owner))),
+                    incarnation,
+                },
+            );
+        Ok(route)
+    }
+    fn file(&self, namespace: i64) -> PathBuf {
+        self.template
+            .parent()
+            .unwrap_or_else(|| Path::new("."))
+            .join(format!("{namespace}.sqlite"))
     }
     pub(super) fn cleanup(
         &self,

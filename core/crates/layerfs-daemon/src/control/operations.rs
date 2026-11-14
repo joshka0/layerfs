@@ -95,9 +95,17 @@ impl Service {
             )),
             Request::Mount { workspace, branch } => {
                 crate::telemetry::timed("sandbox.mount.bind", |timing| {
-                    self.mount(*workspace, *branch, timing)
+                    self.mount(*workspace, *branch, None, timing)
                 })
             }
+            Request::Reopen {
+                workspace,
+                branch,
+                namespace,
+                root,
+            } => crate::telemetry::timed("sandbox.reopen.bind", |timing| {
+                self.mount(*workspace, *branch, Some((*namespace, *root)), timing)
+            }),
             Request::Status(token) => self.status(*token),
             Request::Cleanup(token) => self.cleanup(*token),
             Request::Commit(control) => self.commit(control.token, |workspace| {
@@ -121,10 +129,13 @@ impl Service {
             ),
         }
     }
+    /// Binds a new Workspace, or with `saved` (its number and base root)
+    /// the saved Workspace of an ended daemon of this folder.
     pub(crate) fn mount(
         &self,
         workspace: WorkspaceId,
         branch: BranchId,
+        saved: Option<(i64, [u8; 32])>,
         timing: &layerfs_telemetry::timer::TimingScope<'_, layerfs_telemetry::timer::Active>,
     ) -> Result<Success, Failure> {
         {
@@ -155,8 +166,14 @@ impl Service {
             entries.insert(workspace, Entry::Binding);
         }
         let bound = match crate::telemetry::phase(timing, "store.bind", || {
-            self.store
-                .bind(self.owner.clone(), BindRequest { workspace, branch })
+            let request = BindRequest { workspace, branch };
+            match saved {
+                Some((namespace, root)) => {
+                    self.store
+                        .reopen(self.owner.clone(), request, namespace, root)
+                }
+                None => self.store.bind(self.owner.clone(), request),
+            }
         }) {
             Ok(value) => value,
             Err(value) => {
