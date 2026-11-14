@@ -1,0 +1,99 @@
+# reopen gate on product 3497e09d4 (tests 6ee00f605), 2026-11-14
+# daemon control test: cargo test -p layerfs-daemon --test reopen_control -> 1 passed (F12-F16, F1, F11)
+command: tools/orbstack/reopen-e2e.sh /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/run-impl /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build/bundle /Users/joshka/.local/share/lfs-vm/bundle /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/legacy-sdk/sdk/js
+repo: /Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-tests 6ee00f60544f208ca752352679fdbc75455aab87 dirty=0
+584c69c774fe7ae642be35cd2701ae25ce5994c059d23bfbd46eef327d11a8fa  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build/bundle/layerfs-daemon
+26e2daf3d549e68790762a9cf4323cb3955560b111c682f8e0a0f7fed8c9f388  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build/bundle/layerfs.node
+3ab3e2f3738262132988d2131b01990b86c6239d1c431488c2a139f38ffa2b64  /Users/joshka/.local/share/lfs-vm/bundle/layerfs-daemon
+2ba58ba7469e4b1b66d127eca6b5982b220b103290c86f01d9bd97eeddf2df24  /Users/joshka/.local/share/lfs-vm/bundle/layerfs.node
+2026-11-14T12:49:56Z
+phase seed-legacy exit 0
+phase seed exit 0
+phase tamper exit 0
+phase check exit 1
+phase boot-unmounted exit 0
+phase boot exit 0
+phase live exit 0
+
+PASS F40 vm-boot apply without the Sandbox volume reopens nothing and says why
+PASS F39 F40 vm-boot apply still starts sshd
+PASS setup boot-unmounted the phase ran to its end
+PHASE boot-unmounted ok
+PASS F39 vm-boot apply exits 0 and starts sshd though rmixed fails to reopen
+PASS F39 F9 vm-boot apply reopened rmain's saved Workspace
+PASS F39 vm-boot apply reopened rmixed's good Workspace despite its failing siblings
+PASS F32 vm-boot apply does not reopen a record without root (never passes --legacy-head)
+PASS setup boot the phase ran to its end
+PHASE boot ok
+PASS F27 operator.sandbox.list keeps a dead Sandbox that has a saved Workspace overlay
+PASS F27 workspace.mount places beside a dead Sandbox with a saved overlay, and keeps it
+PASS F27 lfs mount from a fresh process keeps the dead Sandbox
+PASS F27 F9 rdisc: after the discovery call, reopen leaves the saved Workspace mounted
+PASS F27 F9 rdisc2: after the discovery call, reopen leaves the saved Workspace mounted
+PASS F27 F9 rdisc3: after the discovery call, reopen leaves the saved Workspace mounted
+PASS F28 operator.sandbox.list reclaims a dead Sandbox with no saved Workspace
+PASS F26 every saved overlay file exists before the reopen
+PASS F38 F37 lfs reopen rmain exits 0 and prints the answer when every Workspace reopened
+PASS F17 F37 rmain a: reopened at its saved path /var/lib/layerfs/sandboxes/lfs-rmain-1/workspaces/1
+PASS F2 F9 rmain a: files, bytes, modes, symlinks and deletions match the pre-restart listing
+PASS F7 rmain a: status counts the same overlay changes as before the restart
+PASS F17 F37 rmain b: reopened at its saved path /var/lib/layerfs/sandboxes/lfs-rmain-1/workspaces/2
+PASS F2 F9 rmain b: files, bytes, modes, symlinks and deletions match the pre-restart listing
+PASS F7 rmain b: status counts the same overlay changes as before the restart
+PASS F10 F11 rmain: a new mount beside the reopened ones gets its own path and leaves them unchanged
+PASS F9 rmain a: the known edits read back through the mount
+PASS F18 rmain a: new files after the reopen get inode numbers no other file has
+PASS F6 rmain a: a file rewritten after the reopen commits its new bytes
+PASS F19 F7 F6 rmain a: commit publishes the saved and the new changes on the saved base
+BASELINE F20 rmain a: unmount without discard succeeds after the commit: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(f800d757e3c52053817adf23b212d29cdab54071ae30bc3884ac65e5f6529759), namespace: 1 }, discard: false }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(f800d757e3c52053817adf23b212d29cdab54071ae30bc3884ac65e5f6529759), namespace: 1 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 198, served: 198, inline: 5, refused: 2, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 205, completed: 198, terminal: true })", forced: None }) } [core/docs/issues/unmount-join/README.md]
+PASS F20 rmain b: unmount without discard is refused as Dirty while it has changes
+BASELINE F20 rmain b: unmount with discard deletes the reopened overlay file: Failed: OperationFailure { request: Unmount(UnmountControl { token: WorkspaceToken { workspace: WorkspaceId(8a297f06aae75d2cbbb88b8eb4a2a576f9acc143f1a3434ecf61e22ea541fe30), namespace: 2 }, discard: true }), cause: Retained(TeardownCustody { token: WorkspaceToken { workspace: WorkspaceId(8a297f06aae75d2cbbb88b8eb4a2a576f9acc143f1a3434ecf61e22ea541fe30), namespace: 2 }, stage: Join, detached: true, work: Some(MountWork { loops_configured: 2, loops_entered: 2, loops_exited: 0, loops_joined: 0, active: 0, retained: 0, completed: 91, served: 91, inline: 4, refused: 1, terminal: 0, forget_units: 0 }), detail: "connection drain stopped at Join: loops Some(SessionSnapshot { phase: Serving, revision: 6, configured: 2, created: 2, entered: 2, exited: 0, joined: 0 }), work Some(MountWork { active: 0, retained: 0, requests: 96, completed: 91, terminal: true })", forced: None }) } [core/docs/issues/unmount-join/README.md]
+PASS F38 lfs reopen rmixed exits 1 when a Workspace did not reopen
+PASS F33 rmixed good: reopens though its siblings fail
+FAIL F1 F33 rmixed missing: not reopened, with a reason: answer does not name /var/lib/layerfs/sandboxes/lfs-rmixed-1/workspaces/9
+PASS F1 rmixed missing: no overlay file is created
+PASS F3 F33 rmixed schema: not reopened, with a reason
+PASS F8 F16 F3 rmixed schema: the refused overlay file is byte-identical
+PASS F3 F33 rmixed appid: not reopened, with a reason
+PASS F8 F16 F3 rmixed appid: the refused overlay file is byte-identical
+PASS F4 F33 rmixed gen2: not reopened, with a reason
+PASS F8 F16 F4 rmixed gen2: the refused overlay file is byte-identical
+PASS F4 F33 rmixed genmix: not reopened, with a reason
+PASS F8 F16 F4 rmixed genmix: the refused overlay file is byte-identical
+PASS F4 F33 rmixed orphan: not reopened, with a reason
+PASS F8 F16 F4 rmixed orphan: the refused overlay file is byte-identical
+PASS F5 F33 rmixed cleanup: not reopened, with a reason
+PASS F8 F16 F5 rmixed cleanup: the refused overlay file is byte-identical
+PASS F5 F33 rmixed commitrec: not reopened, with a reason
+PASS F8 F16 F5 rmixed commitrec: the refused overlay file is byte-identical
+PASS F33 rmixed: every Workspace record survives the failed reopens
+PASS F13 F34 F16 rmixed again, daemon running: good is `already mounted`, the refused stay refused and unchanged
+PASS F3 F16 rmixed schema: once its schema is fixed, a reopen on the running daemon mounts it
+PASS F31 F14 F36 rmoved: not reopened when the branch has a Commit after the mount
+PASS F32 rlegacy: a record without root does not reopen without legacyHead
+PASS F32 F38 rlegacy: lfs reopen --legacy-head reopens it on the branch head and exits 0
+PASS F22 F26 rnocfg: restart refuses a Sandbox without its config and creates none
+PASS F21 F35 after all reopens: no two daemons hold one Sandbox folder
+PASS setup check the phase ran to its end
+PHASE check FAILED 3
+PASS F34 F21 F13 reopen while the daemon runs starts nothing and reports the served Workspace
+PASS F38 lfs reopen exits 0 when the Sandbox runs
+PASS F24 precondition: the killed daemon left a dead FUSE mount
+PASS F24 F23 F17 reopen after SIGKILL replaces the dead mount at the saved path
+PASS F25 reopen leaves mounts outside its own mount home
+PASS F23 the old daemon log is kept as daemon.previous.log
+PASS F30 a fresh lfs process uses the reopened Sandbox (record names the new daemon)
+PASS F13 F34 a second reopen starts no daemon
+PASS F35 setup: a new saved Workspace, then SIGKILL
+PASS F35 concurrent reopens and a mount: one daemon per Sandbox folder, the saved Workspace intact
+NOTE outside-list: a long-lived SDK client still dials the killed daemon: Failed: Process(Custom { kind: NotFound, error: "daemon process exited" })
+PASS setup live the phase ran to its end
+PHASE live ok
+PASS setup seed-legacy the phase ran to its end
+PHASE seed-legacy ok
+PASS setup seed the phase ran to its end
+PHASE seed ok
+PASS restart no daemon and no Workspace mount survive the container restart
+PASS setup tamper the phase ran to its end
+PHASE tamper ok
+BASELINE-UNUSED F35 setup: a new saved Workspace, then SIGKILL [core/docs/issues/unmount-join/README.md]
