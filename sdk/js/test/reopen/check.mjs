@@ -176,6 +176,25 @@ export const checkPhases = {
     await check("F33", "rmixed: every Workspace record survives the failed reopens", () => {
       assert.equal(records("rmixed").length, s.recordCount.rmixed);
     });
+    await check("F13 F34 F16", "rmixed again, daemon running: good is `already mounted`, the refused stay refused and unchanged", () => {
+      const r = lfsCli("reopen", "rmixed");
+      assert.equal(r.status, 1, `exit ${r.status}: ${r.stderr}`);
+      assertAnswerShape(r.json);
+      assert.equal(r.json.sandboxes[0]?.state, "running", JSON.stringify(r.json));
+      assert.equal(byPath(r.json, s.mixed.good.path)?.reason, "already mounted");
+      for (const kind of MIXED.filter((k) => k !== "good" && k !== "missing")) {
+        assert.equal(byPath(r.json, s.mixed[kind].path)?.mounted, false, `${kind} mounted on the second call`);
+        assert.equal(sha(overlayOf(s.mixed[kind].path)), s.hashes[s.mixed[kind].path], `${kind} overlay changed`);
+      }
+    });
+    await check("F3 F16", "rmixed schema: once its schema is fixed, a reopen on the running daemon mounts it", async () => {
+      const db = new DatabaseSync(overlayOf(s.mixed.schema.path));
+      db.exec("PRAGMA user_version=39;");
+      db.close();
+      const w = byPath(await reopen(mixed), s.mixed.schema.path);
+      assert.deepEqual([w?.mounted, w?.reopened], [true, true], JSON.stringify(w));
+      assert.equal(await sh(mixed, wsOf(s.mixed.schema), "cat f.txt"), "schema\n");
+    });
 
     // rmoved: its branch moved after the mount (F14, F31, F36).
     await check("F31 F14 F36", "rmoved: not reopened when the branch has a Commit after the mount", async () => {

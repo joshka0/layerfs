@@ -152,10 +152,13 @@ export function assertAnswerShape(answer) {
     for (const w of s.workspaces) {
       assert.ok(typeof w.path === "string" && /^[0-9a-f]{64}$/.test(w.workspace), `workspace path and id: ${JSON.stringify(w)}`);
       assert.equal(typeof w.reopened, "boolean", `reopened is a boolean: ${JSON.stringify(w)}`);
+      assert.equal(typeof w.mounted, "boolean", `mounted is a boolean: ${JSON.stringify(w)}`);
       assert.equal(w.reason === null, w.reopened, `reason is null exactly when reopened: ${JSON.stringify(w)}`);
       if (!w.reopened) assert.ok(typeof w.reason === "string" && w.reason.length > 0, "a refusal names its reason");
-      if (s.state === "failed") assert.equal(w.reopened, false, "no Workspace reopens in a failed Sandbox");
-      if (s.state === "running") assert.equal(w.reason, "daemon runs", "a running Sandbox reports `daemon runs`");
+      if (w.reopened) assert.equal(w.mounted, true, `reopened but not mounted: ${JSON.stringify(w)}`);
+      assert.equal(w.mounted, isMount(w.path), `mounted ${w.mounted} but the mount table says ${isMount(w.path)}: ${w.path}`);
+      if (s.state === "failed") assert.equal(w.mounted, false, "no Workspace is mounted in a failed Sandbox");
+      if (w.reason === "already mounted") assert.equal(w.mounted, true, "`already mounted` but not mounted");
     }
   }
 }

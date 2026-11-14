@@ -26,10 +26,12 @@ export const livePhases = {
     const root = sandboxRoot(ws.path);
     const name = basename(root);
 
-    await check("F34 F21 F13", "reopen while the daemon runs starts nothing and answers running", async () => {
+    await check("F34 F21 F13", "reopen while the daemon runs starts nothing and reports the served Workspace", async () => {
       const before = daemons().map((d) => d.pid).sort();
       const answer = await reopen(l);
       assert.equal(answer.sandboxes.find((b) => b.name === name)?.state, "running", JSON.stringify(answer));
+      const w = byPath(answer, ws.path);
+      assert.deepEqual([w?.mounted, w?.reopened, w?.reason], [true, false, "already mounted"], JSON.stringify(w));
       assert.deepEqual(daemons().map((d) => d.pid).sort(), before);
       assert.equal(await sh(l, ws, "cat live.txt"), "live\n");
     });
@@ -77,6 +79,7 @@ export const livePhases = {
       const before = daemons().map((d) => d.pid).sort();
       const again = await reopen(l);
       assert.equal(again.sandboxes.find((b) => b.name === name)?.state, "running", JSON.stringify(again));
+      assert.equal(byPath(again, ws.path)?.reason, "already mounted", JSON.stringify(again));
       assert.deepEqual(daemons().map((d) => d.pid).sort(), before);
       assertOneDaemonPerFolder();
     });
@@ -108,6 +111,7 @@ export const livePhases = {
       assert.ok(results.slice(0, 2).some((r) => {
         try { return byPath(JSON.parse(r.out.trim().split("\n").pop()), ws2.path)?.reopened; } catch { return false; }
       }), `no reopen reopened ${ws2.path}: ${results.map((r) => r.out).join(" || ")}`);
+      assert.ok(isMount(ws2.path), `${ws2.path} not mounted after the race`);
       assert.equal(await sh(l, ws2, "cat race.txt"), "race\n");
     });
     for (const p of probes) spawnSync("umount", [p]);
