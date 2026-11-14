@@ -13,7 +13,9 @@
 #   <legacy-sdk-dir>     its sdk/js tree: they seed records without `root` (F32)
 #
 # The report is <work-dir>/report/: one log per phase and summary.txt with
-# every PASS and FAIL line and the command that reproduces it.
+# every PASS and FAIL line and the command that reproduces it. A FAIL that
+# matches sdk/js/test/reopen/baseline.tsv is shown as BASELINE and does not
+# fail the run.
 set -u
 repo=${0:A:h:h:h}
 work=${1:?usage: reopen-e2e.sh <work-dir> <bundle-dir> [<legacy-bundle-dir> <legacy-sdk-dir>]}
@@ -78,7 +80,31 @@ phase live "$repo/sdk/js" "$bundle"
   echo
   grep -h -E '^(PASS|FAIL|SKIP|PHASE) ' "$report"/*.log
 } > "$report/summary.txt"
-grep -c '^PASS ' "$report/summary.txt" | sed 's/^/passed: /'
-grep -c '^FAIL ' "$report/summary.txt" | sed 's/^/failed: /'
+# Diff the failures against the baseline (sdk/js/test/reopen/baseline.tsv):
+# a failure whose check and reason match an entry becomes BASELINE.
+python3 -I - "$report/summary.txt" "$repo/sdk/js/test/reopen/baseline.tsv" <<'DIFF'
+import re, sys
+summary, baseline = sys.argv[1], sys.argv[2]
+entries = []
+for line in open(baseline):
+    if line.strip() and not line.startswith("#"):
+        check, reason, issue = line.rstrip("\n").split("\t")
+        entries.append([check, re.compile(reason), issue, 0])
+out, counts = [], {"PASS": 0, "FAIL": 0, "BASELINE": 0}
+for line in open(summary).read().splitlines():
+    # A check name may itself hold ": ", so match each entry's whole name.
+    hit = next((e for e in entries if line.startswith(f"FAIL {e[0]}: ")
+                and e[1].search(line[len(f"FAIL {e[0]}: "):])), None)
+    if hit:
+        hit[3] += 1
+        line = f"BASELINE {line[5:]} [{hit[2]}]"
+    word = line.split(" ", 1)[0]
+    if word in counts:
+        counts[word] += 1
+    out.append(line)
+out += [f"BASELINE-UNUSED {e[0]} [{e[2]}]" for e in entries if not e[3]]
+open(summary, "w").write("\n".join(out) + "\n")
+print(f"passed: {counts['PASS']}\nfailed: {counts['FAIL']}\nbaseline: {counts['BASELINE']}")
+DIFF
 echo "report: $report/summary.txt"
 ! grep -q '^FAIL ' "$report/summary.txt"
