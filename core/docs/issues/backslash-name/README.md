@@ -1,8 +1,11 @@
 # A name with a backslash answers EINVAL instead of ENOENT
 
-> **Status:** Open, filed 2026-11-14. GitHub issues are disabled on the fork,
-> so the issue lives here. Reported by memoryd: work item
-> https://gitlab.com/joshka0/memoryd/-/work_items/4 and
+> **Status:** Fixed on branch `fix-backslash-name` (2026-11-14): a backslash
+> is an ordinary name byte (docs/adr/0006-backslash-in-names.md); names that
+> are not UTF-8 stay refused. Evidence: `receipts/` (memoryd WT6 passes in a
+> Workspace; an existing Store reads back the same). Filed 2026-11-14; GitHub
+> issues are disabled on the fork, so the issue lives here. Reported by
+> memoryd: work item https://gitlab.com/joshka0/memoryd/-/work_items/4 and
 > `zig/daemon-next/tests/BASELINE.md` (WT6).
 
 ## Summary
