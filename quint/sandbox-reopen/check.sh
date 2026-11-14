@@ -45,7 +45,7 @@ done <<'TABLE'
 none Safety invariant ok
 none NoOverlayLoss invariant ok
 none OneDaemon invariant ok
-none NoOrphanDaemon invariant ok
+none OrphanNamed invariant ok
 none ReopenedWhenDone invariant ok
 none BootNeverDeletes invariant ok
 none AllEnd temporal ok
@@ -54,13 +54,14 @@ none StatusRefusesUnusable invariant ok
 none StatusWaitsOutRestart invariant ok
 none GuardReleased temporal ok
 no_kept NoOverlayLoss invariant violation
-no_running_check OneDaemon invariant violation
+no_running_check OneDaemon invariant ok
 no_revive_check OneDaemon invariant ok
-no_guard OneDaemon invariant violation
+no_guard StatusWaitsOutRestart invariant violation
 leak_guard GuardReleased temporal violation
 boot_reclaims BootNeverDeletes invariant violation
-keep_failed_daemon OneDaemon invariant violation
-keep_failed_daemon NoOrphanDaemon invariant violation
+keep_failed_daemon OneDaemon invariant ok
+no_lock OneDaemon invariant violation
+no_holder_name OrphanNamed invariant violation
 no_revived_report RevivedReported invariant violation
 status_no_wait StatusWaitsOutRestart invariant violation
 no_stale_check StatusRefusesUnusable invariant violation
