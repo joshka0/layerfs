@@ -4,10 +4,10 @@
 //! its mount namespace, so each one owns a private directory whose
 //! `workspaces` home holds its mounts. Commands run through `setpriv` as the
 //! command identity, with no capabilities and `no_new_privs`.
+use super::process_host::{detach_mounts, exited, prepare, remove_empty_homes, start_time};
 use super::stop_rules::{wait_gone, StillRunning, KILL_WAIT};
 use crate::CommandIdentity;
 use nix::{
-    mount::{umount2, MntFlags},
     sys::signal::{kill, Signal},
     unistd::Pid,
 };
@@ -16,7 +16,7 @@ use std::{
     io::{self, Read, Seek, SeekFrom, Write},
     net::SocketAddr,
     os::unix::{
-        fs::{DirBuilderExt, OpenOptionsExt, PermissionsExt},
+        fs::OpenOptionsExt,
         process::{CommandExt, ExitStatusExt},
     },
     path::{Path, PathBuf},
@@ -49,7 +49,7 @@ impl Layout {
     pub fn mounts(&self) -> PathBuf {
         self.directory.join("workspaces")
     }
-    fn log(&self) -> PathBuf {
+    pub(super) fn log(&self) -> PathBuf {
         self.directory.join("daemon.log")
     }
     /// The log of the daemon before the last restart.
@@ -192,9 +192,12 @@ impl Sandbox {
         thread::spawn(move || child.wait());
         let start = match start_time(pid) {
             Ok(Some(start)) => start,
-            Ok(None) => {
-                let cause = io::Error::other("daemon exited before its identity was read");
-                return Err(fail(StartPhase::Spawn, None, cause));
+            // exited already: a daemon that finds its folder held says so and
+            // exits at once, maybe before this read (it then vanishes during
+            // the read, ESRCH); its line names the holder
+            Ok(None) => return Err(fail(StartPhase::Spawn, None, exited(&layout))),
+            Err(cause) if cause.raw_os_error() == Some(nix::libc::ESRCH) => {
+                return Err(fail(StartPhase::Spawn, None, exited(&layout)))
             }
             Err(cause) => return Err(fail(StartPhase::Spawn, None, cause)),
         };
@@ -437,99 +440,5 @@ impl Sandbox {
             .parse()
             .map(Some)
             .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "daemon listen address"))
-    }
-}
-
-/// Detaches every mount in the mount home `mounts` (its direct entries
-/// only). A dead FUSE mount answers ENOTCONN; detaching it is the cleanup.
-/// An entry that is not a mount point is left as it is.
-fn detach_mounts(mounts: &Path) -> io::Result<()> {
-    if let Ok(entries) = fs::read_dir(mounts) {
-        for entry in entries {
-            let path = entry?.path();
-            match umount2(&path, MntFlags::MNT_DETACH) {
-                Ok(()) | Err(nix::errno::Errno::EINVAL) => {}
-                Err(errno) => return Err(errno.into()),
-            }
-        }
-    }
-    Ok(())
-}
-
-/// Removes each empty directory in the mount home `mounts`: the mount
-/// directories the ended daemon made. An attach never adopts an existing
-/// directory (layerfs-fuse `create_directory`), so the reopened Workspace
-/// makes its own again. A directory that is not empty is left as it is.
-fn remove_empty_homes(mounts: &Path) -> io::Result<()> {
-    if let Ok(entries) = fs::read_dir(mounts) {
-        for entry in entries {
-            let path = entry?.path();
-            match fs::remove_dir(&path) {
-                Err(error)
-                    if !matches!(
-                        error.raw_os_error(),
-                        Some(nix::libc::ENOTEMPTY) | Some(nix::libc::ENOTDIR)
-                    ) && error.kind() != io::ErrorKind::NotFound =>
-                {
-                    return Err(error)
-                }
-                _ => {}
-            }
-        }
-    }
-    Ok(())
-}
-
-/// The Sandbox directory (0755, new), its private config and Overlay
-/// directories (0700), the config file (0600) and the daemon log.
-fn prepare(layout: &Layout, config: &[u8]) -> io::Result<File> {
-    let created = |path: &Path, mode| -> io::Result<()> {
-        fs::DirBuilder::new().mode(mode).create(path)?;
-        // the process umask may narrow the create mode
-        fs::set_permissions(path, fs::Permissions::from_mode(mode))
-    };
-    if let Some(parent) = layout.directory.parent() {
-        fs::DirBuilder::new()
-            .mode(0o755)
-            .recursive(true)
-            .create(parent)?;
-    }
-    created(&layout.directory, 0o755)?;
-    for private in [layout.config(), layout.overlay()] {
-        created(private.parent().expect("in the directory"), 0o700)?;
-    }
-    OpenOptions::new()
-        .write(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(layout.config())?
-        .write_all(config)?;
-    OpenOptions::new()
-        .append(true)
-        .create_new(true)
-        .mode(0o600)
-        .open(layout.log())
-}
-
-/// The kernel start time of a live (not zombie) `pid`, from field 22 of
-/// `/proc/<pid>/stat`; `None` when no such process runs.
-fn start_time(pid: u32) -> io::Result<Option<u64>> {
-    let stat = match fs::read_to_string(format!("/proc/{pid}/stat")) {
-        Ok(stat) => stat,
-        Err(e) if e.kind() == io::ErrorKind::NotFound => return Ok(None),
-        Err(e) => return Err(e),
-    };
-    // after `(comm) `: state is field 3, start time field 22
-    let fields: Vec<&str> = stat
-        .rsplit_once(") ")
-        .map(|(_, rest)| rest.split(' ').collect())
-        .unwrap_or_default();
-    match (fields.first(), fields.get(19)) {
-        (Some(&"Z"), _) | (Some(&"X"), _) => Ok(None),
-        (Some(_), Some(start)) => start
-            .parse()
-            .map(Some)
-            .map_err(|_| io::Error::new(io::ErrorKind::InvalidData, "process start time")),
-        _ => Err(io::Error::new(io::ErrorKind::InvalidData, "process stat")),
     }
 }
