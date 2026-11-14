@@ -156,6 +156,8 @@ pub(crate) fn list(args: &SdkValue) -> Outcome {
                     Err(refusal) if refusal.code == "Busy" => items.push(item),
                     // saved overlays: kept for operator.sandbox.reopen, not running
                     Err(refusal) if refusal.code == crate::sandbox::KEPT => {}
+                    // another call reclaimed it meanwhile: gone
+                    Err(refusal) if refusal.code == "NoSuchSandbox" => {}
                     Err(refusal) => return Err(refusal),
                 }
             }

@@ -10,7 +10,7 @@
 //! before the delete. One whose effect is unknown keeps the intent, which
 //! refuses later starts until a person resolves it. Nothing is retried on
 //! the caller's behalf.
-use crate::job::{failed, refused, Outcome};
+use crate::job::{failed, refused};
 use crate::registry::{lock, text, SandboxState, SANDBOXES};
 use layerfs_api::internal::split;
 use layerfs_api::sandbox::values;
@@ -445,56 +445,5 @@ fn abandon(directory: &Path, id: &str, mut failure: Box<SandboxFailure>) -> SdkR
     }
 }
 
-/// Reclaims Sandbox `id`, whose container or daemon a reopen found gone or stopped
-/// (`container`, `stopped`): one unforced Delete of a stopped container, then
-/// its records, so its number is free again. Called under the project's
-/// guard; the Sandbox's own guard is taken too. The record is read again
-/// under them: a Sandbox started again under the number meanwhile has
-/// another container and is left alone (`Busy`). A Delete the Engine refuses
-/// (the container runs again) removes nothing.
-/// The refusal code of a reclaim that found saved Workspace overlays.
-pub(crate) const KEPT: &str = "Kept";
-
-pub(crate) fn reclaim(args: &SdkValue, id: &str, container: &str, stopped: bool) -> Outcome {
-    let directory = crate::discovery::sandbox_dir(args, id)?;
-    let _guard = crate::discovery::guard(&directory)?;
-    let record = directory.join("sandbox.record");
-    if !record.exists() {
-        return Err(refused(
-            "NoSuchSandbox",
-            format!("the project has no Sandbox {id}"),
-        ));
-    }
-    let value = crate::discovery::load(&record)?;
-    if text(&value, "container")? != container {
-        return Err(refused(
-            "Busy",
-            format!("Sandbox {id} was started again while it was reclaimed; nothing was removed"),
-        ));
-    }
-    // Saved Workspace overlays hold uncommitted work: such a Sandbox is
-    // reopened (operator.sandbox.reopen), never reclaimed.
-    if crate::discovery::holds_overlays(args, id)? {
-        return Err(refused(
-            KEPT,
-            format!("Sandbox {id} holds saved Workspace overlays; reopen it, nothing was removed"),
-        ));
-    }
-    if stopped {
-        match crate::discovery::runtime(&value)?.stopped().delete() {
-            Err(failure) if !failure.gone() => return Err(failed(failure)),
-            _ => {}
-        }
-    }
-    lock(&SANDBOXES)?.remove(&directory);
-    std::fs::remove_file(record).map_err(failed)?;
-    std::fs::remove_dir_all(&directory).map_err(failed)?;
-    Ok(SdkValue::map([
-        ("kind", SdkValue::text("Reclaimed")),
-        ("id", SdkValue::text(id)),
-    ]))
-}
-
-#[cfg(test)]
-#[path = "../tests/unit/reclaim.rs"]
-mod reclaim_tests;
+mod reclaim;
+pub(crate) use reclaim::{reclaim, KEPT};

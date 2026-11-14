@@ -226,3 +226,16 @@ fn a_stopped_container_the_engine_will_not_delete_keeps_its_records() {
     assert!(dir(&home).join("sandbox.record").exists());
     std::fs::remove_dir_all(home).unwrap();
 }
+
+/// A listing saw the Sandbox's daemon ended, then a concurrent reclaim
+/// (another process, under the project's guard) removed its directory before
+/// this reclaim ran: the Sandbox is gone, which is no failure.
+#[test]
+fn a_sandbox_another_call_reclaimed_meanwhile_is_no_such_sandbox() {
+    let home = home();
+    std::fs::remove_dir_all(dir(&home)).unwrap();
+    let refusal = reclaim(&args(&home), ID, CID, true).unwrap_err();
+    assert_eq!(refusal.code, "NoSuchSandbox", "{}", refusal.message);
+    assert!(!dir(&home).exists(), "reclaim made nothing again");
+    std::fs::remove_dir_all(home).unwrap();
+}

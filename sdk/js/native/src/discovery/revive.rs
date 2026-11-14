@@ -279,7 +279,42 @@ fn restart_daemon(
                 ),
             )
         })?;
+    let spawned = (sandbox.pid(), sandbox.start_time());
     let runtime = Runtime::Process(sandbox);
+    // Until its record names it, the new daemon is unknown to every later
+    // call: one would start a second daemon on the folder. So a failure
+    // before the record is saved stops it (Quint sandbox_reopen, OneDaemon).
+    // A daemon this process spawned can always be signalled.
+    match record_restarted(args, id, directory, value, name, runtime) {
+        Ok(state) => Ok(state),
+        Err(mut refusal) => {
+            let stopped = process::Sandbox::reopen(layout, spawned.0, spawned.1)
+                .and_then(|mut daemon| daemon.stop(Duration::from_secs(5)));
+            refusal.message = match stopped {
+                Ok(()) => format!("{}; the restarted daemon was stopped", refusal.message),
+                Err(error) if error.kind() == std::io::ErrorKind::NotFound => {
+                    format!("{}; the restarted daemon had ended", refusal.message)
+                }
+                Err(error) => format!(
+                    "{}; stopping the restarted daemon pid:{}@{} failed: {error}",
+                    refusal.message, spawned.0, spawned.1
+                ),
+            };
+            Err(refusal)
+        }
+    }
+}
+
+/// The handshake with a restarted daemon and its saved identity.
+#[cfg(target_os = "linux")]
+fn record_restarted(
+    args: &SdkValue,
+    id: &str,
+    directory: &Path,
+    value: &SdkValue,
+    name: &str,
+    runtime: Runtime,
+) -> Result<Arc<SandboxState>> {
     let directory = directory.to_owned();
     let name = name.to_owned();
     let mut dial = crate::pool::Dial {
@@ -382,3 +417,7 @@ fn reattach(
 /// Wait for a restarted daemon's listener.
 #[cfg(target_os = "linux")]
 const STARTUP: Duration = Duration::from_secs(30);
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "../../tests/unit/revive.rs"]
+mod revive_tests;
