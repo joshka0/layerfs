@@ -45,11 +45,11 @@ function callInChild(project, call, env = {}) {
 }
 // Refusal codes a racing call may give. A listing that meets a gone
 // Sandbox may refuse NoSuchSandbox; one that meets a Sandbox mid-restart may
-// not refuse at all. A Workspace call keeps its existing contract: before
-// the restart it meets a dead daemon (NoSuchSandbox, README), then a
-// Workspace not mounted yet (NotMounted). `Failed` is never right.
+// not refuse at all, and neither may a Workspace status call: both report
+// the Sandbox present in its busy/starting state (decision of
+// rowan-joshka-main, 2026-11-14). `Failed` is never right.
 const GONE = { list: ["NoSuchSandbox"] };
-const RESTARTING = { list: [], status: ["NoSuchSandbox", "NotMounted"], reopen: [] };
+const RESTARTING = { list: [], status: [], reopen: [] };
 const wrongCodes = (allowed, results) => results.filter((r) => !r.ok && !allowed[r.call].includes(r.code));
 const refusedOnlyWith = (allowed, results) => {
   const bad = wrongCodes(allowed, results);
@@ -103,7 +103,7 @@ export const racesPhases = {
         ...Array.from({ length: 4 }, () => labelled("list", callInChild(project, "(l, op) => op.sandbox.list()"))),
         ...Array.from({ length: 2 }, () => labelled("status", callInChild(project, `(l) => l.workspace.status(${wsArg})`))),
       ]);
-      await check("F41 F35", `${project}: listings racing a restart succeed and list the Sandbox; status refuses only NoSuchSandbox or NotMounted`, () => {
+      await check("F41 F35", `${project}: listings and status racing a restart succeed and show the Sandbox present`, () => {
         const folder = sandboxRoot(ws.path).split("/").pop();
         const bad = wrongCodes(RESTARTING, results);
         const missing = results.filter((r) => r.call === "list" && r.ok && !lists(r.value, ws.sandbox, folder));
