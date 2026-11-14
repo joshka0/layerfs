@@ -1,0 +1,146 @@
+// The lock phase (see main.mjs): failure cases written from contract lines
+// that rowan-joshka-main relayed on 2026-11-14 for PR 21 (operator chose a
+// daemon folder lock), before reading the fix:
+//   F45. Two daemons run on one Sandbox folder: a second daemon started on a
+//        held folder keeps running, or a revive that meets a held folder does
+//        not answer failed with the holder's pid.
+//   F46. Stopping a spawned daemon hangs instead of returning an error after
+//        a bounded wait (60 s).
+//   F47. A mount that fails after its old Sandbox's revive failed refuses
+//        without the `revived` report (failed revive, per-Workspace reasons).
+import assert from "node:assert/strict";
+import { spawn, spawnSync } from "node:child_process";
+import { openSync, writeFileSync } from "node:fs";
+import { join } from "node:path";
+import {
+  BASE, HOME, STORES, SDK, check, daemons, init, installLfs, killDaemons, lfsCli, open, overlayOf, sandboxRoot, sh,
+  sha, until,
+} from "./harness.mjs";
+
+const DAEMON = "/opt/layerfs/bundle/layerfs-daemon";
+const lfsWith = (env, ...args) => {
+  const started = Date.now();
+  const r = spawnSync("node", ["/opt/layerfs/tools/lfs.mjs", ...args], {
+    encoding: "utf8", timeout: 100000, env: { ...process.env, LAYERFS_CONTAINER_PREFIX: "lfs-", ...env },
+  });
+  let json = null;
+  try { json = JSON.parse(r.stdout.trim().split("\n").pop()); } catch {}
+  return { ...r, json, ms: Date.now() - started };
+};
+// A dead Sandbox with one saved Workspace; returns it and its folder.
+async function deadSandbox(project) {
+  const l = open(project);
+  await init(l, BASE);
+  await l.branch.fork("w");
+  await l.branch.fork("w2");
+  const ws = await l.workspace.mount("w");
+  await sh(l, ws, `echo ${project} > s.txt`);
+  const root = sandboxRoot(ws.path);
+  killDaemons();
+  await until("the daemons to die", () => daemons().length === 0);
+  return { l, ws, root, folder: root.split("/").pop(), config: join(root, "config", "daemon.setup") };
+}
+// A daemon this test starts by hand on a Sandbox folder, as the SDK does.
+function startDaemon(config, log) {
+  const out = openSync(log, "a");
+  const child = spawn(DAEMON, ["--config", config], { stdio: ["ignore", out, out], detached: true });
+  child.unref();
+  return child;
+}
+
+export const lockPhases = {
+  async lock() {
+    installLfs();
+
+    // F45a: a second daemon on a held folder exits.
+    {
+      const { root, folder, config } = await deadSandbox("rlock1");
+      const holder = startDaemon(config, "/tmp/rlock1-holder.log");
+      await until("the holder daemon to run", () => daemons().some((d) => d.pid === holder.pid), 5000);
+      const second = startDaemon(config, "/tmp/rlock1-second.log");
+      await check("F45", "rlock1: a second daemon started on a held Sandbox folder exits", async () => {
+        await until("the second daemon to exit", () => !daemons().some((d) => d.pid === second.pid), 10000)
+          .catch(() => assert.fail(`second daemon ${second.pid} still runs on ${folder}: ${JSON.stringify(daemons())}`));
+        assert.deepEqual(daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid), [holder.pid]);
+      });
+
+      // F45b: the recorded daemon is dead, an unrecorded one holds the folder.
+      await check("F45", "rlock1: a revive that meets a held folder answers failed and names the holder pid", () => {
+        const r = lfsCli("reopen", "rlock1");
+        const box = r.json?.sandboxes?.find((b) => b.name === folder);
+        assert.equal(box?.state, "failed", `${r.stdout}${r.stderr}`);
+        assert.ok(String(box.reason).includes(String(holder.pid)), `reason does not name pid ${holder.pid}: ${box.reason}`);
+        assert.deepEqual(daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid), [holder.pid]);
+      });
+      process.kill(holder.pid, "SIGKILL");
+      await until("the holder to die", () => !daemons().some((d) => d.pid === holder.pid));
+      await check("F45 F26", "rlock1: once the holder is gone, a reopen mounts the saved Workspace", () => {
+        const r = lfsCli("reopen", "rlock1");
+        assert.equal(r.status, 0, `${r.stdout}${r.stderr}`);
+        assert.equal(spawnSync("cat", [join(root, "workspaces", "1", "s.txt")], { encoding: "utf8" }).stdout, "rlock1\n");
+      });
+    }
+
+    // F46: the restart fails at its record save, so its cleanup stops the
+    // daemon it spawned; that daemon (behind a wrapper) ignores SIGTERM. The
+    // reopen must end with an error within the 60 s bound, not hang.
+    {
+      const { ws, folder } = await deadSandbox("rlock2");
+      const stubborn = "/usr/local/bin/stubborn-layerfs-daemon";
+      writeFileSync(stubborn, `#!/bin/bash\ntrap '' TERM INT HUP\n${DAEMON} "$@" &\nchild=$!\nwhile kill -0 $child 2>/dev/null; do wait $child; done\n`, { mode: 0o755 });
+      const record = join(HOME, "rlock2", "sandboxes", ws.sandbox, "sandbox.record");
+      const lock = spawnSync("chattr", ["+i", record], { encoding: "utf8" });
+      if (lock.status !== 0) {
+        console.log(`SKIP F46 chattr +i refused: ${lock.stderr.trim()}`);
+      } else {
+        let r;
+        try { r = lfsWith({ LAYERFS_DAEMON: stubborn }, "reopen", "rlock2"); } finally { spawnSync("chattr", ["-i", record]); }
+        await check("F46", "rlock2: a restart whose cleanup cannot stop its daemon ends within the bound, failed", () => {
+          assert.notEqual(r.status, null, `lfs reopen hung past ${r.ms} ms`);
+          assert.ok(r.ms < 75000, `took ${r.ms} ms`);
+          const box = r.json?.sandboxes?.find((b) => b.name === folder);
+          assert.equal(box?.state, "failed", `${r.stdout}${r.stderr}`);
+        });
+        console.log(`NOTE F46 rlock2 reopen took ${r.ms} ms; reason: ${r.json?.sandboxes?.[0]?.reason}`);
+      }
+      killDaemons();
+      spawnSync("pkill", ["-KILL", "-f", "stubborn-layerfs-daemon"]);
+    }
+
+    // F47: the old Sandbox's revive fails (its config is gone), and the
+    // replacement start is refused too (its daemon exits at once).
+    {
+      const { ws, root, folder } = await deadSandbox("rlock3");
+      spawnSync("rm", ["-rf", join(root, "config")]);
+      const before = sha(overlayOf(ws.path));
+      const dead = "/usr/local/bin/exiting-layerfs-daemon";
+      writeFileSync(dead, "#!/bin/sh\nexit 1\n", { mode: 0o755 });
+      const script = `
+        const { LayerFS } = await import(${JSON.stringify(SDK)});
+        const l = new LayerFS("rlock3", { runtime: "process", storePath: ${JSON.stringify(join(STORES, "rlock3", "global/store.sqlite"))} });
+        try { console.log(JSON.stringify({ ok: true, value: await l.workspace.mount("w2") })); }
+        catch (e) { console.log(JSON.stringify({ ok: false, code: e.code ?? null, message: String(e.message).split("\\n")[0], detail: e.detail ?? null })); }
+        process.exit(0);`;
+      const r = spawnSync("node", ["--input-type=module", "-e", script], {
+        encoding: "utf8", timeout: 90000, env: { ...process.env, LAYERFS_DAEMON: dead, LAYERFS_CONTAINER_PREFIX: "lfs-" },
+      });
+      let out = null;
+      try { out = JSON.parse(r.stdout.trim().split("\n").pop()); } catch {}
+      await check("F47", "rlock3: precondition: the mount is refused", () => {
+        assert.equal(out?.ok, false, `${r.stdout}${r.stderr}`);
+      });
+      await check("F47", "rlock3: the refusal carries `revived` naming the failed Sandbox and its Workspace with a reason", () => {
+        const revived = out?.detail?.revived;
+        assert.ok(Array.isArray(revived), `no detail.revived: ${JSON.stringify(out)}`);
+        const box = revived.find((b) => b.id === ws.sandbox || b.name === folder);
+        assert.equal(box?.state, "failed", JSON.stringify(revived));
+        const item = (box.workspaces ?? []).find((w) => w.path === ws.path);
+        assert.equal(item?.mounted, false, JSON.stringify(box));
+        assert.ok(typeof item?.reason === "string" && item.reason.length > 0, JSON.stringify(box));
+      });
+      await check("F47 F26", "rlock3: the old Sandbox's overlay stays", () => {
+        assert.equal(sha(overlayOf(ws.path)), before);
+      });
+    }
+  },
+};

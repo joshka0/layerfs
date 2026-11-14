@@ -1,0 +1,21 @@
+# lock phase (F45-F47) on product d08e3b656 (before the folder lock), 2026-11-14: F45 red x2, F47 red, F46 green but not shown to reach a waiting stop()
+command: REOPEN_E2E_PHASES='lock' tools/orbstack/reopen-e2e.sh /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/run-lock /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-head/bundle
+repo: /Users/joshka/.herdr/worktrees/layerfs/feat-sandbox-reopen-tests d38ffd959c34b88e8e310481310d3a0dc26658c5 dirty=3
+584c69c774fe7ae642be35cd2701ae25ce5994c059d23bfbd46eef327d11a8fa  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-head/bundle/layerfs-daemon
+2b76546d86592608b5bb9b7c1407232d72482fab0310eb8a9f77794a342b33e9  /private/tmp/claude-501/-Users-joshka--herdr-worktrees-layerfs-feat-sandbox-reopen-tests/9db88814-6cbb-47fa-8719-1bad0d41b502/scratchpad/build-head/bundle/layerfs.node
+2026-11-14T14:46:27Z
+phase lock exit 1
+
+FAIL F45 rlock1: a second daemon started on a held Sandbox folder exits: second daemon 94 still runs on lfs-rlock1-1: [{"pid":93,"folders":["lfs-rlock1-1"]},{"pid":94,"folders":["lfs-rlock1-1"]}]
+FAIL F45 rlock1: a revive that meets a held folder answers failed and names the holder pid: {"kind":"ok","sandboxes":[{"id":"1","name":"lfs-rlock1-1","state":"restarted","reason":null,"workspaces":[{"path":"/var/lib/layerfs/sandboxes/lfs-rlock1-1/workspaces/1","workspace":"85d32186b9c1f4d078973fd22c18b59d7cc029c0e2a21486fea38e25f11fa014","namespace":1,"branch":"w","mounted":true,"reopened":true,"reason":null}]}]} |  | + actual - expected |  | + 'restarted' | - 'failed'
+PASS F45 F26 rlock1: once the holder is gone, a reopen mounts the saved Workspace
+PASS F46 rlock2: a restart whose cleanup cannot stop its daemon ends within the bound, failed
+NOTE F46 rlock2 reopen took 5091 ms; reason: Os { code: 1, kind: PermissionDenied, message: "Operation not permitted" }; the restarted daemon is stopped
+PASS F47 rlock3: precondition: the mount is refused
+FAIL F47 rlock3: the refusal carries `revived` naming the failed Sandbox and its Workspace with a reason: no detail.revived: {"ok":false,"code":"Failed","message":"Failed: sandbox create stopped at Listener: Process(Listener, Custom { kind: Other, error: \"daemon exited before it listened\" }); its daemon's last log lines:","detail":{"container":"pid:430@1190384","removed":true,"log":""}}
+PASS F47 F26 rlock3: the old Sandbox's overlay stays
+PASS setup lock the phase ran to its end
+PHASE lock FAILED 3
+BASELINE-UNUSED F20 rmain a: unmount without discard succeeds after the commit [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F20 rmain b: unmount with discard deletes the reopened overlay file [core/docs/issues/unmount-join/README.md]
+BASELINE-UNUSED F35 setup: a new saved Workspace, then SIGKILL [core/docs/issues/unmount-join/README.md]
