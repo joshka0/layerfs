@@ -333,6 +333,11 @@ pub(crate) fn save_workspace(
                 SdkValue::Bytes(mount.bound.token.workspace.to_bytes().to_vec()),
             ),
             ("namespace", SdkValue::Int(mount.bound.token.namespace)),
+            // the base a reopen after a restart binds on (REOPEN.md)
+            (
+                "root",
+                SdkValue::Bytes(mount.bound.binding.effective_root.to_bytes().to_vec()),
+            ),
         ]),
     )
 }

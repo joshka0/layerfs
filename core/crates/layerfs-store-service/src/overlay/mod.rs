@@ -7,6 +7,7 @@ pub mod kernel_operations;
 pub mod lifetime_operations;
 pub mod operation_record_port;
 pub mod owner;
+pub mod owner_file;
 pub mod read_operations;
 pub mod read_port;
 pub mod scopes;

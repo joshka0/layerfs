@@ -101,6 +101,7 @@ pub(crate) fn operator_call(op: String, args: JsUnknown) -> napi::Result<AsyncTa
             "operator.process.cancel" => exec::cancel(&args),
             "operator.project.progress" => crate::project::progress(&args),
             "operator.sandbox.list" => workspace::list(&args),
+            "operator.sandbox.reopen" => crate::discovery::reopen_all(&args),
             "operator.inspect.history"
             | "operator.store.stats"
             | "operator.store.commits"

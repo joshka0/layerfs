@@ -2,3 +2,4 @@
 *.bin binary
 poc/evidence/**/*.typescript -text
 tools/orbstack/seccomp.json linguist-generated
+core/docs/issues/373/receipts/*.log linguist-generated

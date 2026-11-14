@@ -52,7 +52,20 @@ fn place(args: &SdkValue, project: &Path) -> Result<Arc<SandboxState>, SdkRefusa
             Ok(state) => return Ok(state),
             Err(refusal) => match crate::discovery::gone_container(&refusal) {
                 Some((container, stopped)) => {
-                    crate::sandbox::reclaim(args, &id, container, stopped)?;
+                    match crate::sandbox::reclaim(args, &id, container, stopped) {
+                        Ok(_) => {}
+                        // saved overlays: start it again and use it if it has room
+                        Err(kept) if kept.code == crate::sandbox::KEPT => {
+                            if let Some((_, Some(state))) =
+                                crate::discovery::revive(args, &id, false)?
+                            {
+                                if recorded(&directory)? < WORKSPACES as usize {
+                                    return Ok(state);
+                                }
+                            }
+                        }
+                        Err(refusal) => return Err(refusal),
+                    }
                 }
                 None => return Err(refusal),
             },
@@ -104,7 +117,8 @@ pub(crate) fn mount(args: &SdkValue) -> Outcome {
 /// `operator.sandbox.list()`: the project's running Sandboxes, lowest
 /// number first: `{ id, name, image }`. Each recorded container is inspected once
 /// (no daemon is dialed); one found gone or stopped, an idle-closed
-/// Sandbox's, is reclaimed under the project's guard and left out. It starts
+/// Sandbox's, is reclaimed under the project's guard and left out, unless it
+/// holds saved Workspace overlays: then it is only left out. It starts
 /// nothing.
 pub(crate) fn list(args: &SdkValue) -> Outcome {
     let mut items = Vec::new();
@@ -140,6 +154,8 @@ pub(crate) fn list(args: &SdkValue) -> Outcome {
                     Ok(_) => {}
                     // started again under the number meanwhile
                     Err(refusal) if refusal.code == "Busy" => items.push(item),
+                    // saved overlays: kept for operator.sandbox.reopen, not running
+                    Err(refusal) if refusal.code == crate::sandbox::KEPT => {}
                     Err(refusal) => return Err(refusal),
                 }
             }

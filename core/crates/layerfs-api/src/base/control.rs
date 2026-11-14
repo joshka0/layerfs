@@ -277,6 +277,20 @@ fn matches_reply(request: &Request, reply: &Reply) -> bool {
             token.workspace == *workspace && binding.branch.id == *branch
         }
         (
+            Request::Reopen {
+                workspace,
+                branch,
+                namespace,
+                root,
+            },
+            Reply::Bound { token, binding },
+        ) => {
+            token.workspace == *workspace
+                && token.namespace == *namespace
+                && binding.branch.id == *branch
+                && binding.effective_root.to_bytes() == *root
+        }
+        (
             Request::Commit(_),
             Reply::Committed(_) | Reply::MergeCommitted(_) | Reply::Conflict(_),
         ) => true,

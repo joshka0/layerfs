@@ -4,7 +4,8 @@
 # and sshd, so this script brings them back.
 #   vm-boot.sh apply   apply the agent firewall, start sshd, the
 #                      forwards to the shared services and the agent's
-#                      rootless Docker
+#                      rootless Docker, then reopen the LayerFS Workspaces
+#                      a restart left (lfs reopen)
 #   vm-boot.sh run     apply, then trim the disks hourly (the container command)
 # The container runs with --init, which reaps the processes sshd leaves.
 set -eu
@@ -41,6 +42,25 @@ apply() {
   # The workbench must keep running without its services.
   services || echo "vm-boot: shared services did not start" >&2
   agent_docker || echo "vm-boot: the agent's Docker did not start" >&2
+  reopen
+}
+
+# A restart ends every LayerFS daemon, but each Workspace's overlay stays in
+# its Sandbox folder. Start those Sandboxes again and reopen the Workspaces
+# at their saved paths (core/docs/issues/373/REOPEN.md), one project at a
+# time. A failed reopen keeps the overlay and never stops the boot.
+reopen() {
+  command -v lfs >/dev/null || return 0
+  if ! mountpoint -q /var/lib/layerfs-data || ! mountpoint -q /var/lib/layerfs; then
+    echo "vm-boot: Store volume not mounted, no reopen" >&2
+    return 0
+  fi
+  home=${LAYERFS_HOME:-/var/lib/layerfs-data/home}
+  for sandboxes in "$home"/*/sandboxes; do
+    [ -d "$sandboxes" ] || continue
+    project=$(basename "$(dirname "$sandboxes")")
+    lfs reopen "$project" || echo "vm-boot: lfs reopen $project: not every Workspace reopened" >&2
+  done
 }
 
 # The default: the host NATs the box, and the firewall allows its direct connections.

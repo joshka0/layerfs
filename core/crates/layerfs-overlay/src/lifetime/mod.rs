@@ -6,6 +6,7 @@ pub(crate) mod file_owners;
 pub(crate) mod frontier;
 pub(crate) mod generation;
 pub(crate) mod orphan;
+pub mod resume_rules;
 pub(crate) mod source;
 pub(crate) mod tickets;
 pub(crate) mod workspace;

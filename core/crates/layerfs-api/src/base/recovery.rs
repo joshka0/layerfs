@@ -18,6 +18,26 @@ impl WorkspaceApi<'_> {
             reply => Err(OperationFailure::unexpected(request, reply)),
         }
     }
+    /// Binds the saved Workspace of an ended daemon once, on its own overlay
+    /// file `namespace` and its saved base `root`. Not a kernel mount.
+    pub(crate) fn rebind(
+        &mut self,
+        workspace: WorkspaceId,
+        branch: BranchId,
+        namespace: i64,
+        root: [u8; 32],
+    ) -> Result<BoundWorkspace, Box<OperationFailure>> {
+        let request = Request::Reopen {
+            workspace,
+            branch,
+            namespace,
+            root,
+        };
+        match self.exchange(request.clone())? {
+            Reply::Bound { token, binding } => Ok(BoundWorkspace { token, binding }),
+            reply => Err(OperationFailure::unexpected(request, reply)),
+        }
+    }
 }
 
 impl WorkspaceApi<'_> {

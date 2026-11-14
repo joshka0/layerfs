@@ -30,6 +30,12 @@ pub enum BindError {
         provider: Option<Arc<PortError>>,
     },
     Owner(OwnerError),
+    /// A reopen found the Branch's effective root changed since the saved
+    /// Workspace's mount.
+    BaseMoved {
+        expected: [u8; 32],
+        actual: [u8; 32],
+    },
 }
 #[derive(Debug)]
 pub struct BindRefusal {

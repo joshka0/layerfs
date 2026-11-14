@@ -62,6 +62,31 @@ pub struct MountFailure {
     pub failure: Box<OperationFailure>,
 }
 impl WorkspaceApi<'_> {
+    /// Binds the saved Workspace of an ended daemon on its overlay file
+    /// `namespace` and base `root`, then attaches it at its saved path.
+    pub fn reopen(
+        &mut self,
+        workspace: WorkspaceId,
+        branch: BranchId,
+        namespace: i64,
+        root: [u8; 32],
+    ) -> Result<MountedWorkspace, Box<MountFailure>> {
+        let bound = self
+            .rebind(workspace, branch, namespace, root)
+            .map_err(|failure| {
+                Box::new(MountFailure {
+                    bound: None,
+                    failure,
+                })
+            })?;
+        match self.attach(bound.token) {
+            Ok(ready) => Ok(MountedWorkspace { bound, ready }),
+            Err(failure) => Err(Box::new(MountFailure {
+                bound: Some(bound),
+                failure,
+            })),
+        }
+    }
     /// Two separately acknowledged attempts: bind, then attach. Each keeps its
     /// own original failure; a failed attach leaves the Workspace bound.
     pub fn mount(

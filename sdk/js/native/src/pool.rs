@@ -101,6 +101,33 @@ impl Dial {
 
     /// One authenticated connection, checked to reach the same daemon.
     pub(crate) fn open(&self) -> Result<Control, SdkRefusal> {
+        match self.hello(Some(self.instance), false)? {
+            (control, status) if status.phase == DaemonPhase::ControlReady => Ok(control),
+            _ => Err(refused("StaleSandbox", "saved daemon is not ControlReady")),
+        }
+    }
+
+    /// The first connection to a daemon started again on a saved Sandbox:
+    /// it waits for the daemon's Store and learns its new instance, which
+    /// the caller saves. `self.instance` is not checked.
+    #[cfg(target_os = "linux")]
+    pub(crate) fn first(&self) -> Result<(Control, [u8; 32]), SdkRefusal> {
+        match self.hello(None, true)? {
+            (control, status) if status.phase == DaemonPhase::ControlReady => {
+                Ok((control, status.instance))
+            }
+            (_, status) => Err(refused(
+                "Failed",
+                format!("restarted daemon is {:?}, not ControlReady", status.phase),
+            )),
+        }
+    }
+
+    fn hello(
+        &self,
+        expected_instance: Option<[u8; 32]>,
+        wait_for_store: bool,
+    ) -> Result<(Control, layerfs_bridge::control::DaemonStatus), SdkRefusal> {
         let address =
             layerfs_api::connect_address(self.endpoint, self.host.as_deref()).map_err(failed)?;
         let stream = std::net::TcpStream::connect_timeout(&address, Duration::from_secs(10))
@@ -118,13 +145,16 @@ impl Dial {
         let mut control = Control::new(connection);
         match control
             .call(Request::Hello(HelloRequest {
-                expected_instance: Some(self.instance),
-                wait_for_store: false,
+                expected_instance,
+                wait_for_store,
             }))
             .map_err(failed)?
         {
-            Reply::Hello(status) if status.phase == DaemonPhase::ControlReady => Ok(control),
-            _ => Err(refused("StaleSandbox", "saved daemon is not ControlReady")),
+            Reply::Hello(status) => Ok((control, status)),
+            _ => Err(refused(
+                "StaleSandbox",
+                "daemon answered Hello with another reply",
+            )),
         }
     }
 }

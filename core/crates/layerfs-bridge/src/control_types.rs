@@ -45,6 +45,19 @@ pub enum Request {
         /// Selected Branch.
         branch: BranchId,
     },
+    /// Bind the saved Workspace of an ended daemon of this Sandbox folder on
+    /// its own overlay file and number, on its saved base. Kernel attachment
+    /// is the separate Attach, at the saved path.
+    Reopen {
+        /// The saved Workspace's authority incarnation.
+        workspace: WorkspaceId,
+        /// Its Branch.
+        branch: BranchId,
+        /// Its overlay file `<namespace>.sqlite` and mount `workspaces/<namespace>`.
+        namespace: i64,
+        /// The effective root of the Workspace's binding at its mount.
+        root: [u8; 32],
+    },
     /// One SDK call answered by a value or a typed SDK refusal.
     Sdk(crate::control_sdk::SdkCall),
     /// Capture the published frontier, construct it in the daemon, merge it

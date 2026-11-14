@@ -243,8 +243,14 @@ pub(crate) fn project(args: &SdkValue) -> Result<Project> {
 }
 
 mod lock;
+mod revive;
+#[cfg(target_os = "linux")]
+mod revive_rules;
 mod sandbox;
 pub(crate) use lock::guard;
+pub(crate) use revive::{holds_overlays, reopen_all, revive};
+#[cfg(target_os = "linux")]
+pub(crate) use sandbox::Saved;
 pub(crate) use sandbox::{
     gone, gone_container, refresh, reopen, runtime, save_process, save_sandbox, save_workspace,
     workspace_file,

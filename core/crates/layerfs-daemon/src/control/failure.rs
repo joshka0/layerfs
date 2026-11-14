@@ -71,6 +71,15 @@ impl Failure {
                         (ControlCode::Missing, None, format!("Branch {id} missing"))
                     }
                     BindError::Owner(error) => (owner(error), None, owner_detail(error)),
+                    BindError::BaseMoved { expected, actual } => (
+                        ControlCode::Invalid,
+                        None,
+                        format!(
+                            "saved base {} is not the Branch root {}: the Branch moved",
+                            layerfs_bridge::sdk_values::hex(expected),
+                            layerfs_bridge::sdk_values::hex(actual)
+                        ),
+                    ),
 
                     BindError::Content { error, provider } => (
                         port(

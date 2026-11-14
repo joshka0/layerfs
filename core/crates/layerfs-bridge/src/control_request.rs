@@ -38,6 +38,18 @@ impl Call {
                 out.put(&workspace.to_bytes())?;
                 out.put(&branch.to_bytes())?;
             }
+            Request::Reopen {
+                workspace,
+                branch,
+                namespace,
+                root,
+            } => {
+                out.byte(15)?;
+                out.put(&workspace.to_bytes())?;
+                out.put(&branch.to_bytes())?;
+                out.put(&namespace.to_be_bytes())?;
+                out.put(root)?;
+            }
             Request::Sdk(value) => {
                 out.byte(20)?;
                 crate::control_sdk::put_call(&mut out, value)?;
@@ -150,6 +162,12 @@ impl Call {
             1 => Request::Mount {
                 workspace: history(WorkspaceId::from_authority(input.array()?))?,
                 branch: history(BranchId::from_bytes(input.array()?))?,
+            },
+            15 => Request::Reopen {
+                workspace: history(WorkspaceId::from_authority(input.array()?))?,
+                branch: history(BranchId::from_bytes(input.array()?))?,
+                namespace: i64::from_be_bytes(input.array()?),
+                root: input.array()?,
             },
             2 => Request::Commit(crate::control_merge::commit_control(&mut input)?),
             20 => Request::Sdk(crate::control_sdk::call(&mut input)?),
