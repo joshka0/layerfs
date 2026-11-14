@@ -257,29 +257,105 @@ fn restart_daemon(
             .ok_or_else(|| refused("InvalidInput", "missing `deploy`"))?,
         "daemon",
     )?);
-    let sandbox = process::Sandbox::restart(&executable, layout.clone(), pid, start, STARTUP)
-        .map_err(|failure| {
+    let sandbox = match process::Sandbox::restart(&executable, layout.clone(), pid, start, STARTUP)
+    {
+        Ok(sandbox) => sandbox,
+        Err(failure) => {
             let tail = failure
                 .sandbox
                 .as_ref()
                 .and_then(|s| s.log_tail(2048).ok())
                 .map(|b| String::from_utf8_lossy(&b).trim_end().to_owned())
                 .unwrap_or_default();
-            refused(
-                "Failed",
-                format!(
-                    "daemon restart stopped at {:?}: {}{}",
-                    failure.phase,
-                    failure.cause,
-                    if tail.is_empty() {
-                        String::new()
-                    } else {
-                        format!("; log: {tail}")
-                    }
-                ),
-            )
-        })?;
+            let mut message = format!(
+                "daemon restart stopped at {:?}: {}{}",
+                failure.phase,
+                failure.cause,
+                if tail.is_empty() {
+                    String::new()
+                } else {
+                    format!("; log: {tail}")
+                }
+            );
+            // A start that failed at its listen line returns the daemon it
+            // spawned, still running: it is stopped like any failed restart.
+            if let Some(daemon) = failure.sandbox {
+                message = format!(
+                    "{message}; {}",
+                    stop_spawned(directory, value, daemon.pid(), daemon.start_time(), daemon)
+                );
+            }
+            return Err(refused("Failed", message));
+        }
+    };
+    let spawned = (sandbox.pid(), sandbox.start_time());
     let runtime = Runtime::Process(sandbox);
+    // Until its record names it, the new daemon is unknown to every later
+    // call: one would start a second daemon on the folder. So a failure
+    // before the record is saved stops it (Quint sandbox_reopen, OneDaemon).
+    match record_restarted(args, id, directory, value, name, runtime) {
+        Ok(state) => Ok(state),
+        Err(mut refusal) => {
+            let daemon = process::Sandbox::stopped(layout, spawned.0, spawned.1);
+            refusal.message = format!(
+                "{}; {}",
+                refusal.message,
+                stop_spawned(directory, value, spawned.0, spawned.1, daemon)
+            );
+            Err(refusal)
+        }
+    }
+}
+
+/// Stops a daemon a failed restart spawned. If the stop fails, the Sandbox
+/// record is made to name it, so a later revive finds it running and starts
+/// no second daemon on the folder. Returns what happened, for the refusal.
+#[cfg(target_os = "linux")]
+fn stop_spawned(
+    directory: &Path,
+    value: &SdkValue,
+    pid: u32,
+    start: u64,
+    mut daemon: layerfs_sandbox::backend::process::Sandbox,
+) -> String {
+    match daemon.stop(Duration::from_secs(5)) {
+        Ok(()) => "the restarted daemon is stopped".to_owned(),
+        Err(error) => {
+            let SdkValue::Map(mut fields) = value.clone() else {
+                return format!("stopping the restarted daemon pid:{pid}@{start} failed: {error}");
+            };
+            for (key, field) in fields.iter_mut() {
+                match key.as_str() {
+                    "pid" => *field = SdkValue::Int(pid.into()),
+                    "start" => *field = SdkValue::text(start.to_string()),
+                    "container" => *field = SdkValue::text(format!("pid:{pid}@{start}")),
+                    _ => {}
+                }
+            }
+            let recorded = save(&directory.join("sandbox.record"), SdkValue::Map(fields));
+            format!(
+                "stopping the restarted daemon pid:{pid}@{start} failed: {error}; its record \
+                 {} it",
+                if recorded.is_ok() {
+                    "now names"
+                } else {
+                    "could not be made to name"
+                }
+            )
+        }
+    }
+}
+
+/// The handshake with a restarted daemon and its saved identity.
+#[cfg(target_os = "linux")]
+fn record_restarted(
+    args: &SdkValue,
+    id: &str,
+    directory: &Path,
+    value: &SdkValue,
+    name: &str,
+    runtime: Runtime,
+) -> Result<Arc<SandboxState>> {
     let directory = directory.to_owned();
     let name = name.to_owned();
     let mut dial = crate::pool::Dial {
@@ -382,3 +458,7 @@ fn reattach(
 /// Wait for a restarted daemon's listener.
 #[cfg(target_os = "linux")]
 const STARTUP: Duration = Duration::from_secs(30);
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "../../tests/unit/revive.rs"]
+mod revive_tests;

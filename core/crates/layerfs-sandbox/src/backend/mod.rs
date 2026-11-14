@@ -2,6 +2,7 @@
 pub mod docker;
 #[cfg(target_os = "linux")]
 pub mod process;
+pub mod stop_rules;
 
 use crate::WireFailure;
 use std::{fmt, io, net::SocketAddr};

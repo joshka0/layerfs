@@ -4,6 +4,7 @@
 //! its mount namespace, so each one owns a private directory whose
 //! `workspaces` home holds its mounts. Commands run through `setpriv` as the
 //! command identity, with no capabilities and `no_new_privs`.
+use super::stop_rules::{wait_gone, StillRunning, KILL_WAIT};
 use crate::CommandIdentity;
 use nix::{
     mount::{umount2, MntFlags},
@@ -226,7 +227,8 @@ impl Sandbox {
     }
 
     /// Reopens a saved daemon: the same pid with the same start time, still
-    /// running. Gone or exited is `NotFound`.
+    /// running. Gone or exited is `NotFound`. The process is checked before
+    /// the log: a restart replaces the log while the ended daemon is saved.
     pub fn reopen(layout: Layout, pid: u32, start: u64) -> io::Result<Self> {
         let mut sandbox = Self {
             layout,
@@ -235,6 +237,7 @@ impl Sandbox {
             endpoint: SocketAddr::from(([127, 0, 0, 1], 0)),
             stopped: false,
         };
+        sandbox.endpoint()?;
         sandbox.endpoint = sandbox
             .listen_line()?
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "no daemon listen line"))?;
@@ -294,21 +297,38 @@ impl Sandbox {
         Ok(kept)
     }
 
-    /// TERM to the daemon, then up to `wait` until it is gone, then KILL.
-    /// A daemon that already exited is stopped.
+    /// TERM to the daemon, then up to `wait` until it is gone, then KILL and
+    /// up to `KILL_WAIT` (stop_rules) until it is gone, else `TimedOut`. A
+    /// daemon that already exited is stopped.
     pub fn stop(&mut self, wait: Duration) -> io::Result<()> {
         if self.running() {
             let pid = Pid::from_raw(self.pid as i32);
+            let pause = || thread::sleep(PAUSE);
             kill(pid, Signal::SIGTERM).map_err(io::Error::from)?;
-            let deadline = Instant::now() + wait;
-            while self.running() && Instant::now() < deadline {
-                thread::sleep(PAUSE);
-            }
-            if self.running() {
+            let termed = wait_gone(
+                || self.running(),
+                Instant::now,
+                pause,
+                Instant::now() + wait,
+            );
+            if termed.is_err() {
                 kill(pid, Signal::SIGKILL).map_err(io::Error::from)?;
-                while self.running() {
-                    thread::sleep(PAUSE);
-                }
+                wait_gone(
+                    || self.running(),
+                    Instant::now,
+                    pause,
+                    Instant::now() + KILL_WAIT,
+                )
+                .map_err(|StillRunning| {
+                    io::Error::new(
+                        io::ErrorKind::TimedOut,
+                        format!(
+                            "daemon pid {} still runs {} s after SIGKILL",
+                            self.pid,
+                            KILL_WAIT.as_secs()
+                        ),
+                    )
+                })?;
             }
         }
         self.stopped = true;

@@ -81,7 +81,12 @@ change refuses that shape (parked decision P1).
 4. SDK discovery (`workspace.mount` placement, `operator.sandbox.list`) does
    not reclaim a dead process Sandbox that has a saved Workspace with an
    overlay file. `operator.sandbox.reopen` restarts every such Sandbox of the
-   project and reopens its Workspaces.
+   project and reopens its Workspaces. When `workspace.mount` placement finds
+   such a Sandbox, it revives it, and uses it if it has a free slot. If that
+   revive fails or ends the Sandbox, the mount places the new Workspace in
+   another Sandbox or starts a new one. The old Sandbox, its records and its
+   overlay files are kept. The mount answer reports the failed revive in
+   `revived` (Interfaces).
 5. `lfs reopen <project>` calls it. `vm-boot.sh apply` runs it for each
    project at boot.
 
@@ -117,6 +122,50 @@ change refuses that shape (parked decision P1).
 - `mounted` is true when the Workspace is mounted after the call.
   `reopened` is true when this call reopened it. `reason` is `null` exactly
   when `reopened` is `true`.
+
+`workspace.mount(branch)` (JS `layerfs.workspace.mount`, `lfs mount`)
+answers its usual fields and `revived`:
+
+```
+{ sandbox: "2", path: "...", image: null,
+  revived: [ <one operator.sandbox.reopen sandboxes item, state "failed"> ] }
+```
+
+- `revived` is empty unless placement revived a Sandbox with saved overlays
+  and that revive failed. Then it holds that Sandbox's item exactly as
+  `operator.sandbox.reopen` gives it: `id`, `name`, `state: "failed"`,
+  `reason`, and each saved Workspace by `path` with `mounted: false` and a
+  non-empty `reason`. The new Workspace is placed in another Sandbox; the
+  failed Sandbox, its records and its overlay files are kept.
+- If the mount itself then fails, its refusal carries the same `revived`
+  in its `detail` (operator, 2026-11-14: a revive failure is never hidden).
+
+One daemon serves a Sandbox folder. At start, before it binds or starts
+anything, the daemon takes an exclusive flock on
+`<folder>/config/daemon.setup.lock` and writes its pid there; it holds the
+lock until it exits. A daemon that finds the lock held exits at once
+(status 1) with one stderr line:
+`layerfs-daemon: the Sandbox folder is held by daemon pid <pid>`. A revive
+whose restart meets it answers `failed`, and its reason holds that line. A
+daemon left running by a failed restart (its stop failed, and its record
+could not be saved) therefore blocks every later daemon on the folder, and
+each revive answer names it, until it ends.
+
+A stop of a daemon sends SIGTERM, waits, then SIGKILL, and waits at most
+60 s more (`layerfs-sandbox` `backend/stop_rules.rs`); then it fails
+`TimedOut`.
+
+A Sandbox is `restarting` while another call holds the project's guard
+and the Sandbox's saved daemon has ended: `operator.sandbox.reopen` holds
+that guard while it revives each Sandbox.
+
+- `operator.sandbox.list` lists a `restarting` Sandbox.
+- A Workspace call (`workspace.status`, `commit`, `exec`, `unmount`, process
+  calls) that finds its saved daemon ended waits for the project's guard, at
+  most 60 s, then reads the Sandbox record again: it answers normally from a
+  restarted daemon, and refuses `NoSuchSandbox` for a Sandbox that is still
+  gone. If the guard is still held after 60 s, it refuses
+  `Busy` with message `Sandbox <id> is restarting`.
 
 `lfs reopen <project>` prints that answer as one JSON line. It exits 0 when
 every listed Workspace has `mounted: true`, 1 otherwise, and 2 on a usage
