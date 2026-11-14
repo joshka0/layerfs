@@ -158,7 +158,7 @@ export function assertAnswerShape(answer) {
   assert.ok(Array.isArray(answer.sandboxes), "answer.sandboxes is a list");
   for (const s of answer.sandboxes) {
     assert.ok(typeof s.id === "string" && typeof s.name === "string", `sandbox id and name: ${JSON.stringify(s)}`);
-    assert.ok(["running", "restarted", "failed"].includes(s.state), `sandbox state ${s.state}`);
+    assert.ok(["running", "restarted", "failed", "ended"].includes(s.state), `sandbox state ${s.state}`);
     assert.equal(s.state === "failed", typeof s.reason === "string" && s.reason.length > 0, `sandbox reason iff failed: ${JSON.stringify(s)}`);
     for (const w of s.workspaces) {
       assert.ok(typeof w.path === "string" && /^[0-9a-f]{64}$/.test(w.workspace), `workspace path and id: ${JSON.stringify(w)}`);
@@ -169,6 +169,7 @@ export function assertAnswerShape(answer) {
       if (w.reopened) assert.equal(w.mounted, true, `reopened but not mounted: ${JSON.stringify(w)}`);
       assert.equal(w.mounted, isMount(w.path), `mounted ${w.mounted} but the mount table says ${isMount(w.path)}: ${w.path}`);
       if (s.state === "failed") assert.equal(w.mounted, false, "no Workspace is mounted in a failed Sandbox");
+      if (s.state === "ended") assert.equal(w.reason, "no saved overlay file", `an ended Sandbox lists only Workspaces without overlay: ${JSON.stringify(w)}`);
       if (w.reason === "already mounted") assert.equal(w.mounted, true, "`already mounted` but not mounted");
     }
   }
