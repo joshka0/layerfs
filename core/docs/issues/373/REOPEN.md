@@ -137,7 +137,23 @@ answers its usual fields and `revived`:
   `reason`, and each saved Workspace by `path` with `mounted: false` and a
   non-empty `reason`. The new Workspace is placed in another Sandbox; the
   failed Sandbox, its records and its overlay files are kept.
-- If the mount itself then fails, its refusal does not carry `revived`.
+- If the mount itself then fails, its refusal carries the same `revived`
+  in its `detail` (operator, 2026-11-14: a revive failure is never hidden).
+
+One daemon serves a Sandbox folder. At start, before it binds or starts
+anything, the daemon takes an exclusive flock on
+`<folder>/config/daemon.setup.lock` and writes its pid there; it holds the
+lock until it exits. A daemon that finds the lock held exits at once
+(status 1) with one stderr line:
+`layerfs-daemon: the Sandbox folder is held by daemon pid <pid>`. A revive
+whose restart meets it answers `failed`, and its reason holds that line. A
+daemon left running by a failed restart (its stop failed, and its record
+could not be saved) therefore blocks every later daemon on the folder, and
+each revive answer names it, until it ends.
+
+A stop of a daemon sends SIGTERM, waits, then SIGKILL, and waits at most
+60 s more (`layerfs-sandbox` `backend/stop_rules.rs`); then it fails
+`TimedOut`.
 
 A Sandbox is `restarting` while another call holds the project's guard
 and the Sandbox's saved daemon has ended: `operator.sandbox.reopen` holds
