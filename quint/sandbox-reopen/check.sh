@@ -84,5 +84,6 @@ no_revived_report RevivedReported invariant violation
 status_no_wait StatusWaitsOutRestart invariant violation
 no_stale_check StatusRefusesUnusable invariant violation
 count_unattached ReopenedWhenDone invariant violation
+stuck_stop AllEnd temporal violation
 TABLE
 exit $failed
