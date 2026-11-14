@@ -2,6 +2,8 @@
 pub mod docker;
 #[cfg(target_os = "linux")]
 pub mod process;
+#[cfg(target_os = "linux")]
+mod process_host;
 pub mod stop_rules;
 
 use crate::WireFailure;

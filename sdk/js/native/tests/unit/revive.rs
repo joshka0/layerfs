@@ -94,7 +94,7 @@ fn running(pid: u32) -> bool {
 /// the restart must fail and leave its daemon stopped.
 fn failed_restart_leaves_no_daemon(tag: &str, first_line: &str) {
     let (base, args) = fixture(tag, first_line);
-    let (item, state) = revive(&args, "1", false).unwrap().expect("listed");
+    let (item, state) = revive(&args, "1").unwrap().expect("listed");
     assert!(state.is_none(), "no state for a failed restart");
     assert_eq!(item.get_text("state"), Some("failed"), "{item:?}");
     let pid: u32 = std::fs::read_to_string(base.join("pid"))
@@ -141,7 +141,7 @@ fn an_ended_daemon_with_an_empty_log_is_ended_not_unobservable() {
     // ended daemon. That daemon is ended: the revive restarts it.
     let (base, args) = fixture("empty-log", "LAYERFS_DAEMON_LISTEN 127.0.0.1:1");
     std::fs::write(base.join("sandbox-root/daemon.log"), b"").unwrap();
-    let (item, _) = revive(&args, "1", false).unwrap().expect("listed");
+    let (item, _) = revive(&args, "1").unwrap().expect("listed");
     let restarted = base.join("pid").exists();
     if let Ok(pid) = std::fs::read_to_string(base.join("pid")) {
         let _ = std::process::Command::new("kill")

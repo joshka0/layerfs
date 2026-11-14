@@ -27,11 +27,9 @@ export class LayerFSOperator {
       list: async () => (await sandboxes("sandbox.list")).items,
       // starts again each process Sandbox whose daemon ended while it holds saved
       // Workspace overlays, and reopens them at their saved paths: { sandboxes }
-      // (core/docs/issues/373/REOPEN.md). legacyHead: a record saved before
-      // roots were recorded reopens on its Branch head. Stopgap (operator,
-      // 2026-11-14): remove legacyHead once the overlays of 2026-11-14 are reopened.
-      reopen: async ({ legacyHead = false } = {}) =>
-        (await client.store(), sandboxes("sandbox.reopen", { legacyHead, storePath: client.options.storePath })),
+      // (core/docs/issues/373/REOPEN.md)
+      reopen: async () =>
+        (await client.store(), sandboxes("sandbox.reopen", { storePath: client.options.storePath })),
     };
     // the running Init of this project, read while project.init runs (no Sandbox): { step, entries, files, bytes } or null
     this.project = { progress: () => invokeOperator("operator.project.progress", { project: client.projectName }, client.options) };
