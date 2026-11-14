@@ -2,14 +2,19 @@
 // written from two sentences of the parent agent on 2026-11-14, before the
 // fix commits were read:
 //   F41. A listing that races the end of a Sandbox (another caller reclaims
-//        or restarts it) reports `Failed`, not `NoSuchSandbox`, for a Sandbox
-//        that is gone.
+//        it) reports `Failed`, not `NoSuchSandbox`, for a Sandbox that is
+//        gone. A listing that meets a Sandbox mid-restart fails, skips it, or
+//        waits without a bound, instead of listing it as present (contract
+//        decision of rowan-joshka-main, 2026-11-14; `NoSuchSandbox` is wrong
+//        there, because the Sandbox exists).
 //   F42. A restart whose daemon handshake or record save fails leaves the
 //        daemon it spawned running, so it holds the Sandbox folder that a
 //        later reopen needs.
+//   F43. A restart whose daemon listener never becomes ready leaves the
+//        daemon it spawned running (added 2026-11-14 from a model review).
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
-import { existsSync, readdirSync } from "node:fs";
+import { existsSync, readdirSync, writeFileSync } from "node:fs";
 import { join } from "node:path";
 import {
   BASE, HOME, OPERATOR, SDK, STORES, byPath, check, daemons, init, installLfs, killDaemons, lfsCli, open, overlayOf,
@@ -23,7 +28,7 @@ function callInChild(project, call) {
     const { LayerFSOperator } = await import(${JSON.stringify(OPERATOR)});
     const l = new LayerFS(${JSON.stringify(project)}, { runtime: "process", storePath: ${JSON.stringify(join(STORES, project, "global/store.sqlite"))} });
     const op = new LayerFSOperator(l);
-    try { await (${call})(l, op); console.log(JSON.stringify({ ok: true })); }
+    try { const value = await (${call})(l, op); console.log(JSON.stringify({ ok: true, value: value ?? null })); }
     catch (e) { console.log(JSON.stringify({ ok: false, code: e.code ?? null, message: String(e.message).split("\\n")[0] })); }
     process.exit(0);`;
   return new Promise((resolve) => {
@@ -38,14 +43,21 @@ function callInChild(project, call) {
     });
   });
 }
-// A listing that meets a gone Sandbox answers or refuses NoSuchSandbox. A
-// Workspace call may also refuse NotMounted while its Workspace is not yet
-// mounted again. `Failed` is never right for either.
-const ALLOWED = { list: ["NoSuchSandbox"], status: ["NoSuchSandbox", "NotMounted"], reopen: [] };
-const notGoneAsFailed = (results) => {
-  const bad = results.filter((r) => !r.ok && !ALLOWED[r.call].includes(r.code));
+// Refusal codes a racing call may give. A listing that meets a gone
+// Sandbox may refuse NoSuchSandbox; one that meets a Sandbox mid-restart may
+// not refuse at all. A Workspace call keeps its existing contract: before
+// the restart it meets a dead daemon (NoSuchSandbox, README), then a
+// Workspace not mounted yet (NotMounted). `Failed` is never right.
+const GONE = { list: ["NoSuchSandbox"] };
+const RESTARTING = { list: [], status: ["NoSuchSandbox", "NotMounted"], reopen: [] };
+const wrongCodes = (allowed, results) => results.filter((r) => !r.ok && !allowed[r.call].includes(r.code));
+const refusedOnlyWith = (allowed, results) => {
+  const bad = wrongCodes(allowed, results);
   assert.deepEqual(bad, [], `racing calls refused with a wrong code: ${JSON.stringify(bad)}`);
 };
+// A listing item names its Sandbox by number or by folder name.
+const lists = (value, id, folder) => (Array.isArray(value) ? value : []).some((item) =>
+  item && (item.id === id || item.sandbox === id || item.name === folder));
 const labelled = (call, promise) => promise.then((r) => ({ call, ...r }));
 
 export const racesPhases = {
@@ -64,7 +76,7 @@ export const racesPhases = {
       await until("the daemons to die", () => daemons().length === 0);
       const results = await Promise.all(Array.from({ length: 6 }, () => labelled("list", callInChild(project, "(l, op) => op.sandbox.list()"))));
       await check("F41 F28", `${project}: six racing listings of a dead idle Sandbox: success or NoSuchSandbox, never Failed`, () => {
-        notGoneAsFailed(results);
+        refusedOnlyWith(GONE, results);
         assert.ok(!existsSync(sandboxRoot(ws.path)), "the dead idle Sandbox was not reclaimed");
       });
     }
@@ -85,8 +97,11 @@ export const racesPhases = {
         ...Array.from({ length: 4 }, () => labelled("list", callInChild(project, "(l, op) => op.sandbox.list()"))),
         ...Array.from({ length: 2 }, () => labelled("status", callInChild(project, `(l) => l.workspace.status(${wsArg})`))),
       ]);
-      await check("F41 F35", `${project}: listings and status racing a reopen: never Failed`, () => {
-        notGoneAsFailed(results);
+      await check("F41 F35", `${project}: listings racing a restart succeed and list the Sandbox; status refuses only NoSuchSandbox or NotMounted`, () => {
+        const folder = sandboxRoot(ws.path).split("/").pop();
+        const bad = wrongCodes(RESTARTING, results);
+        const missing = results.filter((r) => r.call === "list" && r.ok && !lists(r.value, ws.sandbox, folder));
+        assert.deepEqual({ wrongCodes: bad, listingsWithoutTheSandbox: missing }, { wrongCodes: [], listingsWithoutTheSandbox: [] });
       });
       await check("F41 F35", `${project}: after the race the saved Workspace is mounted and intact`, async () => {
         const answer = lfsCli("reopen", project);
@@ -138,6 +153,42 @@ export const racesPhases = {
         assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
         assert.equal(spawnSync("cat", [join(ws.path, "k.txt")], { encoding: "utf8" }).stdout, "kept\n");
         assert.ok(readdirSync(records).length > 0);
+      });
+    }
+
+    // F43: the real daemon runs, but its output goes nowhere, so the restart
+    // never reads a listen line: its listener never becomes ready.
+    {
+      const project = "rrace6";
+      const l = open(project);
+      await init(l, BASE);
+      await l.branch.fork("w");
+      const ws = await l.workspace.mount("w");
+      await sh(l, ws, "echo quiet > q.txt");
+      const folder = sandboxRoot(ws.path).split("/").pop();
+      killDaemons();
+      await until("the daemons to die", () => daemons().length === 0);
+      const quiet = "/usr/local/bin/quiet-layerfs-daemon";
+      writeFileSync(quiet, '#!/bin/sh\nexec /opt/layerfs/bundle/layerfs-daemon "$@" >/dev/null 2>&1\n', { mode: 0o755 });
+      const r = spawnSync("node", ["/opt/layerfs/tools/lfs.mjs", "reopen", project], {
+        encoding: "utf8", timeout: 90000,
+        env: { ...process.env, LAYERFS_DAEMON: quiet, LAYERFS_CONTAINER_PREFIX: "lfs-" },
+      });
+      let answer = null;
+      try { answer = JSON.parse(r.stdout.trim().split("\n").pop()); } catch {}
+      await check("F43", "precondition: with no listen line the restart reports the Sandbox failed", () => {
+        assert.notEqual(r.status, null, `lfs reopen hung: ${r.stderr}`);
+        const box = answer?.sandboxes?.find((b) => b.name === folder);
+        assert.equal(box?.state, "failed", `${r.stdout}${r.stderr}`);
+      });
+      await check("F43", "rrace6: the daemon spawned by a restart whose listener never became ready is stopped", async () => {
+        await until("the spawned daemon to stop", () => !daemons().some((d) => d.folders.includes(folder)), 5000)
+          .catch(() => assert.fail(`daemons still on ${folder}: ${JSON.stringify(daemons())}`));
+      });
+      await check("F43 F26", "rrace6: after the failed restart a normal reopen mounts the saved Workspace", () => {
+        const again = lfsCli("reopen", project);
+        assert.equal(again.status, 0, `${again.stdout}${again.stderr}`);
+        assert.equal(spawnSync("cat", [join(ws.path, "q.txt")], { encoding: "utf8" }).stdout, "quiet\n");
       });
     }
   },
