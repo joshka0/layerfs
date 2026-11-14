@@ -1,5 +1,5 @@
 // One process Sandbox folder after a restart: the daemon its record names
-// has ended, and the folder may hold saved Workspace overlays. Three
+// has ended, and the folder may hold saved Workspace overlays. Four
 // callers race on it, each its own process:
 //
 // - boot (operator.sandbox.reopen, revive.rs reopen_all): takes the project
@@ -8,19 +8,31 @@
 //   saved overlays, or answer "ended" (no saved overlay; the folder stays).
 // - mount (workspace.rs place): takes the project guard first, then observes
 //   the daemon; a running one is used; an ended one is reclaimed unless
-//   reclaim refuses it Kept (saved overlays), and then it is revived.
+//   reclaim refuses it Kept (saved overlays), and then it is revived. If
+//   that revive fails, the mount places its Workspace in another Sandbox
+//   (outside this folder) and reports the failed revive in `revived`.
 // - list (workspace.rs list): observes the record and the daemon with no
 //   guard. A running daemon or an absent record ends the call there. An
 //   ended daemon is reclaimed under the project guard; reclaim reads the
 //   record first and ends NoSuchSandbox when another call reclaimed it
-//   (sandbox/reclaim.rs), then refuses Busy and Kept.
+//   (sandbox/reclaim.rs), then refuses Busy and Kept. A guard wait that
+//   expires lists the Sandbox (it may be restarting).
+// - status (a Workspace call, registry.rs sandbox): observes the daemon
+//   with no guard. A running daemon answers. An ended one waits for the
+//   project guard, then reads the record again: a running daemon answers,
+//   else the Sandbox is gone (NoSuchSandbox). A wait that expires refuses
+//   Busy "restarting".
 //
-// The guard wait is bounded (discovery/lock.rs: 60 s, then Busy): a caller
-// that cannot get the guard ends refused. A check under the guard and its
-// effect are separate steps. A restart is two steps: the spawn (refused by
-// process.rs while the saved daemon runs), then the handshake and record
-// save, which can fail (revive.rs restart_daemon); a failure stops the
-// spawned daemon before its record is saved (fix-revive-failed-restart).
+// The guard wait is bounded (discovery/lock.rs: 60 s, then Busy). A check
+// under the guard and its effect are separate steps. A restart is two
+// steps: the spawn (refused by process.rs while the saved daemon runs),
+// then the handshake, record save and the steps after it (revive.rs
+// restart_daemon), which end in one of four outcomes; see finish.
+//
+// Each saved Workspace reattaches or not on its own (a moved branch root,
+// an overlay shape the daemon refuses): `eligible` of the `overlays` can.
+// A call's own result is separate from the reattach outcome of each
+// Workspace and, for mount, from the outcome of its target revive.
 //
 // PLANT selects one deliberate bug, for witness traces:
 //   "none"             the code as written
@@ -36,18 +48,24 @@
 //                      (the model before F1; the code answers "ended")
 //   "keep_failed_daemon" a failed restart leaves its daemon running with the
 //                      record unchanged (the code before 2f254db3c)
+//   "no_revived_report" a mount whose target revive failed answers without
+//                      `revived` (the code before d08e3b656)
+//   "status_no_wait"   status calls an ended daemon gone at once, without
+//                      the guard (the code before d08e3b656)
+//   "no_fallback"      a mount whose target revive failed fails too
+//   "count_unattached" a Workspace that cannot reattach counts as mounted
 module sandbox_reopen {
   const PLANT: str
 
-  val CALLERS = Set("boot", "mount", "list")
+  val CALLERS = Set("boot", "mount", "list", "status")
 
   // The Sandbox folder and its record exist.
   var folder: bool
-  // Saved Workspace overlay files in it (0 or 1 is enough to show loss).
+  // Saved Workspace overlay files in it.
   var overlays: int
-  // The saved records can reattach: each holds its base root, or the
-  // caller passed legacyHead (revive_rules::base). Fixed per run.
-  var eligible: bool
+  // How many of them can reattach: each record holds its base root, or the
+  // caller passed legacyHead, and the daemon accepts its overlay. Fixed.
+  var eligible: int
   // Running daemon incarnations on the folder.
   var live: Set[int]
   // The incarnation the Sandbox record names; 0 is the ended one.
@@ -61,10 +79,20 @@ module sandbox_reopen {
   var seen: str -> int
   // What each caller chose under the guard.
   var plan: str -> str
-  // The daemon a caller spawned and has not yet recorded.
+  // The daemon a caller spawned and has not yet finished.
   var spawned: str -> int
-  // How each caller ended: "", "ok", "busy" (guard wait expired), "failed".
+  // How each call ended: "", "ok", "busy" (guard wait expired), "failed",
+  // "gone" (status: NoSuchSandbox).
   var result: str -> str
+  // The outcome of the revive a caller ran on this folder: "", "ok",
+  // "failed". For mount it differs from its result: a failed target
+  // revive still ends the mount "ok" in another Sandbox.
+  var target: str -> str
+  // The mount answer's `revived` names this Sandbox.
+  var reported: bool
+  // A status call answered "gone" while a restart of the Sandbox was under
+  // way (between its check and its finish).
+  var goneMidRestart: bool
   // Workspaces mounted after a reopen.
   var mounted: int
   // The caller that deleted the folder, or "".
@@ -76,10 +104,9 @@ module sandbox_reopen {
 
   action init = all {
     folder' = true,
-    nondet o = Set(0, 1).oneOf()
-    overlays' = o,
-    nondet e = Set(true, false).oneOf()
-    eligible' = e,
+    nondet o = Set(0, 1, 2).oneOf()
+    nondet e = Set(0, 1, 2).filter(n => n <= o).oneOf()
+    all { overlays' = o, eligible' = e },
     live' = Set(),
     recorded' = 0,
     nextId' = 1,
@@ -89,6 +116,9 @@ module sandbox_reopen {
     plan' = CALLERS.mapBy(_ => "none"),
     spawned' = CALLERS.mapBy(_ => 0),
     result' = CALLERS.mapBy(_ => ""),
+    target' = CALLERS.mapBy(_ => ""),
+    reported' = false,
+    goneMidRestart' = false,
     mounted' = 0,
     deleter' = "",
   }
@@ -101,29 +131,43 @@ module sandbox_reopen {
   action unchanged_callers = all {
     seen' = seen, plan' = plan, spawned' = spawned,
   }
+  action unchanged_reports = all {
+    target' = target, reported' = reported, goneMidRestart' = goneMidRestart,
+  }
 
   def released(c: str): str = if (guard == c and PLANT != "leak_guard") "" else guard
 
-  // list only, with no guard: read the record and whether its daemon runs.
-  // A running daemon or an absent record ends the call.
+  // A restart of this folder is between its check and its finish.
+  def restarting: bool = CALLERS.exists(c =>
+    plan.get(c) == "restart" and (phase.get(c) == "checked" or phase.get(c) == "spawned"))
+
+  // list and status, with no guard: read the record and whether its daemon
+  // runs. list ends on a running daemon or an absent record; status ends on
+  // a running daemon (it answers), and with status_no_wait also on an ended
+  // one (gone).
   action observe(c: str): bool = all {
-    c == "list",
+    Set("list", "status").contains(c),
     phase.get(c) == "idle",
-    val ends = not(folder) or live.contains(recorded)
+    val running = folder and live.contains(recorded)
+    val gone = c == "status" and not(running) and PLANT == "status_no_wait"
+    val ends = running or gone or (c == "list" and not(folder))
     all {
       seen' = seen.set(c, recorded),
       phase' = phase.set(c, if (ends) "done" else "observed"),
-      result' = if (ends) result.set(c, "ok") else result,
+      result' = if (gone) result.set(c, "gone") else if (ends) result.set(c, "ok") else result,
+      goneMidRestart' = (goneMidRestart or (gone and restarting)),
     },
     plan' = plan, spawned' = spawned,
     guard' = guard,
+    target' = target, reported' = reported,
     unchanged_shell,
   }
 
   def waiting(c: str): bool =
-    if (c == "list") phase.get(c) == "observed" else phase.get(c) == "idle"
+    if (Set("list", "status").contains(c)) phase.get(c) == "observed" else phase.get(c) == "idle"
 
-  // boot and mount take the guard first; list only after it saw an ended daemon.
+  // boot and mount take the guard first; list and status only after they
+  // saw an ended daemon.
   action acquire(c: str): bool = all {
     waiting(c),
     guard == "" or PLANT == "no_guard",
@@ -131,18 +175,21 @@ module sandbox_reopen {
     phase' = phase.set(c, "held"),
     result' = result,
     unchanged_callers,
+    unchanged_reports,
     unchanged_shell,
   }
 
-  // The bounded wait expires: the caller ends refused Busy.
+  // The bounded wait expires. list lists the Sandbox; every other caller
+  // ends refused Busy (status: "Sandbox <id> is restarting").
   action timeout(c: str): bool = all {
     waiting(c),
     PLANT != "no_guard",
     guard != "" and guard != c,
     phase' = phase.set(c, "done"),
-    result' = result.set(c, "busy"),
+    result' = result.set(c, if (c == "list") "ok" else "busy"),
     guard' = guard,
     unchanged_callers,
+    unchanged_reports,
     unchanged_shell,
   }
 
@@ -157,15 +204,20 @@ module sandbox_reopen {
 
   // Under the guard: read the Sandbox again and choose. A caller that finds
   // no record has no Sandbox to visit: it ends here (for list, reclaim's
-  // NoSuchSandbox, which the listing takes as gone).
+  // NoSuchSandbox, which the listing takes as gone; for status, gone).
   action check(c: str): bool = all {
     phase.get(c) == "held",
     guard == c or PLANT == "no_guard",
-    if (not(folder)) all {
-      plan' = plan.set(c, "none"),
-      phase' = phase.set(c, "done"),
-      result' = result.set(c, "ok"),
-      guard' = released(c),
+    if (not(folder) or c == "status") {
+      val answers = c == "status" and folder and live.contains(recorded)
+      val gone = c == "status" and not(answers)
+      all {
+        plan' = plan.set(c, "none"),
+        phase' = phase.set(c, "done"),
+        result' = result.set(c, if (gone) "gone" else "ok"),
+        guard' = released(c),
+        goneMidRestart' = (goneMidRestart or (gone and restarting)),
+      }
     } else {
       val chosen =
         if (c == "boot") revived
@@ -183,15 +235,24 @@ module sandbox_reopen {
         phase' = phase.set(c, "checked"),
         result' = result,
         guard' = guard,
+        goneMidRestart' = goneMidRestart,
       }
     },
     seen' = seen, spawned' = spawned,
+    target' = target, reported' = reported,
     unchanged_shell,
   }
 
-  // Mount the saved Workspaces on a daemon that serves the folder; records
-  // that cannot reattach stay unmounted.
-  def reattached: int = if (eligible) overlays else mounted
+  // Each saved Workspace that can reattach is mounted on a daemon that
+  // serves the folder; the others stay unmounted, each with its reason.
+  def reattached: int = if (PLANT == "count_unattached") overlays else eligible
+
+  // The end of a revive that failed: boot answers the Sandbox "failed";
+  // mount places its Workspace elsewhere and reports the failed revive.
+  def failedResult(c: str): str =
+    if (c == "mount" and PLANT != "no_fallback") "ok" else "failed"
+  def reportedAfter(c: str): bool =
+    reported or (c == "mount" and PLANT != "no_revived_report")
 
   action effect(c: str): bool = all {
     phase.get(c) == "checked",
@@ -200,7 +261,9 @@ module sandbox_reopen {
       // process.rs restart: refused while the saved daemon still runs
       if (live.contains(recorded) and PLANT != "no_running_check") all {
         phase' = phase.set(c, "done"),
-        result' = result.set(c, "failed"),
+        result' = result.set(c, failedResult(c)),
+        target' = target.set(c, "failed"),
+        reported' = reportedAfter(c),
         guard' = released(c),
         spawned' = spawned,
         unchanged_shell,
@@ -210,6 +273,7 @@ module sandbox_reopen {
         nextId' = nextId + 1,
         phase' = phase.set(c, "spawned"),
         result' = result,
+        target' = target, reported' = reported,
         guard' = guard,
         folder' = folder, overlays' = overlays, eligible' = eligible,
         recorded' = recorded, mounted' = mounted, deleter' = deleter,
@@ -232,29 +296,44 @@ module sandbox_reopen {
       else unchanged_shell,
       phase' = phase.set(c, "done"),
       result' = result.set(c, "ok"),
+      target' = if (p == "use") target.set(c, "ok") else target,
+      reported' = reported,
       guard' = released(c),
       spawned' = spawned,
     },
     seen' = seen, plan' = plan,
+    goneMidRestart' = goneMidRestart,
   }
 
-  // After the spawn: the handshake and record save succeed (the record names
-  // the new daemon, the Workspaces reattach), or one fails, and the spawned
-  // daemon is stopped; the record is unchanged.
+  // After the spawn, revive.rs restart_daemon ends in one of four outcomes:
+  // - "ok": handshake and record save succeed; the record names the new
+  //   daemon and the Workspaces reattach;
+  // - "stopped": the handshake fails or never sees the listen line; the
+  //   spawned daemon is stopped and the record is unchanged;
+  // - "stop_failed": as "stopped", but the stop fails; the record is
+  //   rewritten to name the still-running daemon (3dd211bd3);
+  // - "after_record": the record save succeeded, a later step (the
+  //   container file, the registry) fails; the record names the daemon.
   action finish(c: str): bool = all {
     phase.get(c) == "spawned",
     val id = spawned.get(c)
-    nondet ok = Set(true, false).oneOf()
-    if (ok) all {
+    nondet outcome = Set("ok", "stopped", "stop_failed", "after_record").oneOf()
+    if (outcome == "ok") all {
       recorded' = id,
       mounted' = reattached,
       result' = result.set(c, "ok"),
+      target' = target.set(c, "ok"),
+      reported' = reported,
       live' = live,
     } else all {
-      recorded' = recorded,
+      recorded' = if (outcome == "stopped") recorded else id,
       mounted' = mounted,
-      result' = result.set(c, "failed"),
-      live' = if (PLANT == "keep_failed_daemon") live else live.exclude(Set(id)),
+      result' = result.set(c, failedResult(c)),
+      target' = target.set(c, "failed"),
+      reported' = reportedAfter(c),
+      live' =
+        if (outcome == "stopped" and PLANT != "keep_failed_daemon") live.exclude(Set(id))
+        else live,
     },
     folder' = folder, overlays' = overlays, eligible' = eligible,
     nextId' = nextId, deleter' = deleter,
@@ -262,6 +341,7 @@ module sandbox_reopen {
     guard' = released(c),
     spawned' = spawned.set(c, 0),
     seen' = seen, plan' = plan,
+    goneMidRestart' = goneMidRestart,
   }
 
   action step = {
@@ -273,6 +353,7 @@ module sandbox_reopen {
     CALLERS.forall(c => phase.get(c) == "done"),
     guard' = guard, phase' = phase, result' = result,
     unchanged_callers,
+    unchanged_reports,
     unchanged_shell,
   }
 
@@ -284,22 +365,32 @@ module sandbox_reopen {
   // At most one daemon serves the folder.
   val OneDaemon = live.size() <= 1
   // Every running daemon is the one the record names, once no restart is
-  // between its spawn and its record save.
+  // between its spawn and its finish.
   val NoOrphanDaemon =
     CALLERS.forall(c => phase.get(c) != "spawned") implies live.subseteq(Set(recorded))
-  // When every caller ended and each succeeded, a folder with saved overlays
-  // that can reattach has them mounted. (A failed or Busy caller, or a
-  // record without a base, is outside this claim; see eligible.)
+  // When every caller ended, boot and mount succeeded, and no revive of
+  // this folder failed, each saved Workspace that can reattach is mounted.
+  // Those that cannot stay unmounted although the call succeeds.
   val ReopenedWhenDone =
-    (CALLERS.forall(c => phase.get(c) == "done" and result.get(c) == "ok")
-      and overlays > 0 and eligible) implies mounted == overlays
+    (CALLERS.forall(c => phase.get(c) == "done" and target.get(c) != "failed")
+      and Set("boot", "mount").forall(c => result.get(c) == "ok"))
+      implies mounted == eligible
   // The boot reopen never deletes a Sandbox folder (REOPEN.md: "ended").
   val BootNeverDeletes = deleter != "boot"
+  // A mount whose target revive failed names it in `revived`.
+  val RevivedReported = target.get("mount") == "failed" implies reported
+  // A mount ends with success whatever its target revive did (fallback).
+  val MountFallsBack =
+    (phase.get("mount") == "done" and target.get("mount") == "failed")
+      implies result.get("mount") == "ok"
+  // A status call never calls a restarting Sandbox gone.
+  val StatusWaitsOutRestart = not(goneMidRestart)
   val Safety = NoOverlayLoss and OneDaemon and NoOrphanDaemon and ReopenedWhenDone
-    and BootNeverDeletes
+    and BootNeverDeletes and RevivedReported and MountFallsBack
+    and StatusWaitsOutRestart
 
   val vars = (folder, overlays, eligible, live, recorded, nextId, guard, phase, seen, plan,
-    spawned, result, mounted, deleter)
+    spawned, result, target, reported, goneMidRestart, mounted, deleter)
 
   // Every caller ends (it may end refused Busy: the wait is bounded).
   temporal AllEnd =
