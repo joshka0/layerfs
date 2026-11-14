@@ -16,6 +16,8 @@
 //                   guard, without reading the record again
 //   "no_guard"      act without holding the guard
 //   "leak_guard"    a caller ends without releasing the guard
+//   "boot_reclaims" a revive with no saved overlay deletes the folder (the
+//                   model before F1; the code answers "ended" instead)
 module sandbox_reopen {
   const PLANT: str
 
@@ -40,6 +42,8 @@ module sandbox_reopen {
   var plan: str -> str
   // Workspaces mounted after a reopen.
   var mounted: int
+  // The caller that deleted the folder, or "".
+  var deleter: str
 
   // ---- the pure decision (revive_rules::next) ----
   pure def decide(running: bool, saved: int): str =
@@ -57,11 +61,13 @@ module sandbox_reopen {
     seen' = CALLERS.mapBy(_ => 0),
     plan' = CALLERS.mapBy(_ => "none"),
     mounted' = 0,
+    deleter' = "",
   }
 
   action unchanged_shell = all {
     folder' = folder, overlays' = overlays, live' = live,
     recorded' = recorded, nextId' = nextId, mounted' = mounted,
+    deleter' = deleter,
   }
 
   // Outside any guard: read the record (and so the daemon it names).
@@ -92,7 +98,12 @@ module sandbox_reopen {
     guard == c or PLANT == "no_guard",
     val running = if (PLANT == "stale_restart") live.contains(seen.get(c))
                   else live.contains(recorded)
-    val revived = if (not(folder)) "none" else decide(running, overlays)
+    // A revive never deletes: with no saved overlay it answers "ended" and
+    // keeps the folder (revive.rs, Next::Reclaim, after F1). Only reclaim
+    // (a mount or listing, past its Busy and Kept checks) deletes.
+    val decided = decide(running, overlays)
+    val revived = if (not(folder) or (decided == "reclaim" and PLANT != "boot_reclaims")) "none"
+                  else decided
     val seenRunning = live.contains(seen.get(c))
     val chosen =
       if (c == "boot") revived
@@ -119,17 +130,19 @@ module sandbox_reopen {
       nextId' = nextId + 1,
       mounted' = overlays,
       folder' = folder, overlays' = overlays,
+      deleter' = deleter,
     }
     else if (p == "reclaim") all {
       folder' = false,
       // the overlay files go with the folder; the count stays to show the loss
       overlays' = overlays,
       live' = live, recorded' = recorded, nextId' = nextId, mounted' = mounted,
+      deleter' = c,
     }
     else if (p == "use") all {
       mounted' = overlays,
       folder' = folder, overlays' = overlays, live' = live,
-      recorded' = recorded, nextId' = nextId,
+      recorded' = recorded, nextId' = nextId, deleter' = deleter,
     }
     else unchanged_shell,
     guard' = if (guard == c and PLANT != "leak_guard") "" else guard,
@@ -147,7 +160,7 @@ module sandbox_reopen {
     CALLERS.forall(c => phase.get(c) == "done"),
     folder' = folder, overlays' = overlays, live' = live, recorded' = recorded,
     nextId' = nextId, guard' = guard, phase' = phase, seen' = seen, plan' = plan,
-    mounted' = mounted,
+    mounted' = mounted, deleter' = deleter,
   }
 
   action stepOrDone = any { step, stutter }
@@ -160,11 +173,13 @@ module sandbox_reopen {
   // A folder with saved overlays ends with them mounted once every caller is done.
   val ReopenedWhenDone =
     (CALLERS.forall(c => phase.get(c) == "done") and overlays > 0) implies mounted == overlays
-  val Safety = NoOverlayLoss and OneDaemon and ReopenedWhenDone
+  // The boot reopen never deletes a Sandbox folder (REOPEN.md: "ended").
+  val BootNeverDeletes = deleter != "boot"
+  val Safety = NoOverlayLoss and OneDaemon and ReopenedWhenDone and BootNeverDeletes
 
   // Liveness of the only wait (the project guard): with every enabled step
   // taken eventually, every caller ends.
   temporal AllEnd =
-    weakFair(step, (folder, overlays, live, recorded, nextId, guard, phase, seen, plan, mounted))
+    weakFair(step, (folder, overlays, live, recorded, nextId, guard, phase, seen, plan, mounted, deleter))
       implies eventually(CALLERS.forall(c => phase.get(c) == "done"))
 }

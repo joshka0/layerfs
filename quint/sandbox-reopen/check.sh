@@ -24,5 +24,6 @@ no_kept NoOverlayLoss invariant violation
 stale_restart OneDaemon invariant violation
 no_guard OneDaemon invariant violation
 leak_guard AllEnd temporal violation
+boot_reclaims BootNeverDeletes invariant violation
 TABLE
 exit $failed

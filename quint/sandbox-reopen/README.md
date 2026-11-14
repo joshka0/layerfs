@@ -1,6 +1,7 @@
 # Sandbox reopen race model
 
-> **Status:** Model checked with TLC on 2026-11-14. Not yet bound to the code
+> **Status:** Model checked with TLC on 2026-11-14, against the code at
+> `5f106ea97` (after F1). Not yet bound to the code
 > by trace replay, and not yet reviewed by another model family (see Open).
 
 `sandbox_reopen.qnt` models one process Sandbox folder after a restart: the
@@ -24,6 +25,8 @@ reopen, or reclaim), and acts in a later step. The source is
 - `OneDaemon`: at most one daemon serves the folder.
 - `ReopenedWhenDone`: when every caller has ended, the saved Workspaces are
   mounted.
+- `BootNeverDeletes`: the boot reopen never deletes a folder; with no saved
+  overlay it answers `ended` (post-F1, `5f106ea97`). Only a reclaim deletes.
 - `AllEnd` (temporal, weak fairness): every caller ends; the guard is the
   only wait.
 
@@ -39,6 +42,7 @@ fail.
 | `stale_restart` | revive decides on the record read outside the guard | `OneDaemon` |
 | `no_guard` | callers act without the guard | `OneDaemon` |
 | `leak_guard` | a caller ends without releasing the guard | `AllEnd` |
+| `boot_reclaims` | a revive with no saved overlay deletes the folder | `BootNeverDeletes` |
 
 ## Run
 
