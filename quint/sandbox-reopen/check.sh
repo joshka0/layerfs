@@ -11,22 +11,40 @@
 # Run from this folder after
 #   sfw npm ci --no-audit --no-fund
 # QUINT overrides the quint binary (to test this script's error handling).
+#
+# Runs may overlap (two check.sh at once, or another Quint user): each verify
+# starts its own Apalache server on a free port (Quint's default 8822 is
+# shared, and a second server fails to bind it), and each run writes its logs
+# to its own folder, results/<time>-<pid>/. Apalache's server takes only a
+# port and binds every interface; Quint's client reaches it on localhost.
 set -u
 cd "$(dirname "$0")"
 quint=${QUINT:-node_modules/.bin/quint}
 export JAVA_TOOL_OPTIONS=-XX:ActiveProcessorCount=2
-mkdir -p results
+out="results/$(date +%Y%m%dT%H%M%S)-$$"
+mkdir -p "$out"
+echo "logs: $out"
+# A port free on localhost now, for one Apalache server.
+free_port() {
+  python3 -I -c 'import socket; s = socket.socket(); s.bind(("127.0.0.1", 0)); print(s.getsockname()[1])'
+}
 failed=0
-if ! "$quint" typecheck sandbox_reopen.qnt > results/typecheck.log 2>&1; then
-  echo "ERROR typecheck failed (results/typecheck.log)"
+if ! "$quint" typecheck sandbox_reopen.qnt > "$out/typecheck.log" 2>&1; then
+  echo "ERROR typecheck failed ($out/typecheck.log)"
   exit 1
 fi
 # instance property kind expected(ok|violation)
 while read -r plant property kind expected; do
   [ -z "$plant" ] && continue
-  log="results/$plant-$property.log"
+  log="$out/$plant-$property.log"
+  if ! port=$(free_port); then
+    echo "ERROR no free port for $plant $property"
+    failed=1
+    continue
+  fi
   timeout 600 "$quint" verify "plant_$plant.qnt" --main "plant_$plant" \
-    --init M::init --step M::stepOrDone --"$kind" "M::$property" --backend tlc > "$log" 2>&1
+    --init M::init --step M::stepOrDone --"$kind" "M::$property" --backend tlc \
+    --server-endpoint "localhost:$port" > "$log" 2>&1
   code=$?
   case "$kind" in
     invariant) line="Error: Invariant .* is violated" ;;

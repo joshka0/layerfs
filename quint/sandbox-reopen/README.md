@@ -147,8 +147,17 @@ sfw npm ci --no-audit --no-fund
 `check.sh` exits 0 only when every expectation holds. A result counts only
 when the tool answers clearly: exit 0 with "No violation found", or exit 1
 with "found a counterexample" and TLC's own violation line for the kind
-checked. Any other result is an error and fails the check. Logs go to
-`results/`. `QUINT` overrides the quint binary, to test this handling.
+checked. Any other result is an error and fails the check. Each run writes
+its logs to its own folder, `results/<time>-<pid>/`, and prints it.
+`QUINT` overrides the quint binary, to test this handling.
+
+Runs can overlap. Each verify starts its own Apalache server on a free port
+(`--server-endpoint localhost:<port>`): on Quint's shared default port 8822,
+a second server failed to bind ("Address already in use") and the run ended
+with no verdict. Measured on 2026-11-14: two old `check.sh` runs at once
+gave 13 and 5 such errors; two new runs at once gave 24 of 24 each.
+Apalache's `server` takes only `--port` and binds every interface, so the
+server is not limited to localhost; Quint's client connects on localhost.
 Quint 0.33.1 is pinned in `package.json`; TLC needs Java (25 tested).
 
 ## Not modelled
