@@ -62,7 +62,7 @@ fn place(
                         Ok(_) => {}
                         // saved overlays: start it again and use it if it has room
                         Err(kept) if kept.code == crate::sandbox::KEPT => {
-                            match crate::discovery::revive(args, &id, false)? {
+                            match crate::discovery::revive(args, &id)? {
                                 Some((_, Some(state))) => {
                                     if recorded(&directory)? < WORKSPACES as usize {
                                         return Ok(state);
