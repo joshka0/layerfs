@@ -10,18 +10,22 @@
 //   the daemon; a running one is used; an ended one is reclaimed unless
 //   reclaim refuses it Kept (saved overlays), and then it is revived. If
 //   that revive fails, the mount places its Workspace in another Sandbox
-//   (outside this folder) and reports the failed revive in `revived`.
+//   (outside this folder; that start can fail too) and, when it succeeds,
+//   reports the failed revive in `revived`. A recorded daemon that is
+//   unusable fails the mount (StaleSandbox).
 // - list (workspace.rs list): observes the record and the daemon with no
 //   guard. A running daemon or an absent record ends the call there. An
 //   ended daemon is reclaimed under the project guard; reclaim reads the
 //   record first and ends NoSuchSandbox when another call reclaimed it
 //   (sandbox/reclaim.rs), then refuses Busy and Kept. A guard wait that
 //   expires lists the Sandbox (it may be restarting).
-// - status (a Workspace call, registry.rs sandbox): observes the daemon
-//   with no guard. A running daemon answers. An ended one waits for the
-//   project guard, then reads the record again: a running daemon answers,
-//   else the Sandbox is gone (NoSuchSandbox). A wait that expires refuses
-//   Busy "restarting".
+// - status (a Workspace call, registry.rs sandbox): observes the record
+//   and the daemon with no guard. No record: gone (NoSuchSandbox) at once.
+//   A running daemon answers, unless it is unusable (a daemon whose
+//   failed restart could not stop it; it answers Hello otherwise):
+//   StaleSandbox. An ended one waits for the project guard, then reads the
+//   record again and answers the same way, or the Sandbox is gone. A wait
+//   that expires refuses Busy "restarting".
 //
 // The guard wait is bounded (discovery/lock.rs: 60 s, then Busy). A check
 // under the guard and its effect are separate steps. A restart is two
@@ -52,8 +56,8 @@
 //                      `revived` (the code before d08e3b656)
 //   "status_no_wait"   status calls an ended daemon gone at once, without
 //                      the guard (the code before d08e3b656)
-//   "no_fallback"      a mount whose target revive failed fails too
 //   "count_unattached" a Workspace that cannot reattach counts as mounted
+//   "no_stale_check"   status answers from an unusable daemon
 module sandbox_reopen {
   const PLANT: str
 
@@ -93,6 +97,11 @@ module sandbox_reopen {
   // A status call answered "gone" while a restart of the Sandbox was under
   // way (between its check and its finish).
   var goneMidRestart: bool
+  // A status call answered from a daemon that is unusable.
+  var answeredUnusable: bool
+  // Running daemons that answer no usable Hello: a restart spawned them,
+  // failed, and could not stop them (finish "stop_failed").
+  var unusable: Set[int]
   // Workspaces mounted after a reopen.
   var mounted: int
   // The caller that deleted the folder, or "".
@@ -119,6 +128,8 @@ module sandbox_reopen {
     target' = CALLERS.mapBy(_ => ""),
     reported' = false,
     goneMidRestart' = false,
+    answeredUnusable' = false,
+    unusable' = Set(),
     mounted' = 0,
     deleter' = "",
   }
@@ -126,13 +137,14 @@ module sandbox_reopen {
   action unchanged_shell = all {
     folder' = folder, overlays' = overlays, eligible' = eligible, live' = live,
     recorded' = recorded, nextId' = nextId, mounted' = mounted,
-    deleter' = deleter,
+    deleter' = deleter, unusable' = unusable,
   }
   action unchanged_callers = all {
     seen' = seen, plan' = plan, spawned' = spawned,
   }
   action unchanged_reports = all {
     target' = target, reported' = reported, goneMidRestart' = goneMidRestart,
+    answeredUnusable' = answeredUnusable,
   }
 
   def released(c: str): str = if (guard == c and PLANT != "leak_guard") "" else guard
@@ -143,19 +155,25 @@ module sandbox_reopen {
 
   // list and status, with no guard: read the record and whether its daemon
   // runs. list ends on a running daemon or an absent record; status ends on
-  // a running daemon (it answers), and with status_no_wait also on an ended
-  // one (gone).
+  // an absent record (gone), a running daemon (it answers, or StaleSandbox
+  // when unusable), and with status_no_wait also on an ended one (gone).
   action observe(c: str): bool = all {
     Set("list", "status").contains(c),
     phase.get(c) == "idle",
     val running = folder and live.contains(recorded)
-    val gone = c == "status" and not(running) and PLANT == "status_no_wait"
+    val stale = c == "status" and running and unusable.contains(recorded)
+      and PLANT != "no_stale_check"
+    val gone = c == "status" and (not(folder) or (not(running) and PLANT == "status_no_wait"))
     val ends = running or gone or (c == "list" and not(folder))
     all {
       seen' = seen.set(c, recorded),
       phase' = phase.set(c, if (ends) "done" else "observed"),
-      result' = if (gone) result.set(c, "gone") else if (ends) result.set(c, "ok") else result,
+      result' =
+        if (stale) result.set(c, "stale") else if (gone) result.set(c, "gone")
+        else if (ends) result.set(c, "ok") else result,
       goneMidRestart' = (goneMidRestart or (gone and restarting)),
+      answeredUnusable' = (answeredUnusable
+        or (c == "status" and running and not(stale) and unusable.contains(recorded))),
     },
     plan' = plan, spawned' = spawned,
     guard' = guard,
@@ -209,18 +227,24 @@ module sandbox_reopen {
     phase.get(c) == "held",
     guard == c or PLANT == "no_guard",
     if (not(folder) or c == "status") {
-      val answers = c == "status" and folder and live.contains(recorded)
-      val gone = c == "status" and not(answers)
+      val running = c == "status" and folder and live.contains(recorded)
+      val stale = running and unusable.contains(recorded) and PLANT != "no_stale_check"
+      val gone = c == "status" and not(running)
       all {
         plan' = plan.set(c, "none"),
         phase' = phase.set(c, "done"),
-        result' = result.set(c, if (gone) "gone" else "ok"),
+        result' = result.set(c, if (gone) "gone" else if (stale) "stale" else "ok"),
         guard' = released(c),
         goneMidRestart' = (goneMidRestart or (gone and restarting)),
+        answeredUnusable' =
+          (answeredUnusable or (running and not(stale) and unusable.contains(recorded))),
       }
     } else {
       val chosen =
-        if (c == "boot") revived
+        // a revive or a mount that dials an unusable recorded daemon fails
+        if (c != "list" and live.contains(recorded) and unusable.contains(recorded)
+          and (c == "mount" or revived == "use")) "stale"
+        else if (c == "boot") revived
         else if (c == "mount")
           if (live.contains(recorded)) "none"
           // reclaim, unless Kept; then the mount revives it
@@ -236,6 +260,7 @@ module sandbox_reopen {
         result' = result,
         guard' = guard,
         goneMidRestart' = goneMidRestart,
+        answeredUnusable' = answeredUnusable,
       }
     },
     seen' = seen, spawned' = spawned,
@@ -248,22 +273,24 @@ module sandbox_reopen {
   def reattached: int = if (PLANT == "count_unattached") overlays else eligible
 
   // The end of a revive that failed: boot answers the Sandbox "failed";
-  // mount places its Workspace elsewhere and reports the failed revive.
-  def failedResult(c: str): str =
-    if (c == "mount" and PLANT != "no_fallback") "ok" else "failed"
-  def reportedAfter(c: str): bool =
-    reported or (c == "mount" and PLANT != "no_revived_report")
+  // mount places its Workspace elsewhere, which succeeds (`placed`) or not;
+  // only a mount answer that succeeds carries `revived`.
+  def failedResult(c: str, placed: bool): str =
+    if (c == "mount" and placed) "ok" else "failed"
+  def reportedAfter(c: str, placed: bool): bool =
+    reported or (c == "mount" and placed and PLANT != "no_revived_report")
 
   action effect(c: str): bool = all {
     phase.get(c) == "checked",
+    nondet placed = Set(true, false).oneOf()
     val p = plan.get(c)
     if (p == "restart")
       // process.rs restart: refused while the saved daemon still runs
       if (live.contains(recorded) and PLANT != "no_running_check") all {
         phase' = phase.set(c, "done"),
-        result' = result.set(c, failedResult(c)),
+        result' = result.set(c, failedResult(c, placed)),
         target' = target.set(c, "failed"),
-        reported' = reportedAfter(c),
+        reported' = reportedAfter(c, placed),
         guard' = released(c),
         spawned' = spawned,
         unchanged_shell,
@@ -277,6 +304,7 @@ module sandbox_reopen {
         guard' = guard,
         folder' = folder, overlays' = overlays, eligible' = eligible,
         recorded' = recorded, mounted' = mounted, deleter' = deleter,
+        unusable' = unusable,
       }
     else all {
       if (p == "reclaim") all {
@@ -285,24 +313,29 @@ module sandbox_reopen {
         overlays' = overlays,
         eligible' = eligible, live' = live, recorded' = recorded, nextId' = nextId,
         mounted' = mounted,
-        deleter' = c,
+        deleter' = c, unusable' = unusable,
       }
       // a revive of a running daemon reopens the Workspaces it lacks
       else if (p == "use") all {
         mounted' = reattached,
         folder' = folder, overlays' = overlays, eligible' = eligible, live' = live,
         recorded' = recorded, nextId' = nextId, deleter' = deleter,
+        unusable' = unusable,
       }
       else unchanged_shell,
       phase' = phase.set(c, "done"),
-      result' = result.set(c, "ok"),
-      target' = if (p == "use") target.set(c, "ok") else target,
+      result' = result.set(c,
+        if (p != "stale") "ok" else if (c == "boot") "failed" else "stale"),
+      target' =
+        if (p == "use") target.set(c, "ok")
+        else if (p == "stale" and c == "boot") target.set(c, "failed")
+        else target,
       reported' = reported,
       guard' = released(c),
       spawned' = spawned,
     },
     seen' = seen, plan' = plan,
-    goneMidRestart' = goneMidRestart,
+    goneMidRestart' = goneMidRestart, answeredUnusable' = answeredUnusable,
   }
 
   // After the spawn, revive.rs restart_daemon ends in one of four outcomes.
@@ -321,6 +354,7 @@ module sandbox_reopen {
     phase.get(c) == "spawned",
     val id = spawned.get(c)
     nondet outcome = Set("ok", "stopped", "stop_failed", "after_record").oneOf()
+    nondet placed = Set(true, false).oneOf()
     if (outcome == "ok") all {
       recorded' = id,
       mounted' = reattached,
@@ -328,15 +362,18 @@ module sandbox_reopen {
       target' = target.set(c, "ok"),
       reported' = reported,
       live' = live,
+      unusable' = unusable,
     } else all {
       recorded' = if (outcome == "stopped") recorded else id,
       mounted' = mounted,
-      result' = result.set(c, failedResult(c)),
+      result' = result.set(c, failedResult(c, placed)),
       target' = target.set(c, "failed"),
-      reported' = reportedAfter(c),
+      reported' = reportedAfter(c, placed),
       live' =
         if (outcome == "stop_failed" or PLANT == "keep_failed_daemon") live
         else live.exclude(Set(id)),
+      // a daemon left running after a failed restart answers no usable Hello
+      unusable' = if (outcome == "stop_failed") unusable.union(Set(id)) else unusable,
     },
     folder' = folder, overlays' = overlays, eligible' = eligible,
     nextId' = nextId, deleter' = deleter,
@@ -344,7 +381,7 @@ module sandbox_reopen {
     guard' = released(c),
     spawned' = spawned.set(c, 0),
     seen' = seen, plan' = plan,
-    goneMidRestart' = goneMidRestart,
+    goneMidRestart' = goneMidRestart, answeredUnusable' = answeredUnusable,
   }
 
   action step = {
@@ -380,20 +417,20 @@ module sandbox_reopen {
       implies mounted == eligible
   // The boot reopen never deletes a Sandbox folder (REOPEN.md: "ended").
   val BootNeverDeletes = deleter != "boot"
-  // A mount whose target revive failed names it in `revived`.
-  val RevivedReported = target.get("mount") == "failed" implies reported
-  // A mount ends with success whatever its target revive did (fallback).
-  val MountFallsBack =
-    (phase.get("mount") == "done" and target.get("mount") == "failed")
-      implies result.get("mount") == "ok"
+  // A mount that succeeds after its target revive failed names that
+  // revive in `revived`.
+  val RevivedReported =
+    (target.get("mount") == "failed" and result.get("mount") == "ok") implies reported
   // A status call never calls a restarting Sandbox gone.
   val StatusWaitsOutRestart = not(goneMidRestart)
+  // A status call never answers from an unusable daemon: StaleSandbox.
+  val StatusRefusesUnusable = not(answeredUnusable)
   val Safety = NoOverlayLoss and OneDaemon and NoOrphanDaemon and ReopenedWhenDone
-    and BootNeverDeletes and RevivedReported and MountFallsBack
-    and StatusWaitsOutRestart
+    and BootNeverDeletes and RevivedReported
+    and StatusWaitsOutRestart and StatusRefusesUnusable
 
   val vars = (folder, overlays, eligible, live, recorded, nextId, guard, phase, seen, plan,
-    spawned, result, target, reported, goneMidRestart, mounted, deleter)
+    spawned, result, target, reported, goneMidRestart, answeredUnusable, unusable, mounted, deleter)
 
   // Every caller ends (it may end refused Busy: the wait is bounded).
   temporal AllEnd =

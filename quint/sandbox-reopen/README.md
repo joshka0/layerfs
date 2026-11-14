@@ -1,9 +1,9 @@
 # Sandbox reopen race model
 
 > **Status:** Model checked with TLC on 2026-11-14 against
-> `fix-reopen-races` d08e3b656. The second review (do not freeze 36555d191)
-> and the binder's findings on 71a031e0b are addressed here; a third review
-> is due. Replay binding: see Open.
+> `fix-reopen-races` d08e3b656. The third review's R3-B3 and the binder's
+> replay findings up to model 73 are addressed here. R3-B2 (a failed stop
+> whose recovery save also fails) is open: see Open.
 
 `sandbox_reopen.qnt` models one process Sandbox folder after a restart: the
 daemon its record names has ended, and the folder may hold saved Workspace
@@ -20,9 +20,12 @@ the record is gone, and takes the guard only to reclaim. Under the guard a
 caller that finds no record ends at once (for a listing, reclaim's
 `NoSuchSandbox`). The guard wait is bounded: a caller that cannot get it
 ends refused `Busy`, except a listing, which then lists the Sandbox. A
-Workspace call reads the daemon with no guard and answers when it runs; on
-an ended daemon it waits for the guard and reads the record again: it
-answers from a restarted daemon, else the Sandbox is gone.
+Workspace call reads the record and the daemon with no guard: no record is
+`NoSuchSandbox` at once; a running daemon answers, or refuses
+`StaleSandbox` when it is unusable; on an ended daemon it waits for the
+guard and reads the record again the same way, else the Sandbox is gone.
+A daemon is unusable when a failed restart could not stop it: it runs, the
+record names it, but it answers Hello with another reply.
 
 A restart is two steps: the spawn, which `process.rs` refuses while the
 saved daemon runs, then `finish`, with four outcomes: `ok` (the record
@@ -34,8 +37,9 @@ daemon).
 
 A mount's call result and its target revive outcome are separate
 variables (`result`, `target`): when the revive fails, the mount places its
-Workspace in another Sandbox, outside this folder, ends `ok`, and names the
-failed revive in `revived` (`reported`). Each saved Workspace reattaches or
+Workspace in another Sandbox, outside this folder. That start can fail too;
+when it succeeds, the mount ends `ok` and names the failed revive in
+`revived` (`reported`). Each saved Workspace reattaches or
 not on its own: `eligible` of `overlays` can (a moved branch root or an
 overlay the daemon refuses cannot); a call can succeed with some
 Workspaces unmounted.
@@ -49,9 +53,10 @@ Workspaces unmounted.
 - `ReopenedWhenDone`: when every caller ended, the boot reopen and the
   mount succeeded, and no revive of the folder failed, exactly the saved
   Workspaces that can reattach (`eligible`) are mounted.
-- `RevivedReported`: a mount whose target revive failed names it in
-  `revived`.
-- `MountFallsBack`: a mount whose target revive failed still ends `ok`.
+- `RevivedReported`: a mount that succeeds after its target revive failed
+  names that revive in `revived`.
+- `StatusRefusesUnusable`: a Workspace call never answers from an unusable
+  daemon; it refuses `StaleSandbox`.
 - `StatusWaitsOutRestart`: a Workspace call never calls the Sandbox gone
   while a restart of it is under way.
 - `BootNeverDeletes`: the boot reopen never deletes a folder; with no saved
@@ -76,7 +81,7 @@ Each plant is one deliberate change, set by the constant `PLANT`.
 | `keep_failed_daemon` | a failed restart leaves its daemon running (the code before 2f254db3c) | breaks `OneDaemon` and `NoOrphanDaemon` |
 | `no_revived_report` | a mount drops its failed target revive (the code before d08e3b656) | breaks `RevivedReported` |
 | `status_no_wait` | a Workspace call calls an ended daemon gone without the guard (the code before d08e3b656) | breaks `StatusWaitsOutRestart` |
-| `no_fallback` | a mount whose target revive failed fails too | breaks `MountFallsBack` |
+| `no_stale_check` | a Workspace call answers from an unusable daemon | breaks `StatusRefusesUnusable` |
 | `count_unattached` | a Workspace that cannot reattach counts as mounted | breaks `ReopenedWhenDone` |
 
 ## Findings
@@ -120,6 +125,19 @@ Quint 0.33.1 is pinned in `package.json`; TLC needs Java (25 tested).
   `NoOverlayLoss` checks that the folder exists.
 
 ## Open
+
+- R3-B2 (third review, reproduced in code on 2026-11-14 by fault
+  injection): a restart whose handshake fails, whose stop fails (EPERM) and
+  whose recovery save fails leaves its daemon running while the record names
+  the ended one; the next revive starts a second daemon on the folder. The
+  model records the daemon for every failed stop, so it does not show this.
+  The fix is an operator decision; the model follows it.
+- Not modelled: which Sandboxes a listing returns (a listing ends `ok`;
+  its items are not tracked), and each Workspace's reason (the model counts
+  reattachable Workspaces; the code gives every unmounted one a reason).
+- `no_guard` removes the project guard. The Sandbox lock is not modelled,
+  because every path that takes it holds the project guard, so the plant
+  stands for removing both.
 
 - Trace replay through the real code with `quint-connect`, with code plants
   that the replay must catch (the binder's branch).

@@ -50,7 +50,7 @@ none ReopenedWhenDone invariant ok
 none BootNeverDeletes invariant ok
 none AllEnd temporal ok
 none RevivedReported invariant ok
-none MountFallsBack invariant ok
+none StatusRefusesUnusable invariant ok
 none StatusWaitsOutRestart invariant ok
 none GuardReleased temporal ok
 no_kept NoOverlayLoss invariant violation
@@ -63,7 +63,7 @@ keep_failed_daemon OneDaemon invariant violation
 keep_failed_daemon NoOrphanDaemon invariant violation
 no_revived_report RevivedReported invariant violation
 status_no_wait StatusWaitsOutRestart invariant violation
-no_fallback MountFallsBack invariant violation
+no_stale_check StatusRefusesUnusable invariant violation
 count_unattached ReopenedWhenDone invariant violation
 TABLE
 exit $failed
