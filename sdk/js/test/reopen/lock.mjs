@@ -5,7 +5,11 @@
 //        held folder keeps running, or a revive that meets a held folder does
 //        not answer failed with the holder's pid.
 //   F46. Stopping a spawned daemon hangs instead of returning an error after
-//        a bounded wait (60 s).
+//        a bounded wait (60 s). Not gated end to end: the bound covers only
+//        the wait after SIGKILL, which only a process in uninterruptible
+//        sleep outlives, and no public setup makes one reliably (implementer,
+//        2026-11-14). The check here guards the reachable part: a daemon that
+//        ignores SIGTERM is still stopped and the reopen ends.
 //   F47. A mount that fails after its old Sandbox's revive failed refuses
 //        without the `revived` report (failed revive, per-Workspace reasons).
 import assert from "node:assert/strict";
@@ -57,10 +61,11 @@ export const lockPhases = {
       const { root, folder, config } = await deadSandbox("rlock1");
       const holder = startDaemon(config, "/tmp/rlock1-holder.log");
       await until("the holder daemon to run", () => daemons().some((d) => d.pid === holder.pid), 5000);
-      const second = startDaemon(config, "/tmp/rlock1-second.log");
-      await check("F45", "rlock1: a second daemon started on a held Sandbox folder exits", async () => {
-        await until("the second daemon to exit", () => !daemons().some((d) => d.pid === second.pid), 10000)
-          .catch(() => assert.fail(`second daemon ${second.pid} still runs on ${folder}: ${JSON.stringify(daemons())}`));
+      await check("F45", "rlock1: a second daemon on a held folder exits 1 naming the holder pid", () => {
+        const second = spawnSync(DAEMON, ["--config", config], { encoding: "utf8", timeout: 10000 });
+        assert.notEqual(second.status, null, `second daemon still ran after 10 s: ${JSON.stringify(daemons())}`);
+        assert.equal(second.status, 1, `exit ${second.status}: ${second.stderr}`);
+        assert.equal(second.stderr, `layerfs-daemon: the Sandbox folder is held by daemon pid ${holder.pid}\n`);
         assert.deepEqual(daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid), [holder.pid]);
       });
 
@@ -82,12 +87,12 @@ export const lockPhases = {
     }
 
     // F46: the restart fails at its record save, so its cleanup stops the
-    // daemon it spawned; that daemon (behind a wrapper) ignores SIGTERM. The
-    // reopen must end with an error within the 60 s bound, not hang.
+    // daemon it spawned. The wrapper sets SIGTERM to ignored and execs the
+    // daemon, so the spawned pid is the daemon itself, as in production.
     {
       const { ws, folder } = await deadSandbox("rlock2");
       const stubborn = "/usr/local/bin/stubborn-layerfs-daemon";
-      writeFileSync(stubborn, `#!/bin/bash\ntrap '' TERM INT HUP\n${DAEMON} "$@" &\nchild=$!\nwhile kill -0 $child 2>/dev/null; do wait $child; done\n`, { mode: 0o755 });
+      writeFileSync(stubborn, `#!/bin/sh\ntrap '' TERM\nexec ${DAEMON} "$@"\n`, { mode: 0o755 });
       const record = join(HOME, "rlock2", "sandboxes", ws.sandbox, "sandbox.record");
       const lock = spawnSync("chattr", ["+i", record], { encoding: "utf8" });
       if (lock.status !== 0) {
@@ -95,16 +100,16 @@ export const lockPhases = {
       } else {
         let r;
         try { r = lfsWith({ LAYERFS_DAEMON: stubborn }, "reopen", "rlock2"); } finally { spawnSync("chattr", ["-i", record]); }
-        await check("F46", "rlock2: a restart whose cleanup cannot stop its daemon ends within the bound, failed", () => {
+        await check("F46", "rlock2: a restart that fails after its spawn stops a daemon that ignores SIGTERM and ends, failed", () => {
           assert.notEqual(r.status, null, `lfs reopen hung past ${r.ms} ms`);
           assert.ok(r.ms < 75000, `took ${r.ms} ms`);
           const box = r.json?.sandboxes?.find((b) => b.name === folder);
           assert.equal(box?.state, "failed", `${r.stdout}${r.stderr}`);
+          assert.ok(!daemons().some((d) => d.folders.includes(folder)), `daemons still on ${folder}: ${JSON.stringify(daemons())}`);
         });
         console.log(`NOTE F46 rlock2 reopen took ${r.ms} ms; reason: ${r.json?.sandboxes?.[0]?.reason}`);
       }
       killDaemons();
-      spawnSync("pkill", ["-KILL", "-f", "stubborn-layerfs-daemon"]);
     }
 
     // F47: the old Sandbox's revive fails (its config is gone), and the
