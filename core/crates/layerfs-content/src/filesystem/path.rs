@@ -1,10 +1,13 @@
 //! Canonical names and paths: byte grammar, ordering and declared bounds.
 //!
-//! A name is one nonempty, at-most-255-byte UTF-8 component without NUL, `/` or
-//! `\`, and never `.` or `..`. A path is either the empty root or a sequence of
+//! A name is one nonempty, at-most-255-byte UTF-8 component without NUL or
+//! `/`, and never `.` or `..`. A path is either the empty root or a sequence of
 //! such components joined by single separators, at most 4,096 bytes and 256
 //! components. Ordering is byte order, which is what the sorted tree engine
 //! requires and what the reference uses.
+//!
+//! decided: a name may hold `\`, as on Linux; non-UTF-8 names stay refused
+//! (docs/adr/0006-backslash-in-names.md, 2026-11-14).
 
 use std::cmp::Ordering;
 
@@ -176,12 +179,7 @@ fn validate_name(bytes: &[u8]) -> ContentResult<()> {
     if std::str::from_utf8(bytes).is_err() {
         return Err(ContentError::InvalidUtf8);
     }
-    if bytes == b"."
-        || bytes == b".."
-        || bytes.contains(&0)
-        || bytes.contains(&b'/')
-        || bytes.contains(&b'\\')
-    {
+    if bytes == b"." || bytes == b".." || bytes.contains(&0) || bytes.contains(&b'/') {
         return Err(ContentError::InvalidPath);
     }
     Ok(())
