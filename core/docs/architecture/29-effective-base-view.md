@@ -33,8 +33,9 @@ including deleted entries; an empty visible page can return a progress cursor.
 No prefix rescan or resident directory mirror is used. Readdir under mutation has
 weak current-view semantics; native stable cookies/handle custody remain S4/S8.
 The public canonical directory reader now accepts a raw resume boundary independent
-of stored-name grammar. Canonical stored names remain UTF-8, exclude backslash,
-and are <=255 bytes; no encoded object/ID changed. P12 must resolve faithful raw
+of stored-name grammar. Canonical stored names remain UTF-8 and
+are <=255 bytes; a backslash is an ordinary name byte since 2026-11-14
+(docs/adr/0006-backslash-in-names.md); no encoded object/ID changed. P12 must resolve faithful raw
 Unix-name/import requirements. This cursor extension is not a format substitution.
 
 The daemon implements OverlayRead with real typed short jobs. The Workspace does
