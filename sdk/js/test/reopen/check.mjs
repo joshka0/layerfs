@@ -212,19 +212,22 @@ export const checkPhases = {
     if (s.legacy) {
       const w = s.legacy.rlegacy;
       const legacy = open("rlegacy");
-      await check("F32", "rlegacy: a record without root does not reopen without legacyHead", async () => {
+      await check("F32", "rlegacy: a record without root does not reopen", async () => {
         const got = byPath(await reopen(legacy), w.path);
         assert.equal(got?.reopened, false, JSON.stringify(got));
         assert.ok(!isMount(w.path), `${w.path} mounted`);
         assert.equal(sha(overlayOf(w.path)), s.hashes[w.path], "overlay changed");
         assert.equal(records("rlegacy").length, s.recordCount.rlegacy, "record deleted");
       });
-      await check("F32 F38", "rlegacy: lfs reopen --legacy-head reopens it on the branch head and exits 0", async () => {
-        const r = lfsCli("reopen", "rlegacy", "--legacy-head");
-        assert.equal(r.status, 0, `exit ${r.status}: ${r.stderr}${r.stdout}`);
+      // legacyHead was removed (PR 24): no caller can reopen such a record.
+      await check("F32 F38", "rlegacy: lfs reopen names the missing base root and exits 1", () => {
+        const r = lfsCli("reopen", "rlegacy");
+        assert.equal(r.status, 1, `exit ${r.status}: ${r.stderr}${r.stdout}`);
         assertAnswerShape(r.json);
-        assert.equal(byPath(r.json, w.path)?.reopened, true, JSON.stringify(r.json));
-        assert.equal(await sh(legacy, wsOf(w), "cat legacy.txt src/a.txt"), "rlegacy\none\n");
+        const got = byPath(r.json, w.path);
+        assert.equal(got?.mounted, false, JSON.stringify(got));
+        assert.equal(got?.reason, "its record has no saved base root (written before reopen existed)");
+        assert.equal(sha(overlayOf(w.path)), s.hashes[w.path], "overlay changed");
       });
     } else {
       console.log("SKIP F32 no legacy bundle given to the runner");

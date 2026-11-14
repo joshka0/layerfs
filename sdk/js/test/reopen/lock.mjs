@@ -12,6 +12,9 @@
 //        ignores SIGTERM is still stopped and the reopen ends.
 //   F47. A mount that fails after its old Sandbox's revive failed refuses
 //        without the `revived` report (failed revive, per-Workspace reasons).
+//   R4-B1 (PR 24). A lock-refused daemon exits fast; a revive that races
+//        its exit loses its first output line and does not name the holder.
+//        Checked over 10 rounds.
 import assert from "node:assert/strict";
 import { spawn, spawnSync } from "node:child_process";
 import { openSync, writeFileSync } from "node:fs";
@@ -69,13 +72,20 @@ export const lockPhases = {
         assert.deepEqual(daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid), [holder.pid]);
       });
 
-      // F45b: the recorded daemon is dead, an unrecorded one holds the folder.
-      await check("F45", "rlock1: a revive that meets a held folder answers failed and names the holder pid", () => {
-        const r = lfsCli("reopen", "rlock1");
-        const box = r.json?.sandboxes?.find((b) => b.name === folder);
-        assert.equal(box?.state, "failed", `${r.stdout}${r.stderr}`);
-        assert.ok(String(box.reason).includes(String(holder.pid)), `reason does not name pid ${holder.pid}: ${box.reason}`);
-        assert.deepEqual(daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid), [holder.pid]);
+      // F45b, R4-B1: the recorded daemon is dead, an unrecorded one holds the
+      // folder. Each revive's daemon is refused by the lock and exits fast.
+      await check("F45 R4-B1", "rlock1: 10 revives that meet a held folder each answer failed naming the holder pid", () => {
+        const misses = [];
+        for (let round = 1; round <= 10; round++) {
+          const r = lfsCli("reopen", "rlock1");
+          const box = r.json?.sandboxes?.find((b) => b.name === folder);
+          if (box?.state !== "failed" || !String(box.reason).includes(`held by daemon pid ${holder.pid}`)) {
+            misses.push({ round, status: r.status, state: box?.state, reason: box?.reason ?? `${r.stdout}${r.stderr}`.slice(0, 300) });
+          }
+          const left = daemons().filter((d) => d.folders.includes(folder)).map((d) => d.pid);
+          if (left.length !== 1 || left[0] !== holder.pid) misses.push({ round, daemons: left });
+        }
+        assert.deepEqual(misses, [], JSON.stringify(misses));
       });
       process.kill(holder.pid, "SIGKILL");
       await until("the holder to die", () => !daemons().some((d) => d.pid === holder.pid));

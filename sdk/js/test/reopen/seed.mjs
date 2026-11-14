@@ -15,8 +15,8 @@ import {
 export const seedPhases = {
   // With the SDK and daemon from before the change (lfs-orb's bundle): its
   // Workspace records have no `root` (F32).
-  // rlegacy is reopened by `lfs reopen --legacy-head`; rlegboot is left for
-  // vm-boot, which must never pass the flag.
+  // rlegacy is refused by reopen; rlegboot is left for vm-boot, which must
+  // refuse it too.
   async "seed-legacy"() {
     const saved = {};
     for (const project of ["rlegacy", "rlegboot"]) {

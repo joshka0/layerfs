@@ -47,7 +47,7 @@ export const bootPhases = {
       assert.ok(isMount(s.mixed.good.path), `${s.mixed.good.path} not mounted`);
     });
     if (s.legacy) {
-      await check("F32", "vm-boot apply does not reopen a record without root (never passes --legacy-head)", () => {
+      await check("F32", "vm-boot apply does not reopen a record without root", () => {
         const w = s.legacy.rlegboot;
         assert.ok(!isMount(w.path), `${w.path} mounted`);
         assert.equal(sha(overlayOf(w.path)), s.hashes[w.path], "overlay changed");
