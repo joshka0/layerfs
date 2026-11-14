@@ -133,3 +133,22 @@ fn a_restart_whose_daemon_never_listens_stops_its_daemon() {
     // with the daemon still running (process.rs StartFailure::Listener)
     failed_restart_leaves_no_daemon("listener", "not-a-listen-line");
 }
+
+#[test]
+fn an_ended_daemon_with_an_empty_log_is_ended_not_unobservable() {
+    // F41: a restart moves the log aside and starts a new, empty one before
+    // its daemon prints the listen line; meanwhile the record still names the
+    // ended daemon. That daemon is ended: the revive restarts it.
+    let (base, args) = fixture("empty-log", "LAYERFS_DAEMON_LISTEN 127.0.0.1:1");
+    std::fs::write(base.join("sandbox-root/daemon.log"), b"").unwrap();
+    let (item, _) = revive(&args, "1", false).unwrap().expect("listed");
+    let restarted = base.join("pid").exists();
+    if let Ok(pid) = std::fs::read_to_string(base.join("pid")) {
+        let _ = std::process::Command::new("kill")
+            .arg("-9")
+            .arg(pid.trim())
+            .status();
+    }
+    std::fs::remove_dir_all(&base).unwrap();
+    assert!(restarted, "the ended daemon was not restarted: {item:?}");
+}

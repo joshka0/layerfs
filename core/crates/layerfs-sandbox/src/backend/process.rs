@@ -226,7 +226,8 @@ impl Sandbox {
     }
 
     /// Reopens a saved daemon: the same pid with the same start time, still
-    /// running. Gone or exited is `NotFound`.
+    /// running. Gone or exited is `NotFound`. The process is checked before
+    /// the log: a restart replaces the log while the ended daemon is saved.
     pub fn reopen(layout: Layout, pid: u32, start: u64) -> io::Result<Self> {
         let mut sandbox = Self {
             layout,
@@ -235,6 +236,7 @@ impl Sandbox {
             endpoint: SocketAddr::from(([127, 0, 0, 1], 0)),
             stopped: false,
         };
+        sandbox.endpoint()?;
         sandbox.endpoint = sandbox
             .listen_line()?
             .ok_or_else(|| io::Error::new(io::ErrorKind::InvalidData, "no daemon listen line"))?;
