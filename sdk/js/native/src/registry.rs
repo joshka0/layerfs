@@ -27,6 +27,9 @@ pub(crate) struct Project {
 pub(crate) struct Mount {
     pub(crate) workspace: MountedWorkspace,
     pub(crate) branch: String,
+    /// Why the kernel no longer holds this Workspace although the daemon lists
+    /// it (lost-mount L1, L2); `None` while it is mounted.
+    pub(crate) lost: Option<String>,
 }
 
 /// One background process started in a Workspace.

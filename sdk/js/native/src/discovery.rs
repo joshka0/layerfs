@@ -242,7 +242,9 @@ pub(crate) fn project(args: &SdkValue) -> Result<Project> {
     })
 }
 
+pub(crate) mod kernel_table;
 mod lock;
+pub(crate) mod mount_rules;
 mod revive;
 #[cfg(target_os = "linux")]
 mod revive_rules;

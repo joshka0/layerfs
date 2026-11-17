@@ -136,6 +136,7 @@ fn placed_mount(args: &SdkValue, revived: &mut Vec<SdkValue>) -> Outcome {
         Mount {
             workspace: mounted,
             branch: branch.to_owned(),
+            lost: None,
         },
     );
     Ok(value)
@@ -224,6 +225,35 @@ pub(crate) fn status(args: &SdkValue) -> Outcome {
             .get(text(args, "path")?)
             .map(|mount| mount.branch.clone());
         fields.push(("branch".to_owned(), SdkValue::opt_text(branch)));
+        // The kernel's answer, not only the daemon's (lost-mount L1, L2).
+        let path = text(args, "path")?;
+        let reason = match status.kernel.as_ref() {
+            Some(kernel) => match kernel.ready.as_ref() {
+                Some(ready) => {
+                    let device = (ready.receipt.device_major, ready.receipt.device_minor);
+                    let at = crate::discovery::kernel_table::rows()
+                        .map(|rows| crate::discovery::kernel_table::devices_at(&rows, path));
+                    match at {
+                        Some(at) => crate::discovery::mount_rules::lost(
+                            kernel.phase,
+                            kernel.detached,
+                            device,
+                            &at,
+                        ),
+                        None => crate::discovery::mount_rules::lost(
+                            kernel.phase,
+                            kernel.detached,
+                            device,
+                            &[device],
+                        ),
+                    }
+                }
+                None => Some("not mounted: the daemon owns no kernel connection for it".to_owned()),
+            },
+            None => Some("not mounted: the daemon reports no kernel half".to_owned()),
+        };
+        fields.push(("mounted".to_owned(), SdkValue::Bool(reason.is_none())));
+        fields.push(("reason".to_owned(), SdkValue::opt_text(reason)));
     }
     Ok(value)
 }

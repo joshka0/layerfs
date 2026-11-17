@@ -216,14 +216,27 @@ fn revive_process(
             )));
         }
     };
-    let served = registry::lock(&state.mounts)?
-        .keys()
-        .cloned()
-        .collect::<std::collections::BTreeSet<_>>();
+    // A Workspace the daemon lists but the kernel no longer holds is not served
+    // (lost-mount L1-L3): it is reported not mounted, with its reason.
+    let (served, lost) = {
+        let mounts = registry::lock(&state.mounts)?;
+        let served = mounts
+            .iter()
+            .filter(|(_, mount)| mount.lost.is_none())
+            .map(|(path, _)| path.clone())
+            .collect::<std::collections::BTreeSet<_>>();
+        let lost = mounts
+            .iter()
+            .filter_map(|(path, mount)| mount.lost.clone().map(|reason| (path.clone(), reason)))
+            .collect::<std::collections::BTreeMap<_, _>>();
+        (served, lost)
+    };
     let workspaces = saved
         .iter()
         .map(|saved| {
-            let result = if served.contains(&saved.path) {
+            let result = if let Some(reason) = lost.get(&saved.path) {
+                Err(reason.clone())
+            } else if served.contains(&saved.path) {
                 Ok(false)
             } else {
                 reattach(args, &state, saved).map(|()| true)
@@ -443,6 +456,7 @@ fn reattach(
             Mount {
                 workspace: mounted,
                 branch: saved.branch.clone(),
+                lost: None,
             },
         );
     Ok(())
