@@ -70,6 +70,22 @@ impl Service {
                     "kernel reported the mount busy; no terminal effect",
                 ));
             }
+            Ok(Detach::Held(pid)) => {
+                // Reversible as Busy: a copy in another mount namespace would
+                // keep the connection after the detach (lost-mount L9).
+                self.settle(
+                    token,
+                    Kernel::Ready(Box::new(Attached { session, ready })),
+                    Activity::Idle,
+                );
+                return Err(Failure::kernel(
+                    ControlCode::Busy,
+                    "unmount:namespace",
+                    format!(
+                        "process {pid} is in another mount namespace with a copy of this mount that a detach would not reach; no terminal effect; unmount again after it ends"
+                    ),
+                ));
+            }
             Err(errno) => {
                 return Err(self.retain(
                     token,
