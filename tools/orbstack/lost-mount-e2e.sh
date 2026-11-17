@@ -31,6 +31,7 @@ work=${LOST_MOUNT_WORK:-}
 holder=
 fusectl_restore=0
 ws_path=
+l6_path=
 passed=0
 failed=0
 summary() { printf 'SUMMARY passed=%d failed=%d\n' "$passed" "$failed"; }
@@ -194,6 +195,11 @@ for name in os.listdir('/proc'):
         continue
 PY
   )
+  # L6 can stop after lazy detach with dirty work still in the daemon. Once
+  # this run's daemon is stopped, remove only its bare, detached mount folder.
+  if [[ -n $l6_path && -d $l6_path ]] && ! mountpoint -q "$l6_path"; then
+    rmdir -- "$l6_path" || rc=1
+  fi
   if (( rc != 0 )); then fail "case runner stopped (exit $rc)"; fi
   if (( failed != 0 )); then
     for evidence in "$work"/*.err "$work"/*.out "$work"/*status.json; do
@@ -470,6 +476,67 @@ else fail 'held descriptor read succeeded or did not finish (L4)'; fi
 check_events held-file mounted gone detached unmounted
 stop_holder
 ws_path=
+
+# No descriptor or cwd stays inside the Workspace. Commit must recover the
+# dirty overlay without remounting it or restarting the daemon (L6).
+ensure_fusectl
+mount_workspace
+l6_path=$ws_path
+l6_start_failed=$failed
+l6_line="lost-mount L6 $project"
+l6_message="recover $l6_line"
+printf '%s\n' "$l6_line" >"$ws_path/l6.txt"
+timeout --kill-after=1s 3s umount -l "$ws_path"
+if ! mountpoint -q "$ws_path"; then
+  pass 'L6 dirty Workspace kernel mount is gone with no file holder'
+else fail 'L6 lazy-detach fixture'; exit 1; fi
+dirty_rc=0
+lfs unmount "$project" "$sandbox" "$ws_path" >"$work/l6-dirty.out" 2>"$work/l6-dirty.err" || dirty_rc=$?
+if python3 - "$dirty_rc" "$work/l6-dirty.err" <<'PY'
+import re, sys
+rc, filename = sys.argv[1:]
+text = open(filename).read()
+assert int(rc) not in (0, 124, 137), (rc, text)
+assert re.search(r'\bDirty\b', text), text
+assert 'l6.txt' in text, text
+PY
+then pass 'L6 unmount without discard refuses Dirty and names l6.txt'
+else fail 'L6 dirty unmount refusal or file name'; fi
+commit_rc=0
+lfs commit "$project" "$sandbox" "$ws_path" "$l6_message" >"$work/l6-commit.out" 2>"$work/l6-commit.err" || commit_rc=$?
+printf 'OBSERVED L6 commit without kernel mount: exit %d\n' "$commit_rc"
+printf 'L6 commit stdout:\n'
+cat "$work/l6-commit.out"
+printf 'L6 commit stderr:\n'
+cat "$work/l6-commit.err"
+if (( commit_rc == 0 )) && \
+   python3 -c 'import json,sys; a=json.load(open(sys.argv[1])); assert a["kind"] == "Committed", a' "$work/l6-commit.out"; then
+  pass 'L6 commit succeeds through the detached Workspace overlay'
+else fail 'L6 commit without kernel mount failed; answer shown above'; exit 1; fi
+read_rc=0
+lfs read "$project" work /l6.txt >"$work/l6-read.out" 2>"$work/l6-read.err" || read_rc=$?
+if (( read_rc == 0 )) && python3 - "$work/l6-read.out" "$l6_line" <<'PY'
+import json, sys
+answer = json.load(open(sys.argv[1]))
+assert answer['text'] == sys.argv[2] + '\n', answer
+PY
+then pass 'L6 branch read returns the exact uncommitted line'
+else fail 'L6 branch lost or changed l6.txt'; fi
+log_rc=0
+lfs log "$project" work >"$work/l6-log.out" 2>"$work/l6-log.err" || log_rc=$?
+if (( log_rc == 0 )) && python3 - "$work/l6-log.out" "$l6_message" "$work/l6-commit.out" <<'PY'
+import json, sys
+page = json.load(open(sys.argv[1]))
+commit = json.load(open(sys.argv[3]))
+assert any(item['message'] == sys.argv[2] and item['id'] == commit['head']
+           for item in page['items']), (page, commit)
+PY
+then pass 'L6 branch log contains the recovered commit and message'
+else fail 'L6 recovered commit missing from branch log'; fi
+check_unmounted l6
+if (( failed != l6_start_failed )); then exit 1; fi
+ws_path=
+l6_path=
 
 # L2 must mount with no abort control bound. Restoring fusectl later cannot
 # substitute for the control that was absent at mount time.
