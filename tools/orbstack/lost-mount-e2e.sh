@@ -326,16 +326,19 @@ check_events() {
 import datetime, re, sys
 filename, path, start, *expected = sys.argv[1:]
 lines = open(filename).readlines()[int(start):]
+previous_index = -1
 for event in expected:
-    matches = [line for line in lines if path in line and
-               re.search(r'\b' + re.escape(event) + r'\b', line)]
+    matches = [(index, line) for index, line in enumerate(lines)
+               if line.split()[1:3] == [event, 'path=' + path]]
     assert len(matches) == 1, (event, path, matches, lines)
-    line = matches[0]
+    index, line = matches[0]
     assert re.match(r'^\d{4}-\d{2}-\d{2}T\d{2}:\d{2}:\d{2}\.\d{3}Z\s', line), line
     datetime.datetime.fromisoformat(line.split()[0].replace('Z', '+00:00'))
+    assert index > previous_index, (event, path, previous_index, index, lines)
+    previous_index = index
 PY
-  then pass "$label: one timestamped line per event, with path (L7)"
-  else fail "$label: missing, duplicate or malformed event (L7)"; fi
+  then pass "$label: one timestamped line per event, with exact path, in order (L7)"
+  else fail "$label: missing, duplicate, malformed or out-of-order event (L7)"; fi
 }
 check_unmounted() {
   local label=$1 rc=0
