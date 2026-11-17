@@ -78,9 +78,17 @@ L4. `lfs unmount` of a Workspace whose kernel mount is gone, after an outside
     parked for the operator.
 L5. L4 runs when the kernel still holds the mount (`EBUSY`, or the mount is
     there). Expected: the existing reversible Busy answer, with no effect.
-L6. After L4 without `--discard`, `lfs reopen` does not mount the saved
-    overlay again at its path. If the branch moved since the mount, it gives
-    no reason that names the moved branch.
+L6. A Workspace whose kernel mount is gone and that holds uncommitted
+    work cannot be recovered without a daemon restart. Expected: `lfs commit`
+    of it succeeds through the daemon's overlay, without a kernel mount, and
+    its branch then holds the work. After that, `lfs unmount` finishes by the
+    L4 path. The fallback, a daemon restart and `lfs reopen`, remounts the
+    saved overlay when the branch has not moved since the mount. When the
+    branch has moved, it names the moved branch. Decided 2026-11-18 by
+    ash-coordinator: no new remount operation. If the commit fails without a
+    kernel mount, that result goes to ash before any larger change. The
+    first text asked `lfs reopen` to remount after an L4 unmount. That does
+    not fit: an L4 unmount closes a clean Workspace and refuses a dirty one.
 L7. The daemon mounts, detaches, unmounts, finds a mount gone, or keeps a
     Workspace as Retained, and `daemon.log` has no line for it. Expected: one
     line for each event. Each line has an ISO 8601 UTC time, the Workspace
