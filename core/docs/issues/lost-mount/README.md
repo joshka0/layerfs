@@ -77,10 +77,26 @@ L7. The daemon mounts, detaches, unmounts, finds a mount gone, or keeps a
     path, its id, its namespace, the event, the stage, and the errno or cause.
 L8. A `daemon.log` line has no time: the listen line or a `ConnectionFailure`
     line, for example.
-L9. A normal unmount of a Workspace mounted 30 s or more stops at `Join`
-    ([unmount-join](../unmount-join/README.md)). Expected: the detach ends
-    the connection's receive loops, and the unmount finishes. This item is
-    the cause of the 2026-11-17 loss. Its cause in the code is still to find.
+L9. A normal unmount stops at `Join` while another mount namespace holds a
+    private copy of the Workspace mount. A rootless `unshare --mount` makes
+    its copies private by default, and they share the superblock. The plain
+    detach in the daemon's namespace then cannot end the FUSE connection, so
+    no receive loop exits. Measured 2026-11-17 on lfs-orb with two throwaway
+    Workspaces (herdr-lessons):
+    - With `unshare -r --mount sleep` alive (copy without a propagation tag),
+      the close stopped at `Join`, `detached: true`, `loops_exited: 0`, and
+      left the bare root 0700 folder.
+    - With `--propagation slave` (copy `master:306`), the close finished.
+
+    An agent's gate runner did this on lfs-orb during both failed closes
+    (likely; matched by time only). Expected: the unmount neither stops at
+    `Join` nor loses the mount. Before the detach, the daemon looks for a
+    copy of this connection's mount in another mount namespace
+    (`/proc/*/mountinfo`, matched by the device). If it finds one, it answers
+    the existing reversible Busy and names the holder's pid, and the
+    Workspace stays mounted and usable. The [unmount-join](../unmount-join/README.md)
+    case (30 s, in a container) may have the same cause; this is not
+    measured.
 L10. A fix for L1 to L9 changes a Workspace that is mounted and healthy: its
      status, its service, or its unmount.
 
