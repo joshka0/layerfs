@@ -204,10 +204,10 @@ start_holder private
 pass 'private namespace fixture has same device and no propagation (L9)'
 # Keep the exact mount identity, including mount ID, across the Busy refusal.
 awk -v path="$ws_path" '$5 == path' /proc/self/mountinfo >"$work/before.row"
-set +e
-lfs unmount "$project" "$sandbox" "$ws_path" >"$work/busy.out" 2>"$work/busy.err"
-busy_rc=$?
-set -e
+# The refusal is expected: run it where the ERR trap does not fire, so only a
+# real error prints an ERROR line.
+busy_rc=0
+lfs unmount "$project" "$sandbox" "$ws_path" >"$work/busy.out" 2>"$work/busy.err" || busy_rc=$?
 if python3 - "$busy_rc" "$holder" "$work/busy.err" <<'PY'
 import re, sys
 rc, pid, filename = sys.argv[1:]
