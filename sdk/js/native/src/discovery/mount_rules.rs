@@ -34,3 +34,7 @@ pub(crate) fn lost(
     }
     None
 }
+
+#[cfg(all(test, target_os = "linux"))]
+#[path = "../../tests/unit/mount_rules.rs"]
+mod mount_rules_tests;

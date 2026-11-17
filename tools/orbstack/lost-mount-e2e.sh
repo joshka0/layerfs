@@ -106,9 +106,53 @@ export LAYERFS_RUNTIME=process LAYERFS_HOME="$work/home"
 export LAYERFS_DAEMON="$work/bundle/layerfs-daemon"
 export LAYERFS_NATIVE="$work/bundle/layerfs.node"
 export LAYERFS_STORE_ROOT="$work/stores" LAYERFS_SDK="$repo/sdk/js/src/index.js"
+export LAYERFS_SDK_OPERATOR="$repo/sdk/js/operator/index.js"
 export LAYERFS_CONSTRUCTION_WORKERS=1
 project="lost-mount-$$"
 lfs() { timeout --kill-after=2s 15s node "$repo/tools/orbstack/lfs.mjs" "$@"; }
+workspace_status() {
+  timeout --kill-after=2s 15s node --input-type=module - "$project" "$sandbox" "$ws_path" <<'JS'
+import { join } from 'node:path';
+const [project, sandbox, path] = process.argv.slice(2);
+const { LayerFS } = await import(process.env.LAYERFS_SDK);
+const layerfs = new LayerFS(project, {
+  runtime: 'process',
+  storePath: join(process.env.LAYERFS_STORE_ROOT, project, 'global/store.sqlite'),
+});
+try {
+  console.log(JSON.stringify(await layerfs.workspace.status({ sandbox, path }),
+    (_key, value) => typeof value === 'bigint' ? String(value) : value));
+} finally {
+  await layerfs.close();
+}
+JS
+}
+check_mount_answer() {
+  python3 - "$@" "$ws_path" <<'PY'
+import json, re, sys
+kind, mode, filename, rc, path = sys.argv[1:]
+answer = json.load(open(filename))
+assert int(rc) == (0 if mode == 'healthy' or kind == 'status' else 1), (rc, answer)
+if kind == 'reopen':
+    listed = [w for s in answer['sandboxes'] for w in s['workspaces']]
+    matches = [w for w in listed if w['path'] == path]
+    assert len(matches) == 1, answer
+    item = matches[0]
+    assert item['reopened'] is False, item
+    if mode == 'healthy':
+        assert all(w['mounted'] is True for w in listed), answer
+else:
+    item = answer
+assert item['mounted'] is (mode == 'healthy'), item
+reason = item['reason']
+if mode == 'healthy':
+    assert reason == ('already mounted' if kind == 'reopen' else None), item
+elif mode == 'kernel':
+    assert isinstance(reason, str) and re.search(r'kernel\s+mount', reason, re.I), item
+else:
+    assert isinstance(reason, str) and re.search(r'\bRetained\b', reason, re.I), item
+PY
+}
 stop_holder() {
   if [[ -n $holder ]]; then
     kill "$holder" 2>/dev/null || true
@@ -141,7 +185,7 @@ PY
   )
   if (( rc != 0 )); then fail "case runner stopped (exit $rc)"; fi
   if (( failed != 0 )); then
-    for evidence in "$work"/*.err "$work/private.out" "$work/slave.out"; do
+    for evidence in "$work"/*.err "$work"/*.out "$work"/*status.json; do
       if [[ -s $evidence ]]; then
         printf 'EVIDENCE %s\n' "${evidence##*/}"
         tail -n 6 "$evidence"
@@ -200,6 +244,18 @@ printf 'namespace-copy sentinel\n' >"$work/source/sentinel"
 lfs init "$project" "$work/source" >"$work/init.json" 2>"$work/init.err"
 lfs fork "$project" work >"$work/fork.json" 2>"$work/fork.err"
 mount_workspace
+# Healthy observations must preserve service and must not reopen a live mount.
+status_rc=0
+workspace_status >"$work/healthy-status.json" 2>"$work/healthy-status.err" || status_rc=$?
+if check_mount_answer status healthy "$work/healthy-status.json" "$status_rc"; then
+  pass 'healthy status: mounted true, reason null (L10)'
+else fail 'healthy status changed (L10)'; fi
+reopen_rc=0
+lfs reopen "$project" >"$work/healthy-reopen.out" 2>"$work/healthy-reopen.err" || reopen_rc=$?
+if check_mount_answer reopen healthy "$work/healthy-reopen.out" "$reopen_rc" && \
+   timeout --kill-after=1s 3s cmp -s "$work/source/sentinel" "$ws_path/sentinel"; then
+  pass 'healthy reopen: already mounted, exit 0, service intact (L10)'
+else fail 'healthy reopen or service changed (L10)'; fi
 start_holder private
 pass 'private namespace fixture has same device and no propagation (L9)'
 # Keep the exact mount identity, including mount ID, across the Busy refusal.
@@ -239,5 +295,72 @@ if lfs unmount "$project" "$sandbox" "$ws_path" >"$work/slave.out" 2>"$work/slav
    kill -0 "$holder" && [[ ! -e $ws_path ]] && ! mountpoint -q "$ws_path"; then
   pass 'live slave permits Unmounted and directory removal (L11)'
 else fail 'live slave blocks unmount (L11)'; fi
+stop_holder
+ws_path=
+mount_workspace
+# The holder runs outside the Workspace and keeps a file descriptor, rather
+# than a cwd or namespace copy, alive after the outside lazy detach.
+python3 - "$ws_path/sentinel" "$work/file-holder.ready" <<'PY' &
+import os, signal, sys
+os.chdir('/')
+with open(sys.argv[1], 'rb') as held:
+    assert held.read() == b'namespace-copy sentinel\n'
+    with open(sys.argv[2], 'w') as ready:
+        ready.write(str(os.getpid()))
+    while True:
+        signal.pause()
+PY
+holder=$!
+timeout --kill-after=1s 5s python3 - "$holder" "$work/file-holder.ready" <<'PY'
+import os, sys, time
+pid, ready = sys.argv[1:]
+deadline = time.monotonic() + 4
+while time.monotonic() < deadline:
+    os.kill(int(pid), 0)
+    if os.path.exists(ready) and open(ready).read() == pid:
+        assert os.readlink('/proc/' + pid + '/cwd') == '/'
+        break
+    time.sleep(.02)
+else:
+    raise AssertionError('outside file holder did not become ready')
+PY
+timeout --kill-after=1s 3s umount -l "$ws_path"
+if ! mountpoint -q "$ws_path" && kill -0 "$holder"; then
+  pass 'outside lazy detach removes kernel mount with file holder alive (L1 L3)'
+else fail 'lazy-detach fixture did not lose its kernel mount (L1 L3)'; exit 1; fi
+reopen_rc=0
+lfs reopen "$project" >"$work/lost-reopen.out" 2>"$work/lost-reopen.err" || reopen_rc=$?
+if check_mount_answer reopen kernel "$work/lost-reopen.out" "$reopen_rc"; then
+  pass 'lost reopen: mounted false, not reopened, kernel mount reason, exit 1 (L1 L3)'
+else fail 'lost reopen hides kernel mount loss (L1 L3)'; fi
+status_rc=0
+workspace_status >"$work/lost-status.json" 2>"$work/lost-status.err" || status_rc=$?
+if check_mount_answer status kernel "$work/lost-status.json" "$status_rc"; then
+  pass 'lost status: mounted false, kernel mount reason (L1)'
+else fail 'lost status hides kernel mount loss (L1)'; fi
+# L2 uses today's failed plain detach to enter Retained. A successful L4
+# teardown changes this prerequisite; do not pass L2 without reaching it.
+detach_rc=0
+lfs unmount "$project" "$sandbox" "$ws_path" >"$work/lost-unmount.out" 2>"$work/lost-unmount.err" || detach_rc=$?
+if python3 - "$detach_rc" "$work/lost-unmount.err" <<'PY'
+import re, sys
+rc, filename = sys.argv[1:]
+text = open(filename).read()
+assert int(rc) not in (0, 124, 137), (rc, text)
+assert re.search(r'plain detach', text, re.I) and 'EINVAL' in text, text
+PY
+then
+  pass 'plain detach EINVAL establishes Retained prerequisite (L2)'
+  reopen_rc=0
+  lfs reopen "$project" >"$work/retained-reopen.out" 2>"$work/retained-reopen.err" || reopen_rc=$?
+  if check_mount_answer reopen retained "$work/retained-reopen.out" "$reopen_rc"; then
+    pass 'Retained reopen: mounted false, phase reason, exit 1 (L2 L3)'
+  else fail 'Retained reopen hides custody phase (L2 L3)'; fi
+  status_rc=0
+  workspace_status >"$work/retained-status.json" 2>"$work/retained-status.err" || status_rc=$?
+  if check_mount_answer status retained "$work/retained-status.json" "$status_rc"; then
+    pass 'Retained status: mounted false, phase reason (L2)'
+  else fail 'Retained status hides custody phase (L2)'; fi
+else fail 'Retained prerequisite not reached: expected plain detach EINVAL (L2)'; fi
 stop_holder
 (( failed == 0 ))
