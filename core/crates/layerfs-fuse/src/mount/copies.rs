@@ -41,7 +41,15 @@ pub fn row(line: &[u8]) -> Option<((u32, u32), Peers)> {
     fields.next()?; // root
     fields.next()?; // mount point
     fields.next()?; // mount options
-    let optional: Vec<&[u8]> = fields.take_while(|field| *field != b"-").collect();
+    let mut optional = Vec::new();
+    // A row ends its optional fields with `-`; a row without it is cut short.
+    loop {
+        let field = fields.next()?;
+        if field == b"-" {
+            break;
+        }
+        optional.push(field);
+    }
     Some((
         (major.parse().ok()?, minor.parse().ok()?),
         peers(optional.into_iter()),
