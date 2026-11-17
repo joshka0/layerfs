@@ -267,10 +267,10 @@ pub(crate) fn refresh(state: &SandboxState) -> Result<()> {
             let device = (ready.receipt.device_major, ready.receipt.device_minor);
             let at = table
                 .as_ref()
-                .map(|rows| super::kernel_table::devices_at(rows, path))
+                .map(|rows| layerfs_bridge::mount_rules::devices_at(rows, path))
                 .unwrap_or_else(|| vec![device]);
-            let lost = super::mount_rules::with_activity(
-                super::mount_rules::lost(kernel.phase, kernel.detached, device, &at),
+            let lost = layerfs_bridge::mount_rules::with_activity(
+                layerfs_bridge::mount_rules::lost(kernel.phase, kernel.detached, device, &at),
                 status.activity,
             );
             mounts.insert(

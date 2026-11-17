@@ -1,7 +1,6 @@
-//! L1/L2/L10 contract cases; included by discovery/mount_rules.rs.
-use super::lost;
-use crate::discovery::kernel_table::devices_at;
+//! L1/L2/L10 contract cases for layerfs_bridge::mount_rules (moved from the SDK unit tests, imports only).
 use layerfs_bridge::control::MountPhase;
+use layerfs_bridge::mount_rules::{devices_at, lost};
 
 const DEVICE: (u32, u32) = (0, 71);
 const OTHER: (u32, u32) = (0, 72);

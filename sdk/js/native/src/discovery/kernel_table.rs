@@ -10,14 +10,6 @@ pub(crate) fn rows() -> Option<Vec<(String, (u32, u32))>> {
     Some(table.split(|byte| *byte == b'\n').filter_map(row).collect())
 }
 
-/// The devices of the rows mounted exactly at `path`.
-pub(crate) fn devices_at(rows: &[(String, (u32, u32))], path: &str) -> Vec<(u32, u32)> {
-    rows.iter()
-        .filter(|(point, _)| point == path)
-        .map(|(_, device)| *device)
-        .collect()
-}
-
 fn row(line: &[u8]) -> Option<(String, (u32, u32))> {
     let mut fields = line.split(|byte| *byte == b' ');
     fields.next()?; // mount id

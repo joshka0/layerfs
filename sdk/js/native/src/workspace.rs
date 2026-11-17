@@ -232,15 +232,15 @@ pub(crate) fn status(args: &SdkValue) -> Outcome {
                 Some(ready) => {
                     let device = (ready.receipt.device_major, ready.receipt.device_minor);
                     let at = crate::discovery::kernel_table::rows()
-                        .map(|rows| crate::discovery::kernel_table::devices_at(&rows, path));
+                        .map(|rows| layerfs_bridge::mount_rules::devices_at(&rows, path));
                     match at {
-                        Some(at) => crate::discovery::mount_rules::lost(
+                        Some(at) => layerfs_bridge::mount_rules::lost(
                             kernel.phase,
                             kernel.detached,
                             device,
                             &at,
                         ),
-                        None => crate::discovery::mount_rules::lost(
+                        None => layerfs_bridge::mount_rules::lost(
                             kernel.phase,
                             kernel.detached,
                             device,
@@ -252,7 +252,7 @@ pub(crate) fn status(args: &SdkValue) -> Outcome {
             },
             None => Some("not mounted: the daemon reports no kernel half".to_owned()),
         };
-        let reason = crate::discovery::mount_rules::with_activity(reason, status.activity);
+        let reason = layerfs_bridge::mount_rules::with_activity(reason, status.activity);
         fields.push(("mounted".to_owned(), SdkValue::Bool(reason.is_none())));
         fields.push(("reason".to_owned(), SdkValue::opt_text(reason)));
     }
