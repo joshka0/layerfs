@@ -1,4 +1,11 @@
 //! Linux half of normal unmount: plain detach once, then the drain barrier.
+//!
+//! decided: 2026-11-17 (core/docs/issues/lost-mount/README.md L4, decided by
+//! ash-coordinator under the operator's grants): `EINVAL` from the plain
+//! detach while the kernel table no longer holds this connection's mount means
+//! the kernel already detached it. The connection then ends through its abort
+//! control, and the drain and Close finish. Every other errno still stops at
+//! Detach and keeps the exact owner.
 use super::{
     kernel::Kernel,
     registry::bound_mut,
@@ -57,8 +64,71 @@ impl Service {
         let event = |name: &str, detail: &str| super::events::record(name, &path, token, detail);
         let mount = session.mount();
         let observer = session.observer();
-        match session.detach() {
-            Ok(Detach::Detached) => event("detached", ""),
+        let drained = match session.detach() {
+            Ok(Detach::Detached) => {
+                event("detached", "");
+                self.leaving(token, MountPhase::Draining);
+                match session.drain() {
+                    Ok(drained) => drained,
+                    Err(undrained) => {
+                        event("retained", &format!("stage={:?}", undrained.stage));
+                        return Err(self.retain(
+                            token,
+                            stage(undrained.stage),
+                            format!(
+                                "connection drain stopped at {:?}: loops {:?}, work {:?}",
+                                undrained.stage, undrained.loops, undrained.work
+                            ),
+                            Some(observer),
+                            undrained,
+                            None,
+                        ));
+                    }
+                }
+            }
+            // The kernel mount is already gone (an outside detach): no detach can
+            // end the connection, its abort control can (lost-mount L4).
+            Err(nix::errno::Errno::EINVAL) if session.mount_gone() => {
+                if !session.abort_bound() {
+                    event(
+                        "retained",
+                        "stage=Detach kernel mount gone, no abort control",
+                    );
+                    return Err(self.retain(
+                        token,
+                        TeardownStage::Detach,
+                        "kernel mount already gone and no fusectl abort control is bound: mount fusectl at /sys/fs/fuse/connections; until then restart the daemon and run lfs reopen".to_owned(),
+                        Some(observer),
+                        Box::new(session),
+                        None,
+                    ));
+                }
+                event(
+                    "gone",
+                    "kernel mount already gone; ending the connection through its abort control",
+                );
+                self.leaving(token, MountPhase::Stopping);
+                match session.abort_gone() {
+                    Ok(drained) => drained,
+                    Err(undrained) => {
+                        event(
+                            "retained",
+                            &format!("stage={:?} after abort", undrained.stage),
+                        );
+                        return Err(self.retain(
+                            token,
+                            stage(undrained.stage),
+                            format!(
+                                "kernel mount gone; drain after abort stopped at {:?}: loops {:?}, work {:?}",
+                                undrained.stage, undrained.loops, undrained.work
+                            ),
+                            Some(observer),
+                            undrained,
+                            None,
+                        ));
+                    }
+                }
+            }
             Ok(Detach::Busy) => {
                 event("busy", "kernel reported the mount busy");
                 // Reversible: the same connection returns to the registry.
@@ -98,24 +168,6 @@ impl Service {
                     format!("plain detach: {errno}"),
                     Some(observer),
                     Box::new(session),
-                    None,
-                ));
-            }
-        }
-        self.leaving(token, MountPhase::Draining);
-        let drained = match session.drain() {
-            Ok(drained) => drained,
-            Err(undrained) => {
-                event("retained", &format!("stage={:?}", undrained.stage));
-                return Err(self.retain(
-                    token,
-                    stage(undrained.stage),
-                    format!(
-                        "connection drain stopped at {:?}: loops {:?}, work {:?}",
-                        undrained.stage, undrained.loops, undrained.work
-                    ),
-                    Some(observer),
-                    undrained,
                     None,
                 ));
             }

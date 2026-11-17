@@ -1,10 +1,39 @@
 //! Forced teardown of one connection: one abort write, the terminal fence,
-//! the local drain, then one plain detach. Nothing here is repeated.
+//! the local drain, then one plain detach. Nothing here is repeated. When the
+//! kernel mount is already gone (`mount_gone`), `abort_gone` skips that detach:
+//! the kernel made it (lost-mount L4, decided 2026-11-17).
 use super::state::{DetachAttempt, DrainStage, Drained, ForceRefusal, KernelSession, Undrained};
 use crate::mount::{syscalls, AbortWrite};
 use std::{sync::atomic::Ordering, time::Instant};
 
 impl KernelSession {
+    /// The kernel table no longer holds this connection's mount at its
+    /// directory: something outside LayerFS detached it (lost-mount L4). An
+    /// unreadable table, or a session with no recorded entry, is not gone.
+    pub fn mount_gone(&self) -> bool {
+        let Some(entry) = self.entry.as_ref() else {
+            return false;
+        };
+        match syscalls::mount_entry(&self.directory) {
+            Ok(now) => now.device != entry.device,
+            Err(error) => error.kind() == std::io::ErrorKind::NotFound,
+        }
+    }
+    /// After the kernel mount is gone (`mount_gone`), no detach can end the
+    /// connection: its receive loops stay in `read()` until the connection is
+    /// aborted. One abort write through the control bound at attach, then the
+    /// forced drain, which skips its detach because the kernel already made it
+    /// (lost-mount L4). Without a bound control it stops at Detach, as before.
+    pub fn abort_gone(mut self) -> Result<Box<Drained>, Box<Undrained>> {
+        match self.abort() {
+            Ok(AbortWrite::Written) => {}
+            _ => return Err(self.undrained(DrainStage::Detach, None)),
+        }
+        self.forced_detach = DetachAttempt::Detached;
+        self.detached.store(true, Ordering::Release);
+        let _ = self.queue.stop_receive();
+        self.force_drain()
+    }
     /// The abort control bound at attach is still held, unused.
     pub fn abort_bound(&self) -> bool {
         self.abort.is_some()

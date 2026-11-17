@@ -43,7 +43,17 @@ apply() {
   # The workbench must keep running without its services.
   services || echo "vm-boot: shared services did not start" >&2
   agent_docker || echo "vm-boot: the agent's Docker did not start" >&2
+  fusectl || echo "vm-boot: fusectl is not mounted; a lost Workspace mount cannot be aborted" >&2
   reopen
+}
+
+# Each LayerFS daemon binds its connection's abort control in fusectl when it
+# mounts a Workspace. With it, an unmount whose kernel mount is already gone
+# ends the connection and finishes (core/docs/issues/lost-mount/README.md L4).
+# Mount it before reopen, so the reopened Workspaces bind it too.
+fusectl() {
+  mountpoint -q /sys/fs/fuse/connections && return 0
+  mount -t fusectl none /sys/fs/fuse/connections
 }
 
 # A restart ends every LayerFS daemon, but each Workspace's overlay stays in
