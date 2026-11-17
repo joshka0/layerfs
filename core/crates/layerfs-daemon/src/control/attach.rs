@@ -47,6 +47,7 @@ impl Service {
         }) {
             Ok(attached) => {
                 let reply = Reply::Ready(Box::new(attached.ready.clone()));
+                super::events::record("mounted", &attached.ready.directory, token, "");
                 self.settle(token, Kernel::Ready(Box::new(attached)), Activity::Idle);
                 Ok(Success::reply(reply))
             }

@@ -4,6 +4,7 @@
 pub mod control;
 #[cfg(feature = "duplex")]
 pub mod duplex;
+pub mod mount_rules;
 pub mod provision;
 mod provision_wire;
 mod wire;

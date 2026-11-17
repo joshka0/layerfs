@@ -63,20 +63,52 @@ L3. `lfs reopen` answers `kind: ok` and exits 0 while a listed Workspace is
     as not reopened and the reason.
 L4. `lfs unmount` of a Workspace whose kernel mount is gone, after an outside
     detach or a drain that stopped, stops at `plain detach: EINVAL`, or stays
-    Retained after its connection has ended. Expected: it ends the
-    connection, finishes the drain and Close, removes the mount directory,
-    and keeps the overlay unless `--discard`.
+    Retained after its connection has ended. Expected: the unmount sees that
+    the kernel table has no mount of its connection's device at the path. It
+    then ends the connection through its fusectl abort control
+    (`/sys/fs/fuse/connections/<n>/abort`), finishes the drain and Close,
+    removes the mount directory, and keeps the overlay unless `--discard`.
+    Without a bound abort control, it refuses and names what is missing.
+    The workbench mounts fusectl at boot (`tools/orbstack/vm-boot.sh`).
+    Decided 2026-11-17 by ash-coordinator, under the operator's grants. The
+    first text, "end the connection by closing its device", was dropped: a
+    receive loop blocked in `read()` on the FUSE device does not wake when
+    the descriptor is closed. lfs-orb has no fusectl mounted today, so the
+    abort control is not bound there. Mounting it on the live workbench is
+    parked for the operator.
 L5. L4 runs when the kernel still holds the mount (`EBUSY`, or the mount is
     there). Expected: the existing reversible Busy answer, with no effect.
-L6. After L4 without `--discard`, `lfs reopen` does not mount the saved
-    overlay again at its path. If the branch moved since the mount, it gives
-    no reason that names the moved branch.
+L6. A Workspace whose kernel mount is gone and that holds uncommitted
+    work cannot be recovered without a daemon restart. Expected: `lfs commit`
+    of it succeeds through the daemon's overlay, without a kernel mount, and
+    its branch then holds the work. After that, `lfs unmount` finishes by the
+    L4 path. The fallback, a daemon restart and `lfs reopen`, remounts the
+    saved overlay when the branch has not moved since the mount. When the
+    branch has moved, it names the moved branch. Decided 2026-11-18 by
+    ash-coordinator: no new remount operation. If the commit fails without a
+    kernel mount, that result goes to ash before any larger change. The
+    first text asked `lfs reopen` to remount after an L4 unmount. That does
+    not fit: an L4 unmount closes a clean Workspace and refuses a dirty one.
 L7. The daemon mounts, detaches, unmounts, finds a mount gone, or keeps a
     Workspace as Retained, and `daemon.log` has no line for it. Expected: one
     line for each event. Each line has an ISO 8601 UTC time, the Workspace
     path, its id, its namespace, the event, the stage, and the errno or cause.
-L8. A `daemon.log` line has no time: the listen line or a `ConnectionFailure`
-    line, for example.
+    The events, one line each, in order of the outcome:
+    - attach: `mounted`;
+    - normal unmount: `detached`, then `unmounted` (or `retained` with its
+      stage);
+    - the kernel answers busy: `busy`;
+    - a copy in another mount namespace (L9): `held`, naming the pid;
+    - the kernel mount is already gone (L4): `gone`, then `abort` and
+      `unmounted` when an abort control is bound, or `retained` when none
+      is bound.
+    The daemon makes no detach in the `gone` case, so no `detached` line
+    follows it. (Event names were added 2026-11-18, after the first Boat
+    run showed the item did not name them.)
+L8. A `daemon.log` line has no time: a `ConnectionFailure` line or the
+    idle-exit line, for example. The listen line (`LAYERFS_DAEMON_LISTEN
+    <address>`) is exempt. It is a protocol line that the Sandbox spawner and
+    the tests parse by its exact prefix.
 L9. A normal unmount stops at `Join` while another mount namespace holds a
     private copy of the Workspace mount. A rootless `unshare --mount` makes
     its copies private by default, and they share the superblock. The plain

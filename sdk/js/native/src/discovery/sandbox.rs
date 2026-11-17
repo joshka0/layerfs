@@ -226,6 +226,8 @@ pub(crate) fn reopen(args: &SdkValue) -> Result<Arc<SandboxState>> {
 }
 /// Refresh shared executor/mount metadata without repeating an operation.
 pub(crate) fn refresh(state: &SandboxState) -> Result<()> {
+    // One read of the kernel mount table per refresh (lost-mount L1).
+    let table = super::kernel_table::rows();
     let mut mounts = std::collections::BTreeMap::new();
     let mut processes = std::collections::BTreeMap::new();
     for item in fs::read_dir(&state.directory).map_err(failed)? {
@@ -253,13 +255,24 @@ pub(crate) fn refresh(state: &SandboxState) -> Result<()> {
                     Err(failure) if absent(&failure) => continue,
                     Err(failure) => return Err(failed(failure)),
                 };
-            let ready = status
+            let kernel = status
                 .kernel
-                .and_then(|k| k.ready)
+                .ok_or_else(|| refused("NotMounted", "saved Workspace is no longer mounted"))?;
+            let ready = kernel
+                .ready
                 .ok_or_else(|| refused("NotMounted", "saved Workspace is no longer mounted"))?;
             if ready.directory != path {
                 return Err(refused("StaleSandbox", "mount path mismatch"));
             }
+            let device = (ready.receipt.device_major, ready.receipt.device_minor);
+            let at = table
+                .as_ref()
+                .map(|rows| layerfs_bridge::mount_rules::devices_at(rows, path))
+                .unwrap_or_else(|| vec![device]);
+            let lost = layerfs_bridge::mount_rules::with_activity(
+                layerfs_bridge::mount_rules::lost(kernel.phase, kernel.detached, device, &at),
+                status.activity,
+            );
             mounts.insert(
                 path.to_owned(),
                 Mount {
@@ -271,6 +284,7 @@ pub(crate) fn refresh(state: &SandboxState) -> Result<()> {
                         ready,
                     },
                     branch: registry::text(&value, "branch")?.to_owned(),
+                    lost,
                 },
             );
         } else if name.starts_with("process-") && name.ends_with(".record") {
