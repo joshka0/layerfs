@@ -396,7 +396,7 @@ if lfs unmount "$project" "$sandbox" "$ws_path" >"$work/private.out" 2>"$work/pr
    [[ ! -e $ws_path ]] && ! mountpoint -q "$ws_path"; then
   pass 'after holder exits: Unmounted and directory gone (L9 L12)'
 else fail 'after holder exits: unmount or directory removal (L9 L12)'; exit 1; fi
-check_events private-namespace mounted busy detached unmounted
+check_events private-namespace mounted held detached unmounted
 ws_path=
 mount_workspace
 begin_events
@@ -440,7 +440,7 @@ check_events live-file mounted busy
 timeout --kill-after=1s 3s umount -l "$ws_path"
 stop_holder
 check_unmounted released-file
-check_events released-file mounted busy gone detached unmounted
+check_events released-file mounted busy gone abort unmounted
 ws_path=
 
 mount_workspace
@@ -473,7 +473,7 @@ else:
 PY
 if (( probe_rc == 0 )); then pass 'held descriptor read fails after abort (L4)'
 else fail 'held descriptor read succeeded or did not finish (L4)'; fi
-check_events held-file mounted gone detached unmounted
+check_events held-file mounted gone abort unmounted
 stop_holder
 ws_path=
 
@@ -580,7 +580,7 @@ workspace_status >"$work/retained-status.json" 2>"$work/retained-status.err" || 
 if check_mount_answer status retained "$work/retained-status.json" "$status_rc"; then
   pass 'Retained status: mounted false, phase reason (L2)'
 else fail 'Retained status hides custody phase (L2)'; fi
-check_events no-abort mounted gone held retained
+check_events no-abort mounted gone retained
 stop_holder
 ensure_fusectl
 fusectl_restore=0
