@@ -6,6 +6,16 @@
 set -Eeuo pipefail
 exec 2>&1
 repo=$(cd -- "$(dirname -- "${BASH_SOURCE[0]}")/../.." && pwd)
+# Every failing command names itself: stdout is the only return channel.
+trap 'printf "ERROR line %d: %s (exit %d)\n" "$LINENO" "$BASH_COMMAND" "$?"' ERR
+
+# A Boat job runs as an ordinary user with passwordless sudo. Mounts need root;
+# keep the user's toolchains (rustup, cargo) and PATH.
+if [[ $(id -u) != 0 ]]; then
+  exec sudo -n env "PATH=$PATH" "HOME=$HOME" \
+    "RUSTUP_HOME=${RUSTUP_HOME:-$HOME/.rustup}" "CARGO_HOME=${CARGO_HOME:-$HOME/.cargo}" \
+    bash "$repo/tools/orbstack/lost-mount-e2e.sh" "$@"
+fi
 
 # GNU timeout owns the complete process group, including install/build children.
 if [[ ${1:-} != --bounded && ${1:-} != --cases ]]; then
@@ -40,7 +50,9 @@ if [[ $1 == --bounded ]]; then
     if (( rc == 0 )); then rm -rf -- "${work:?}"; fi
   }
   trap finish EXIT
-  [[ $(id -u) == 0 && $(uname -s) == Linux && -c /dev/fuse ]]
+  [[ $(id -u) == 0 && $(uname -s) == Linux && -c /dev/fuse ]] || {
+    echo "FAIL needs root on Linux with /dev/fuse: uid $(id -u), $(uname -s), $(ls -l /dev/fuse 2>&1)"; exit 1;
+  }
   for tool in curl tar xz sha256sum python3 unshare mountpoint umount cc pkg-config; do
     command -v "$tool" >/dev/null || { echo "FAIL missing prerequisite: $tool"; exit 1; }
   done
