@@ -89,6 +89,7 @@ impl Service {
             // The kernel mount is already gone (an outside detach): no detach can
             // end the connection, its abort control can (lost-mount L4).
             Err(nix::errno::Errno::EINVAL) if session.mount_gone() => {
+                event("gone", "kernel mount already gone");
                 if !session.abort_bound() {
                     event(
                         "retained",
@@ -103,10 +104,7 @@ impl Service {
                         None,
                     ));
                 }
-                event(
-                    "gone",
-                    "kernel mount already gone; ending the connection through its abort control",
-                );
+                event("abort", "ending the connection through its abort control");
                 self.leaving(token, MountPhase::Stopping);
                 match session.abort_gone() {
                     Ok(drained) => drained,

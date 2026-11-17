@@ -252,6 +252,7 @@ pub(crate) fn status(args: &SdkValue) -> Outcome {
             },
             None => Some("not mounted: the daemon reports no kernel half".to_owned()),
         };
+        let reason = crate::discovery::mount_rules::with_activity(reason, status.activity);
         fields.push(("mounted".to_owned(), SdkValue::Bool(reason.is_none())));
         fields.push(("reason".to_owned(), SdkValue::opt_text(reason)));
     }

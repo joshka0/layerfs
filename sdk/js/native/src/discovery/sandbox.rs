@@ -269,7 +269,10 @@ pub(crate) fn refresh(state: &SandboxState) -> Result<()> {
                 .as_ref()
                 .map(|rows| super::kernel_table::devices_at(rows, path))
                 .unwrap_or_else(|| vec![device]);
-            let lost = super::mount_rules::lost(kernel.phase, kernel.detached, device, &at);
+            let lost = super::mount_rules::with_activity(
+                super::mount_rules::lost(kernel.phase, kernel.detached, device, &at),
+                status.activity,
+            );
             mounts.insert(
                 path.to_owned(),
                 Mount {

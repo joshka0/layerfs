@@ -4,7 +4,7 @@
 //! decided: 2026-11-17, the operator chose that LayerFS reads the kernel
 //! mount; the daemon's status stays a maintained observation with no syscall,
 //! so the kernel check is here, in the SDK.
-use layerfs_bridge::control::MountPhase;
+use layerfs_bridge::control::{Activity, MountPhase};
 
 /// Why a Workspace that the daemon lists is not mounted, or `None` when it
 /// is. `devices_at_path` holds the device (major, minor) of every row of the
@@ -33,6 +33,13 @@ pub(crate) fn lost(
         ));
     }
     None
+}
+
+/// `reason` with the Workspace's activity, where the daemon's teardown
+/// stopped (`Closing` after a refused unmount), so a lost Workspace names its
+/// custody stage (L2). `None` stays `None`.
+pub(crate) fn with_activity(reason: Option<String>, activity: Activity) -> Option<String> {
+    reason.map(|reason| format!("{reason}; activity {activity:?}"))
 }
 
 #[cfg(all(test, target_os = "linux"))]

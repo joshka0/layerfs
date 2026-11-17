@@ -93,6 +93,18 @@ L7. The daemon mounts, detaches, unmounts, finds a mount gone, or keeps a
     Workspace as Retained, and `daemon.log` has no line for it. Expected: one
     line for each event. Each line has an ISO 8601 UTC time, the Workspace
     path, its id, its namespace, the event, the stage, and the errno or cause.
+    The events, one line each, in order of the outcome:
+    - attach: `mounted`;
+    - normal unmount: `detached`, then `unmounted` (or `retained` with its
+      stage);
+    - the kernel answers busy: `busy`;
+    - a copy in another mount namespace (L9): `held`, naming the pid;
+    - the kernel mount is already gone (L4): `gone`, then `abort` and
+      `unmounted` when an abort control is bound, or `retained` when none
+      is bound.
+    The daemon makes no detach in the `gone` case, so no `detached` line
+    follows it. (Event names were added 2026-11-18, after the first Boat
+    run showed the item did not name them.)
 L8. A `daemon.log` line has no time: a `ConnectionFailure` line or the
     idle-exit line, for example. The listen line (`LAYERFS_DAEMON_LISTEN
     <address>`) is exempt. It is a protocol line that the Sandbox spawner and
