@@ -78,5 +78,6 @@ rc=0; out=$(lfs unmount "$project" "$a_sandbox" "$a_path" --discard 2>&1) || rc=
 echo "A late unmount: rc=$rc"
 grep -E 'kind|code|phase|stage|detail|Retained|Held|namespace' <<<"$out" | head -n 8 | cut -c1-300
 echo "daemon.log events:"
-find "$LAYERFS_HOME" "$work" -name daemon.log -exec grep -h -E ' (mounted|detached|busy|held|gone|abort|retained|unmounted) ' {} + 2>/dev/null | cut -c1-200 | tail -n 12
+# The daemon writes its log in the Sandbox folder, two levels above the Workspace path.
+grep -h -E ' (mounted|detached|busy|held|gone|abort|retained|unmounted) ' "$(dirname -- "$(dirname -- "$a_path")")/daemon.log" | cut -c1-200 | tail -n 12
 echo "RESULT A late unmount rc=$rc"
