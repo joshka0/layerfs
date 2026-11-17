@@ -146,7 +146,7 @@ impl KernelSession {
                 Ok(drained) => AttachRemainder::Disposed(Some(drained)),
                 Err(undrained) => AttachRemainder::Retained(undrained),
             },
-            Ok(super::Detach::Busy) | Err(_) => {
+            Ok(super::Detach::Busy | super::Detach::Held(_)) | Err(_) => {
                 AttachRemainder::Retained(Box::new(super::Undrained {
                     loops: self.monitor.as_ref().map(SessionMonitor::snapshot),
                     failed_demands: self.fence.failed_demands(),

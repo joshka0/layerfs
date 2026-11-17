@@ -12,6 +12,11 @@ pub enum Detach {
     /// The kernel's reversible answer. Nothing changed: requests were and
     /// remain serviced normally and no terminal error was injected.
     Busy,
+    /// Refused before the syscall: the process with this pid is in another
+    /// mount namespace that holds a copy of this mount that the detach would
+    /// not reach, so the connection would outlive it and the drain would stop
+    /// at Join (lost-mount L9). Nothing changed, as for `Busy`.
+    Held(u32),
 }
 /// Where the shared join-and-quiesce half stopped, with what it observed.
 pub(super) struct Stop {
@@ -27,6 +32,9 @@ impl KernelSession {
     pub fn detach(&mut self) -> Result<Detach, Errno> {
         if self.is_detached() || self.aborted.get().is_some() {
             return Err(Errno::EINVAL);
+        }
+        if let Some(pid) = self.entry.as_ref().and_then(syscalls::holder) {
+            return Ok(Detach::Held(pid));
         }
         match syscalls::detach(&self.directory) {
             Ok(()) => {

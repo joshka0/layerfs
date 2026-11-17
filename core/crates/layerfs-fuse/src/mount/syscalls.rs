@@ -45,6 +45,9 @@ pub struct MountEntry {
     pub filesystem: String,
     pub source: String,
     pub super_options: String,
+    /// The row's propagation fields; an unmount here reaches only the copies
+    /// in this peer group or its slaves.
+    pub peers: super::copies::Peers,
 }
 
 /// One create attempt; an existing directory is never adopted as a mount home.
@@ -132,7 +135,15 @@ fn parse(line: &[u8], target: &Path) -> Option<MountEntry> {
     }
     let options = text(fields.next()?)?;
     // Optional propagation fields end at the single dash separator.
-    fields.find(|field| *field == b"-")?;
+    let mut optional = Vec::new();
+    loop {
+        let field = fields.next()?;
+        if field == b"-" {
+            break;
+        }
+        optional.push(field);
+    }
+    let peers = super::copies::peers(optional.into_iter());
     Some(MountEntry {
         id,
         device: (major.parse().ok()?, minor.parse().ok()?),
@@ -140,7 +151,48 @@ fn parse(line: &[u8], target: &Path) -> Option<MountEntry> {
         filesystem: text(fields.next()?)?,
         source: text(&unescape(fields.next()?))?,
         super_options: text(fields.next()?)?,
+        peers,
     })
+}
+/// One process of another mount namespace that holds a copy of `own` that a
+/// plain detach here would not reach (lost-mount L9); `None` when no process
+/// does. A `/proc` entry that vanishes or cannot be read is skipped (L14).
+pub(crate) fn holder(own: &MountEntry) -> Option<u32> {
+    let mine = std::fs::read_link("/proc/self/ns/mnt").ok()?;
+    let mut checked = std::collections::HashSet::from([mine]);
+    for item in std::fs::read_dir("/proc").ok()?.flatten() {
+        let Some(pid) = item
+            .file_name()
+            .to_str()
+            .and_then(|name| name.parse::<u32>().ok())
+        else {
+            continue;
+        };
+        let Ok(namespace) = std::fs::read_link(item.path().join("ns/mnt")) else {
+            continue;
+        };
+        if checked.contains(&namespace) {
+            continue;
+        }
+        let Ok(table) = File::open(item.path().join("mountinfo")) else {
+            continue;
+        };
+        let mut complete = true;
+        for line in BufReader::new(table).split(b'\n') {
+            let Ok(line) = line else {
+                // Another process of this namespace may still be read.
+                complete = false;
+                break;
+            };
+            if super::copies::pins(own.peers, own.device, &line) {
+                return Some(pid);
+            }
+        }
+        if complete {
+            checked.insert(namespace);
+        }
+    }
+    None
 }
 /// The table writes space, tab, newline and backslash as three octal digits.
 fn unescape(field: &[u8]) -> Vec<u8> {
