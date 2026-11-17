@@ -99,6 +99,21 @@ L9. A normal unmount stops at `Join` while another mount namespace holds a
     measured.
 L10. A fix for L1 to L9 changes a Workspace that is mounted and healthy: its
      status, its service, or its unmount.
+L11. The L9 check treats a copy that follows unmounts as pinning: a slave copy
+     whose `master:` is the mount's own peer group, or a member of its
+     `shared:` peer group. Measured on lfs-orb: dockerd's namespace and every
+     Codex sandbox (`codex-linux-sandbox`, own mount namespace) hold such
+     copies (`master:299`). Expected: these copies do not make the unmount
+     Busy; only a copy outside the peer group does.
+L12. The L9 Busy answer does not name the holder (one pid in that mount
+     namespace), or it has a side effect: a detach, a drain, a phase change,
+     or a log line missing (L7).
+L13. The L9 check misses a copy of the mount because it reads the copy by
+     path. A copy can sit at another path in another namespace (a bind or a
+     pivot). Expected: match the connection's device (`major:minor` of the
+     mount), not the path.
+L14. The L9 scan makes an unmount refuse, or hang, when a `/proc/<pid>` entry
+     vanishes or cannot be read during the scan. Expected: skip that entry.
 
 ## Not in scope
 
