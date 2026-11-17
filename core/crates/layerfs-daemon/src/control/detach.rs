@@ -53,11 +53,14 @@ impl Service {
         attached: Attached,
     ) -> Result<Success, Failure> {
         let Attached { mut session, ready } = attached;
+        let path = ready.directory.clone();
+        let event = |name: &str, detail: &str| super::events::record(name, &path, token, detail);
         let mount = session.mount();
         let observer = session.observer();
         match session.detach() {
-            Ok(Detach::Detached) => {}
+            Ok(Detach::Detached) => event("detached", ""),
             Ok(Detach::Busy) => {
+                event("busy", "kernel reported the mount busy");
                 // Reversible: the same connection returns to the registry.
                 self.settle(
                     token,
@@ -71,6 +74,7 @@ impl Service {
                 ));
             }
             Ok(Detach::Held(pid)) => {
+                event("held", &format!("holder_pid={pid}"));
                 // Reversible as Busy: a copy in another mount namespace would
                 // keep the connection after the detach (lost-mount L9).
                 self.settle(
@@ -87,6 +91,7 @@ impl Service {
                 ));
             }
             Err(errno) => {
+                event("retained", &format!("stage=Detach errno={errno}"));
                 return Err(self.retain(
                     token,
                     TeardownStage::Detach,
@@ -94,13 +99,14 @@ impl Service {
                     Some(observer),
                     Box::new(session),
                     None,
-                ))
+                ));
             }
         }
         self.leaving(token, MountPhase::Draining);
         let drained = match session.drain() {
             Ok(drained) => drained,
             Err(undrained) => {
+                event("retained", &format!("stage={:?}", undrained.stage));
                 return Err(self.retain(
                     token,
                     stage(undrained.stage),
@@ -111,7 +117,7 @@ impl Service {
                     Some(observer),
                     undrained,
                     None,
-                ))
+                ));
             }
         };
         // Drain barrier holds: one fixed logical mark, then indexed retirement.
@@ -121,6 +127,7 @@ impl Service {
         ) {
             Ok(()) => {}
             Err(failure) => {
+                event("retained", "stage=Revoke");
                 return Err(self.retain(
                     token,
                     TeardownStage::Revoke,
@@ -131,7 +138,16 @@ impl Service {
                 ));
             }
         };
-        self.close(token, &workspace, Some(drained))
+        let closed = self.close(token, &workspace, Some(drained));
+        event(
+            if closed.is_ok() {
+                "unmounted"
+            } else {
+                "retained"
+            },
+            if closed.is_ok() { "" } else { "stage=Close" },
+        );
+        closed
     }
     /// Describes the exact retained kernel owner for an operator. Observation
     /// only: nothing is transferred, released, retried or settled.

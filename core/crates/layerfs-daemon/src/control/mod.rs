@@ -5,6 +5,7 @@ mod cleanup;
 #[cfg(target_os = "linux")]
 mod detach;
 mod dirty;
+pub mod events;
 mod failure;
 mod force;
 mod inspect;

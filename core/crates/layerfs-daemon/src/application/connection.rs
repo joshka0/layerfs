@@ -60,7 +60,11 @@ impl Application {
                             // Transfer this bounded original diagnostic to the daemon
                             // stderr owner before releasing capacity. Failed transfer
                             // keeps the original receipt and its distinct output error.
-                            match writeln!(std::io::stderr().lock(), "{failure:?}") {
+                            match writeln!(
+                                std::io::stderr().lock(),
+                                "{} {failure:?}",
+                                crate::control::events::now()
+                            ) {
                                 Ok(()) => result = Ok(()),
                                 Err(error) => failure.diagnostic_error = Some(error),
                             }

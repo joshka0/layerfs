@@ -68,12 +68,13 @@ impl Application {
                     let mut stderr = std::io::stderr().lock();
                     for slot in &state.slots {
                         if let Slot::Retained(failure) = slot {
-                            let _ = writeln!(stderr, "{failure:?}");
+                            let _ = writeln!(stderr, "{} {failure:?}", crate::control::events::now());
                         }
                     }
                     let _ = writeln!(
                         stderr,
-                        "LAYERFS_DAEMON_IDLE_EXIT after {seconds} s with no Workspace and no call"
+                        "{} LAYERFS_DAEMON_IDLE_EXIT after {seconds} s with no Workspace and no call",
+                        crate::control::events::now()
                     );
                     drop(stderr);
                     std::process::exit(0);
