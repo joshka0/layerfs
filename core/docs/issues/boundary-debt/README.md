@@ -46,5 +46,22 @@ B5. The guard's count rises, or a new kind of violation appears. Expected:
 
 ## Decision (B3)
 
-Pending; asked of ash-coordinator. The options for each test are listed in
-the task report.
+Decided 2026-11-18 by ash-coordinator, under the house rule that a gate red on
+main gets a baseline file the gate diffs against, plus a task for the debt.
+`check_product_boundary.py` diffs against a baseline of exactly the six SDK
+items. The port of the 14 SDK tests to `sdk/js/test` is its own task.
+
+B6. A violation that the baseline does not list passes. Expected: the guard
+    fails and prints it, as before.
+B7. A baseline entry that no longer occurs passes in silence. Expected: the
+    guard fails and names the stale entry, so the baseline only shrinks: a fix
+    removes its entry in the same change.
+B8. The baseline keys on line numbers, so an edit above a listed item breaks
+    the guard; or it keys so loosely that a second violation of the same kind
+    in the same file is absorbed. Expected: an entry is the file, the reason
+    and the count of that pair; more than the count fails (B6), fewer fails
+    (B7).
+B9. The guard's self-tests (`core/tools/test_check_product_boundary.py`) do
+    not cover B6-B8, or the baseline file is missing or malformed and the
+    guard passes. Expected: a missing or malformed baseline fails with its
+    path.
