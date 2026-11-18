@@ -75,9 +75,8 @@ cargo test --manifest-path core/Cargo.toml --offline --locked -p layerfs-sandbox
 
 - `baseline.tsv` lists failures the gate accepts: a check name, a regex its
   reason must match, and the issue. A match prints `BASELINE`; any other
-  failure of that check stays `FAIL`. The entries cover the unmount `Join`
-  fault (`core/docs/issues/unmount-join/README.md`). Remove an entry when its
-  fault is fixed; the report lists unused entries as `BASELINE-UNUSED`.
+  failure of that check stays `FAIL`. The file has no entries, so every failure
+  is a `FAIL`. The report lists an unused entry as `BASELINE-UNUSED`.
 - F29 (a Docker Sandbox found gone) is not covered: the gate has no Docker
   Sandbox.
 - F46 end to end covers only the reachable stop path. The 60 s bound is
