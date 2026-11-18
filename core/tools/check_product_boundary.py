@@ -243,27 +243,86 @@ def production_files(core):
     return sorted(files)
 
 
+BASELINE_NAME = "product_boundary_baseline.txt"
+
+
+def load_baseline(path):
+    """Return {(path, reason): count} from the baseline file.
+
+    Each non-comment line is `count<TAB>path<TAB>reason`. Raises ValueError,
+    naming the file and line, for a missing file or a malformed line.
+    """
+    if not path.is_file():
+        raise ValueError(f"{path}: baseline file is missing")
+    entries = {}
+    for number, line in enumerate(path.read_text().splitlines(), 1):
+        if not line.strip() or line.lstrip().startswith("#"):
+            continue
+        fields = line.split("\t")
+        if len(fields) != 3 or not fields[0].isdigit() or int(fields[0]) < 1 or not fields[1] or not fields[2]:
+            raise ValueError(f"{path}:{number}: expected count<TAB>path<TAB>reason, got {line!r}")
+        key = (fields[1], fields[2])
+        if key in entries:
+            raise ValueError(f"{path}:{number}: duplicate entry for {fields[1]}: {fields[2]}")
+        entries[key] = int(fields[0])
+    return entries
+
+
+def compare(found, baseline):
+    """Diff violations against the baseline.
+
+    `found` is a list of (path, line, reason). Returns the lines to print and
+    the failure count: every violation of a (path, reason) pair that occurs
+    more often than its baseline count, and every baseline entry that occurs
+    fewer times than listed (stale: the baseline only shrinks).
+    """
+    groups = {}
+    for path, line, reason in found:
+        groups.setdefault((path, reason), []).append(line)
+    output, failures = [], 0
+    for (path, reason), lines in sorted(groups.items()):
+        allowed = baseline.get((path, reason), 0)
+        if len(lines) > allowed:
+            for line in lines:
+                output.append(f"{path}:{line}: {reason}")
+            if allowed:
+                output.append(f"{path}: {len(lines)} of '{reason}', baseline allows {allowed}")
+            failures += len(lines) - allowed
+    for (path, reason), count in sorted(baseline.items()):
+        seen = len(groups.get((path, reason), ()))
+        if seen < count:
+            output.append(f"stale baseline entry: {path}: {reason}: listed {count}, found {seen}; lower or remove it in {BASELINE_NAME}")
+            failures += 1
+    return output, failures
+
+
 def main():
     core = Path(__file__).resolve().parents[1]
     files = production_files(core)
-    failures = 0
+    found = []
     for path in files:
         for line, reason in violations(path, path.read_text()):
-            print(f"{path.relative_to(core.parent)}:{line}: {reason}")
-            failures += 1
+            found.append((str(path.relative_to(core.parent)), line, reason))
     for name in RETIRED_PACKAGES:
         if (core / "crates" / name).exists():
-            print(f"crates/{name}: {RETIRED_PACKAGE}")
-            failures += 1
+            found.append((f"crates/{name}", 0, RETIRED_PACKAGE))
     manifests = set((core / "crates").glob("*/Cargo.toml"))
     for manifest in sorted(manifests):
         for line, reason in dependency_violations(manifest.read_text()):
-            print(f"{manifest.relative_to(core)}:{line}: {reason}")
-            failures += 1
-    if failures:
-        print(f"FAIL: {failures} product-source boundary violations")
+            found.append((str(manifest.relative_to(core)), line, reason))
+    try:
+        baseline = load_baseline(Path(__file__).resolve().parent / BASELINE_NAME)
+    except ValueError as error:
+        print(f"FAIL: {error}")
         return 1
-    print(f"PASS: scanned {len(files)} production Rust/SQL/JavaScript files; semantic review still required")
+    output, failures = compare(found, baseline)
+    for line in output:
+        print(line)
+    if failures:
+        print(f"FAIL: {failures} product-source boundary violations beyond the baseline or stale baseline entries")
+        return 1
+    known = sum(baseline.values())
+    print(f"PASS: scanned {len(files)} production Rust/SQL/JavaScript files; {known} known violations in {BASELINE_NAME}; semantic review still required")
     if not files:
         print("No product source exists yet; this is only a policy setup check.")
     return 0

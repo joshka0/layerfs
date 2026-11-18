@@ -1,0 +1,9 @@
+# Known product boundary violations on main, diffed by check_product_boundary.py.
+# A line is count<TAB>path<TAB>reason. The list only shrinks: a fix removes or
+# lowers its entry in the same change. Debt task: port the SDK unit tests to
+# sdk/js/test (core/docs/issues/boundary-debt/README.md, B3).
+2	sdk/js/native/src/discovery/lock.rs	test-only attribute in product source
+1	sdk/js/native/src/discovery/revive.rs	test-only attribute in product source
+1	sdk/js/native/src/pool.rs	test-only attribute in product source
+1	sdk/js/native/src/sandbox/reclaim.rs	test-only attribute in product source
+1	sdk/js/native/src/workspace.rs	test-only attribute in product source

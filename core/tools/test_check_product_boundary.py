@@ -1,9 +1,121 @@
 from pathlib import Path
 from tempfile import TemporaryDirectory
+import subprocess
+import sys
 import unittest
 
-from check_product_boundary import (RETIRED_PACKAGES, dependency_violations, production_files,
-                                    unsafe_violations, violations)
+from check_product_boundary import (RETIRED_PACKAGES, compare, dependency_violations,
+                                    load_baseline, production_files, unsafe_violations,
+                                    violations)
+
+
+class ProductBoundaryBaselineTests(unittest.TestCase):
+    def test_unlisted_violation_fails_and_is_printed(self):
+        for baseline in ({}, {("other.rs", "test-only attribute"): 1},
+                         {("scope.rs", "another reason"): 1}):
+            with self.subTest(baseline=baseline):
+                lines, failures = compare([("scope.rs", 37, "test-only attribute")],
+                                          baseline)
+                self.assertGreater(failures, 0)
+                output = "\n".join(lines)
+                self.assertIn("scope.rs", output)
+                self.assertIn("37", output)
+                self.assertIn("test-only attribute", output)
+
+    def test_missing_or_reduced_occurrences_fail_as_stale(self):
+        for found in ([], [("scope.rs", 8, "test-only attribute")]):
+            with self.subTest(found=found):
+                lines, failures = compare(found, {("scope.rs", "test-only attribute"): 2})
+                self.assertGreater(failures, 0)
+                output = "\n".join(lines)
+                self.assertIn("stale", output.lower())
+                self.assertIn("scope.rs", output)
+                self.assertIn("test-only attribute", output)
+
+    def test_matching_count_ignores_line_numbers(self):
+        baseline = {("scope.rs", "test-only attribute"): 2}
+        for numbers in ((3, 7), (103, 407)):
+            with self.subTest(numbers=numbers):
+                _, failures = compare([("scope.rs", line, "test-only attribute")
+                                       for line in numbers], baseline)
+                self.assertEqual(failures, 0)
+
+    def test_third_occurrence_exceeds_count_of_two(self):
+        lines, failures = compare(
+            [("scope.rs", line, "test-only attribute") for line in (3, 7, 11)],
+            {("scope.rs", "test-only attribute"): 2})
+        self.assertGreater(failures, 0)
+        output = "\n".join(lines)
+        self.assertIn("scope.rs", output)
+        self.assertIn("test-only attribute", output)
+
+    def test_different_reasons_in_one_file_have_separate_counts(self):
+        baseline = {("scope.rs", "test-only attribute"): 2,
+                    ("scope.rs", "implementation construct"): 1}
+        _, failures = compare(
+            [("scope.rs", 3, "test-only attribute"),
+             ("scope.rs", 7, "test-only attribute"),
+             ("scope.rs", 11, "implementation construct")], baseline)
+        self.assertEqual(failures, 0)
+        lines, failures = compare(
+            [("scope.rs", line, "test-only attribute") for line in (3, 7, 11)],
+            baseline)
+        self.assertGreater(failures, 0)
+        output = "\n".join(lines)
+        self.assertIn("stale", output.lower())
+        self.assertIn("scope.rs", output)
+        self.assertIn("implementation construct", output)
+
+    def test_missing_baseline_raises_value_error_naming_file(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "missing.txt"
+            with self.assertRaises(ValueError) as raised:
+                load_baseline(path)
+            self.assertIn(str(path), str(raised.exception))
+
+    def test_malformed_baseline_lines_name_file_and_line(self):
+        for entry in ("2\tscope.rs", "2\tscope.rs\treason\textra",
+                      "many\tscope.rs\treason", "0\tscope.rs\treason",
+                      "-1\tscope.rs\treason", "2\t\treason", "2\tscope.rs\t"):
+            with self.subTest(entry=entry), TemporaryDirectory() as directory:
+                path = Path(directory) / "baseline.txt"
+                path.write_text("# comment\n\n" + entry + "\n")
+                with self.assertRaises(ValueError) as raised:
+                    load_baseline(path)
+                self.assertIn(str(path), str(raised.exception))
+                self.assertRegex(str(raised.exception), r"\b3\b")
+
+    def test_duplicate_baseline_pair_names_file_and_line(self):
+        for count in (1, 2):
+            with self.subTest(count=count), TemporaryDirectory() as directory:
+                path = Path(directory) / "baseline.txt"
+                path.write_text("1\tscope.rs\treason\n# comment\n"
+                                f"{count}\tscope.rs\treason\n")
+                with self.assertRaises(ValueError) as raised:
+                    load_baseline(path)
+                self.assertIn(str(path), str(raised.exception))
+                self.assertRegex(str(raised.exception), r"\b3\b")
+
+    def test_baseline_loads_counts_and_ignores_comments_and_blank_lines(self):
+        with TemporaryDirectory() as directory:
+            path = Path(directory) / "baseline.txt"
+            path.write_text("# baseline\n\n2\tscope.rs\ttest-only attribute\n"
+                            "\n# another entry\n1\tscope.rs\timplementation construct\n"
+                            "1\tother.rs\ttest-only attribute\n\n")
+            self.assertEqual(load_baseline(path), {
+                ("scope.rs", "test-only attribute"): 2,
+                ("scope.rs", "implementation construct"): 1,
+                ("other.rs", "test-only attribute"): 1,
+            })
+
+    def test_repository_baseline_loads_and_real_guard_passes(self):
+        root = Path(__file__).resolve().parents[2]
+        baseline = root / "core/tools/product_boundary_baseline.txt"
+        self.assertIsInstance(load_baseline(baseline), dict)
+        result = subprocess.run(
+            [sys.executable, "-B", "core/tools/check_product_boundary.py"],
+            cwd=root, capture_output=True, text=True, timeout=30)
+        self.assertEqual(result.returncode, 0, result.stdout + result.stderr)
 
 
 class ProductBoundaryTests(unittest.TestCase):
