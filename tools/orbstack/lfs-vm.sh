@@ -77,6 +77,9 @@
 # chromium, fonts-noto-core and xvfb for browser tests (jev-hand, effect-folio,
 # pilotprospector, praze-landing). ripgrep, jq and fd-find (as `fd`) are
 # the search tools agents expect.
+# Upstream Git goes to /usr/local (git-install.sh, built once and kept on
+# the data volume): memoryd needs Git 2.42 or later, and bookworm has 2.39.
+# libpcre2 and libexpat are its build and run dependencies.
 #
 # The shared services of services.compose.yml that every agent uses on
 # 127.0.0.1: Postgres, Redis and RustFS. OrbStack runs them as sibling
@@ -229,7 +232,7 @@ DEBIAN_FRONTEND=noninteractive apt-get -qq update >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends git openssh-client curl wget \
   ca-certificates gnupg netbase unzip xz-utils bzip2 file patch less pkg-config autoconf automake libtool \
   libssl-dev libffi-dev zlib1g-dev libsqlite3-dev libpq-dev libreadline-dev libyaml-dev libbz2-dev \
-  liblzma-dev libxml2-dev libcurl4-openssl-dev >/dev/null
+  liblzma-dev libxml2-dev libcurl4-openssl-dev libpcre2-dev libexpat1-dev >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends iptables openssh-server \
   iproute2 rsync zstd clang libsecret-1-0 >/dev/null
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends procps build-essential \
@@ -251,6 +254,7 @@ docker_version=5:29.9.1-1~debian.12~bookworm
 DEBIAN_FRONTEND=noninteractive apt-get -qq install -y --no-install-recommends uidmap slirp4netns \
   docker-ce=$docker_version docker-ce-cli=$docker_version docker-ce-rootless-extras=$docker_version \
   docker-compose-plugin=5.6.0-1~debian.12~bookworm >/dev/null
+/opt/layerfs/tools/git-install.sh
 apt-get -qq clean
 rm -rf /var/lib/apt/lists/*
 # System CAs (ca-certificates, installed above) plus the Agent Vault CA: proxied hosts are re-signed by it,
