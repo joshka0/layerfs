@@ -1,6 +1,6 @@
 # Unmount fails at Join for a Workspace mounted 30 s or more
 
-> **Status:** Open, narrowed 2026-11-18 (see "Update 2026-11-18"). Filed 2026-11-14. GitHub issues are disabled on the fork, so the issue lives here.
+> **Status:** Closed 2026-11-18: not reproduced, cause unknown (see "Result 2026-11-18"). Filed 2026-11-14. GitHub issues are disabled on the fork, so the issue lives here.
 
 ## Summary
 
@@ -33,11 +33,10 @@ cause: Retained(TeardownCustody { ..., stage: Join, detached: true,
 ## Not tested
 
 - On the lfs-orb workbench itself (no test mounts are allowed there).
-- On a Linux host outside OrbStack.
 
 ## Impact
 
-Every agent Workspace lives longer than 30 s, so a terminal unmount may fail this way in normal use. The reopen gate (F20 cases that keep a mount for 30 s or more) records these cases in a baseline that cites this issue.
+Every agent Workspace lives longer than 30 s, so a terminal unmount may fail this way in normal use. The reopen gate checks this unmount in F20 and F35. It has no baseline entry for this fault, so a stall there is a plain `FAIL`.
 
 ## Update 2026-11-18
 
@@ -67,9 +66,44 @@ Not known: whether the original repro needed a private copy. That repro ran
 in an OrbStack Docker container (`node:24-bookworm`, `--device /dev/fuse
 --cap-add SYS_ADMIN`, Docker volumes). The original check through `/proc`
 found no process with a mount namespace in the mounts. So that container may
-stall for another reason, and the Boat cannot reproduce it. The open part of
-this issue is that container case. Run
-`tools/orbstack/unmount-join-repro.sh` in it: an `unmount:namespace` Busy that
-names a pid means the cause is the same, and a stop at `Join` with no copy
-listed means the cause is still unknown. Close this issue when that run
-unmounts cleanly or names its cause.
+stall for another reason, and the Boat cannot reproduce it. "Result
+2026-11-18" records the container runs.
+
+## Result 2026-11-18
+
+The stall did not occur in the OrbStack container runs of 2026-11-18. Its cause
+is unknown, and these runs do not prove a fix.
+
+All runs used product `b5eeb3c9d` on OrbStack on the Mac (aarch64, kernel
+7.2.12):
+
+- `tools/orbstack/unmount-join-repro.sh` in a `--privileged` container: B and
+  A answered `Unmounted`. A unmounted 40 s after its mount. The script listed
+  no copy of A's mount in another mount namespace, so the L9 path did not run.
+- The reopen gate, three runs, with `--cap-add SYS_ADMIN --cap-add
+  LINUX_IMMUTABLE --device /dev/fuse --security-opt apparmor=unconfined` and
+  without `--privileged`: each run had 115 `PASS` and no `FAIL`, and F20 and
+  F35 passed. The receipts are
+  [run 1](../../../../sdk/js/test/reopen/receipts/2026-11-18-b5eeb3c9d-run1.txt),
+  [run 2](../../../../sdk/js/test/reopen/receipts/2026-11-18-b5eeb3c9d-run2.txt)
+  and [run 3](../../../../sdk/js/test/reopen/receipts/2026-11-18-b5eeb3c9d-run3.txt).
+
+The stall was intermittent in the reopen gate on 2026-11-14. The receipts in
+`sdk/js/test/reopen/receipts/` show the two F20 unmount checks, in commit order
+on one line of history:
+
+| Product | F20 unmount checks |
+| --- | --- |
+| `3497e09d4` | Stopped at `Join` |
+| `80dcbce00` (`3497e09d4` with no product code change) | Passed |
+| `5f106ea97` | Stopped at `Join` |
+| `71a031e0b` | Passed |
+| `68257cc37` | Passed |
+| `d08e3b656` | Passed |
+| `779d0447e` | Stopped at `Join` |
+| `1e066f3c0` | Passed |
+| `095194ae6` | Passed |
+
+Clean runs therefore do not show that the fault is gone. The reopen baseline no
+longer accepts this fault. If F20 or F35 stops at `Join` again, the check
+reports `FAIL` and the gate exits 1. Reopen this issue with that report.

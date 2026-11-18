@@ -4,6 +4,3 @@
 # accepted only when its reason matches the regex; any other failure of the
 # same check stays a FAIL. The runner lists entries that did not fire, so
 # remove an entry when its defect is fixed.
-F20 rmain a: unmount without discard succeeds after the commit	\bJoin\b	core/docs/issues/unmount-join/README.md
-F20 rmain b: unmount with discard deletes the reopened overlay file	\bJoin\b	core/docs/issues/unmount-join/README.md
-F35 setup: a new saved Workspace, then SIGKILL	\bJoin\b	core/docs/issues/unmount-join/README.md
