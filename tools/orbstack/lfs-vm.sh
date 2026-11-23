@@ -27,7 +27,10 @@
 # Lasting state lives on the named volume `lfs-data` (made once), mounted at
 # /var/lib/layerfs-data: the LayerFS home and Stores, and the agent home with
 # its agent harnesses and logins. Recreating the container keeps them;
-# Sandboxes (daemons, Overlays, mounts) start fresh and are reclaimed.
+# Sandboxes (daemons, Overlays, mounts) start fresh and are reclaimed, unless
+# LFS_SANDBOX_VOLUME names the volume that the replaced container had at
+# /var/lib/layerfs: then vm-boot.sh reopens its Workspaces as after a restart
+# (ADR 0007).
 #
 # A shared folder, read-write both ways: $LFS_SHARE (default ~/lfs-share) on
 # the Mac is /share in the VM. Agents can write there, so treat its files as
@@ -36,7 +39,7 @@
 # Parts of the fleet-memory Obsidian vault ($LFS_VAULT, default
 # ~/vaults/fleet-memory), at /vaults/fleet-memory and, for agents, at
 # ~/vaults as on the Mac: features, diagrams and this year's summaries
-# read-write, router read-only. The generated memory pages stay out (agents
+# read-write, router read-only. There the generated memory pages stay out (agents
 # read them with `mac mem`), and so do summaries/foxway and the rest of
 # summaries: Foxway data must not reach the devin harness in the VM.
 # Each year's summaries folder is its own mount: at a new year, add it and
@@ -53,6 +56,13 @@
 # Mac's hooks read) is read-write. Agents can read them too, Foxway
 # transcripts, summaries and repositories included, and write that state:
 # the operator accepted that on 2026-11-10. A new root needs a recreate.
+#
+# The Obsidian mirror of memoryd writes the vault from `lfs-orb` (topics,
+# sessions, scopes, repos and the index note), so the whole vault is
+# read-write at its Mac path, for every agent: the operator accepted that on
+# 2026-11-23 (ADR 0007). Read-only on top of it: summaries and features
+# (memoryd reads them), and router and .obsidian (the mirror never writes
+# them). Docker mounts a parent folder before its children, in any flag order.
 #
 # Agents may use DNS and HTTPS to any host, the Agent Vault proxy, the Mac
 # bridge, SSH of github.com and gitlab.com, and in `lfs-orb` the span endpoint
@@ -143,7 +153,12 @@ print(f"{u.hostname}:{u.port}" if u.hostname and u.port else "")' "$memoryd_conf
     done
     # The Mac's mem hooks and mem in lfs-orb share the compact state.
     mkdir -p "$HOME/.local/state/memoryd"
-    memoryd_mounts+=(-v "$HOME/.local/state/memoryd:$HOME/.local/state/memoryd") ;;
+    memoryd_mounts+=(-v "$HOME/.local/state/memoryd:$HOME/.local/state/memoryd")
+    # The mirror's vault, read-write at its Mac path; the read-only mounts sit on top.
+    memoryd_mounts+=(-v "$vault:$vault")
+    for dir in "$vault/router" "$vault/.obsidian"; do
+      if [[ -d $dir ]]; then memoryd_mounts+=(-v "${dir}:${dir}:ro"); fi
+    done ;;
   lfs-foxway)
     [[ ${AGENT_VAULT_VAULT:-} == foxway* ]] || { echo "lfs-vm: lfs-foxway needs a Foxway vault (agent-vault-run foxway-workspace-dev)" >&2; exit 64; }
     volume=lfs-foxway-data ssh_port=${LFS_VM_SSH_PORT:-2224} memory=${LFS_VM_MEMORY:-8G}
@@ -170,11 +185,15 @@ docker network inspect $name >/dev/null 2>&1 || docker network create $name >/de
 # host.docker.internal, the Mac's loopback.
 gateway=0.250.250.254
 # LayerFS Sandboxes need a real filesystem: on OrbStack's overlay root, a
-# commit finds no changes. An anonymous volume holds them; `docker rm -v`
-# removes it, so a recreate starts them fresh.
+# commit finds no changes. A volume holds them: an anonymous one by default
+# (`docker rm -v` removes it, so a recreate starts them fresh), or the volume
+# that LFS_SANDBOX_VOLUME names.
+sandbox_volume=${LFS_SANDBOX_VOLUME:-}
+[[ -z $sandbox_volume ]] || docker volume inspect "$sandbox_volume" >/dev/null \
+  || { echo "lfs-vm: no volume $sandbox_volume (LFS_SANDBOX_VOLUME)" >&2; exit 66; }
 flags=(--device /dev/fuse --device /dev/net/tun --security-opt systempaths=unconfined
   --security-opt "seccomp=$repo/tools/orbstack/seccomp.json" --network $name --restart unless-stopped
-  -v /var/lib/layerfs)
+  -v "${sandbox_volume:+$sandbox_volume:}/var/lib/layerfs")
 
 docker run -d --init --name $name --cpus 10 --memory $memory --cap-add CAP_SYS_ADMIN --cap-add CAP_NET_ADMIN --cap-add CAP_SYS_PTRACE \
   $flags -p "127.0.0.1:$ssh_port:22" -v $volume:/var/lib/layerfs-data \
